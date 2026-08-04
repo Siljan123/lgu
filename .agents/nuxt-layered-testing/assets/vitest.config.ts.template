@@ -1,0 +1,33 @@
+import { defineConfig } from 'vitest/config'
+import { defineVitestProject } from '@nuxt/test-utils/config'
+
+// Glob patterns pick up every layer automatically — adding a new layer, or a
+// new test/unit or test/nuxt folder inside an existing layer, needs zero
+// changes here. e2e is intentionally absent: it runs through Playwright's own
+// config (see playwright.config.ts.template), not Vitest.
+export default defineConfig({
+  test: {
+    projects: [
+      {
+        test: {
+          name: 'unit',
+          environment: 'node',
+          include: [
+            'layers/*/test/unit/*.test.ts',
+            'test/unit/*.test.ts',
+          ],
+        },
+      },
+      await defineVitestProject({
+        test: {
+          name: 'nuxt',
+          environment: 'nuxt',
+          include: [
+            'layers/*/test/nuxt/*.test.ts',
+            'test/nuxt/*.test.ts',
+          ],
+        },
+      }),
+    ],
+  },
+})

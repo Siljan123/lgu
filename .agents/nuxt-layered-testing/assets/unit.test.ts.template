@@ -1,0 +1,16 @@
+// layers/<layer>/test/unit/<subject>.test.ts
+//
+// Pure logic only: no Nuxt auto-imports, no composables, no components.
+// Runs in the plain Node environment for speed.
+import { describe, expect, it } from 'vitest'
+import { subjectFn } from '../../utils/subject'
+
+describe('subjectFn', () => {
+  it('does the expected thing for a typical input', () => {
+    expect(subjectFn(/* input */)).toBe(/* expected */)
+  })
+
+  it('handles an edge case', () => {
+    expect(subjectFn(/* edge-case input */)).toBe(/* expected */)
+  })
+})

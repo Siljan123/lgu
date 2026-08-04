@@ -1,0 +1,10 @@
+// test/e2e/<flow-name>.test.ts
+//
+// Full running app, real browser. Cross-layer flows, SSR output, and real
+// navigation live here — never inside a layer's own test folder.
+import { expect, test } from '@nuxt/test-utils/playwright'
+
+test('<flow-name>', async ({ page, goto }) => {
+  await goto('/', { waitUntil: 'hydration' })
+  await expect(page.getByRole('heading')).toHaveText('expected heading')
+})

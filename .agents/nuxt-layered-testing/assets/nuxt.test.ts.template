@@ -1,0 +1,30 @@
+// layers/<layer>/test/nuxt/<Subject>.test.ts
+//
+// Needs the Nuxt runtime: components, composables, plugins, auto-imports.
+// Runs inside the `nuxt` Vitest environment via @nuxt/test-utils/runtime.
+import { describe, expect, it } from 'vitest'
+import { mountSuspended } from '@nuxt/test-utils/runtime'
+import { SubjectComponent } from '#components'
+
+describe('SubjectComponent', () => {
+  it('renders as expected', async () => {
+    const component = await mountSuspended(SubjectComponent)
+    expect(component.text()).toContain('expected text')
+  })
+})
+
+// If you're testing a composable rather than a component, call it inside a
+// mounted setup() so it has access to Nuxt context:
+//
+// import { useSubject } from '../../composables/useSubject'
+//
+// it('exposes the expected state', async () => {
+//   let result
+//   await mountSuspended({
+//     setup() {
+//       result = useSubject()
+//       return () => null
+//     },
+//   })
+//   expect(result.value).toBeDefined()
+// })
