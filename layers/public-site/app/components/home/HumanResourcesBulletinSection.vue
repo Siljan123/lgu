@@ -7,12 +7,9 @@ import {
   Download,
   Calendar,
   Building,
-  ArrowUpRight,
   Sparkles,
   ChevronRight,
-  Search,
   BadgeCheck,
-  UserCheck,
 } from '@lucide/vue'
 
 defineEmits<{

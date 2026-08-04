@@ -6,15 +6,11 @@ import {
   Users,
   CalendarDays,
   Download,
-  ArrowUpRight,
-  ChevronRight,
-  Clock,
   MapPin,
   CheckCircle2,
   Mail,
   FileText,
   Video,
-  BookOpen,
 } from '@lucide/vue'
 
 defineEmits<{

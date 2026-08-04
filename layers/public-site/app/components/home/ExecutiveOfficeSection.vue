@@ -6,19 +6,13 @@ import {
   Mic,
   Camera,
   Download,
-  ArrowUpRight,
   Calendar,
   Building,
   CheckCircle2,
   MapPin,
-  Sparkles,
-  ShieldCheck,
-  Award,
-  ChevronRight,
   Clock,
   Mail,
   TrendingUp,
-  Briefcase,
 } from '@lucide/vue'
 
 defineEmits<{

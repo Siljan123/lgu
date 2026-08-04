@@ -5,10 +5,8 @@ import {
   Compass,
   GraduationCap,
   ArrowUpRight,
-  ArrowRight,
 } from '@lucide/vue'
 import {
-  Card,
   CardHeader,
   CardTitle,
   CardDescription,

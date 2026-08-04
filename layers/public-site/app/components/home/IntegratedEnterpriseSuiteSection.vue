@@ -1,18 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import {
-  Users,
-  Landmark,
-  HeartPulse,
   Building2,
-  ShieldCheck,
-  Radio,
   ArrowUpRight,
-  ExternalLink,
   CheckCircle2,
   Server,
   Lock,
-  Cpu,
   Zap,
   ChevronRight,
 } from '@lucide/vue'

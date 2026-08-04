@@ -1,17 +1,13 @@
 <script setup lang="ts">
 import {
-  Newspaper,
   Calendar,
   Clock,
   ArrowUpRight,
-  ChevronRight,
   Sparkles,
   Tag,
   Building2,
-  Megaphone,
 } from '@lucide/vue'
 import {
-  Card,
   CardHeader,
   CardTitle,
   CardDescription,
