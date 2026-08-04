@@ -230,7 +230,7 @@ const mayorInAction = [
               <h3 class="text-xl font-medium tracking-tight text-[#171717] dark:text-[#ffffff]">
                 {{ mayorSidebarInfo.name }}
               </h3>
-              <p class="text-xs font-semibold text-red-600 dark:text-red-400 mt-0.5">
+              <p class="text-xs font-semibold text-[#171717] dark:text-[#e5e5e5] mt-0.5">
                 {{ mayorSidebarInfo.title }}
               </p>
             </div>

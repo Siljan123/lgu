@@ -9,20 +9,6 @@ import {
   Zap,
   ChevronRight,
 } from '@lucide/vue'
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from '@/../layers/base/app/components/ui/tabs'
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from '@/../layers/base/app/components/ui/card'
 
 interface EnterpriseCapability {
   label: string

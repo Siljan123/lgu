@@ -6,13 +6,6 @@ import {
   GraduationCap,
   ArrowUpRight,
 } from '@lucide/vue'
-import {
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from '@/../layers/base/app/components/ui/card'
 
 defineEmits<{
   (e: 'open-search', query?: string): void

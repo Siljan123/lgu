@@ -7,15 +7,6 @@ import {
   Tag,
   Building2,
 } from '@lucide/vue'
-import {
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from '@/../layers/base/app/components/ui/card'
-import { Badge } from '@/../layers/base/app/components/ui/badge'
-import { Button } from '@/../layers/base/app/components/ui/button'
 
 const emit = defineEmits<{
   (e: 'open-search', query?: string): void
