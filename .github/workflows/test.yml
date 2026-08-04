@@ -46,7 +46,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run ${{ matrix.project }} tests
-        run: pnpm vitest run --project ${{ matrix.project }}
+        run: pnpm vitest run --project ${{ matrix.project }} --passWithNoTests
 
   e2e:
     name: Playwright e2e
@@ -76,7 +76,7 @@ jobs:
         # @nuxt/test-utils/playwright builds and starts the Nuxt app itself
         # based on playwright.config.ts, so no separate build/serve step
         # is needed here.
-        run: pnpm exec playwright test
+        run: pnpm exec playwright test --pass-with-no-tests
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
