@@ -30,8 +30,11 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        # Reads the pnpm version from the "packageManager" field in
-        # package.json if present — no version pin needed here.
+        with:
+          version: 11
+          # If package.json has a "packageManager" field, action-setup
+          # uses that instead and this input is ignored — it's kept here
+          # as a fallback for repos that don't set one.
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -54,6 +57,8 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
+        with:
+          version: 11
 
       - name: Setup Node
         uses: actions/setup-node@v4
