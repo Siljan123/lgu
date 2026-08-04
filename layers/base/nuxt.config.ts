@@ -2,6 +2,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath } from 'node:url'
 
 const componentDir = fileURLToPath(new URL('./app/components/ui', import.meta.url))
+const currentDir = fileURLToPath(new URL('.', import.meta.url))
 
 export default defineNuxtConfig({
   vite: {
@@ -14,5 +15,8 @@ export default defineNuxtConfig({
   shadcn: {
     prefix: '',
     componentDir: componentDir
+  },
+  alias: {
+    '@base': currentDir
   }
 })
