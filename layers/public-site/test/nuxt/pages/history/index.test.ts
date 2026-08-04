@@ -6,8 +6,6 @@ import HistoryPage from '../../../../app/pages/(lgu-profile)/history/index.vue'
 
 describe('History Page', () => {
   it('renders history page correctly with its sections', async () => {
-    // We can use mockComponent if we want to isolate, but integration test of the page with its child components is often desired.
-    // However, `Footer` component might not exist in the test environment if it's from another layer or we want to mock it.
     mockComponent('Footer', () => import('vue').then(m => m.defineComponent({
       setup() {
         return () => m.h('div', { id: 'mock-footer' }, 'Footer')
@@ -16,8 +14,11 @@ describe('History Page', () => {
     
     const component = await mountSuspended(HistoryPage)
     
-    // Check if hero and history content is there (integration rendering)
-    expect(component.text()).toContain('The History ofSan Francisco')
+    // Check if hero section title and description are rendered
+    expect(component.text()).toContain('The History of')
+    expect(component.text()).toContain('San Francisco')
+    
+    // Check if history content section is rendered
     expect(component.text()).toContain('The birth of San Francisco')
     
     // Check if footer mock is rendered

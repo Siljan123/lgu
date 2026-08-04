@@ -9,9 +9,11 @@ export default defineNuxtConfig({
     plugins: [
       tailwindcss(),
     ],
+    
+    
   },
   css: [fileURLToPath(new URL('./app/assets/css/tailwind.css', import.meta.url)), fileURLToPath(new URL('./app/assets/css/animated.css', import.meta.url))],
-  modules: ['shadcn-nuxt'],
+  modules: ['shadcn-nuxt', '@nuxt/image'],
   shadcn: {
     prefix: '',
     componentDir: componentDir

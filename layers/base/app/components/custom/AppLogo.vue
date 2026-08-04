@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import DefaultLogo from '@/assets/images/logo/sfads-logo.png'
+import DefaultLogo from '/images/logo/sfads-logo.png'
 interface LogoProps {
   src?: string
   alt?: string
@@ -14,9 +14,10 @@ const props = withDefaults(defineProps<LogoProps>(), {
 </script>
 
 <template>
-  <img
+  <NuxtImg
     :src="props.src"
     :alt="props.alt"
     :class="['object-contain h-auto', props.class]"
+    format="webp"
   />
 </template>
