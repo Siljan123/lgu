@@ -13,31 +13,36 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-  <section class="w-full bg-[#ffffff] dark:bg-[#1c1c1c] pt-12 pb-8 sm:pt-16 sm:pb-12 overflow-hidden border-b border-[#dfdfdf] dark:border-[#2a2a2a]">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+  <section class="w-full bg-background pt-24 pb-16 lg:pt-32 lg:pb-24 overflow-hidden border-b border-[#dfdfdf] dark:border-[#2a2a2a]">
+    <div class="max-w-7xl mx-auto px-6 lg:px-8">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
         <!-- Text Content -->
-        <div class="max-w-2xl">
+        <div class="max-w-2xl flex flex-col justify-center">
+          
           <slot name="title">
-            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-medium tracking-tight text-[#171717] dark:text-[#ffffff] leading-[1.1] mb-4 whitespace-pre-line">
+            <h1 class="text-4xl md:text-5xl lg:text-7xl font-medium tracking-tight md:tracking-[-1.44px] lg:tracking-[-1.92px] text-primary leading-[1.1] mb-6 whitespace-pre-line text-balance">
               {{ title }}
             </h1>
           </slot>
+          
           <slot name="description">
-            <p v-if="description" class="text-[16px] sm:text-[18px] text-[#707070] dark:text-[#a3a3a3] leading-relaxed max-w-[65ch]">
+            <p v-if="description" class="text-base md:text-lg text-[#707070] dark:text-[#a3a3a3] leading-relaxed max-w-[65ch]">
               {{ description }}
             </p>
           </slot>
-          <slot />
+          
+          <div v-if="$slots.default" class="mt-8 flex flex-wrap gap-4">
+            <slot />
+          </div>
         </div>
 
         <!-- Image Content -->
-       <div v-if="image || $slots.image" class="relative w-full aspect-21/9 sm:aspect-video lg:aspect-video rounded-lg overflow-hidden bg-[#fafafa] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#2a2a2a]">
+       <div v-if="image || $slots.image" class="relative w-full aspect-4/3 rounded-lg overflow-hidden bg-[#fafafa] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#2a2a2a]">
         <slot name="image">
           <NuxtImg 
             :src="image" 
             :alt="imageAlt" 
-            class="w-full h-full object-cover opacity-90"
+            class="w-full h-full object-cover grayscale-[0.5] hover:grayscale-0 transition-all duration-700 ease-out opacity-90"
             loading="lazy"
             format="webp"
           />
