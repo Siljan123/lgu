@@ -68,6 +68,12 @@ export function useGuestNavigation() {
           type: 'link',
           description: "Access the citizen's charter of the LGU SFADS.",
         },
+         {
+          name: "Mission, Vision, and Core Values",
+          to: '/mission-vision',
+          type: 'link',
+          description: "Access the mission, vision, and core values of the LGU SFADS.",
+        },
       ]
     },
     {
