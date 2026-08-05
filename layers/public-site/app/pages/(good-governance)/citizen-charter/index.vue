@@ -8,15 +8,20 @@ useHead({
   meta: [
     {
       name: 'description',
-      content: "Official Citizen's Charter of the Municipal Economic Enterprise Development and Management Office (MEEDMO), Municipality of San Francisco, Agusan del Sur."
+      content: "Official Citizen's Charter of the Municipality of San Francisco, Agusan del Sur, detailing public service standards, processing times, fees, and requirements across municipal offices."
     }
   ]
 })
 </script>
 
 <template>
- <div class="min-h-dvh">
-    <CitizensCharterCard />
+  <div>
+    <UiHeroSection
+      title="Citizen's Charter"
+      description="Official Citizen's Charter of the Municipality of San Francisco, Agusan del Sur, detailing public service standards, processing times, fees, and requirements across municipal offices."
+    />
+    <CitizensCharterSection />
     <Footer />
   </div>
 </template>
+

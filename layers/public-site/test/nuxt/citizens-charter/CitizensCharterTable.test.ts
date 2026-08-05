@@ -45,7 +45,8 @@ describe('CitizensCharterTable Component', () => {
     expect(wrapper.text()).toContain('Head Officer C')
 
     // Check summary row
-    expect(wrapper.text()).toContain('End of the Transaction')
+    expect(wrapper.text()).toContain('End of Transaction')
     expect(wrapper.text()).toContain('30 Minutes')
   })
 })
+

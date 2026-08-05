@@ -29,6 +29,7 @@ export interface DepartmentGroup {
 
 export const useCitizensCharterData = () => {
   const searchQuery = ref('')
+  const selectedDepartmentId = ref('meedmo')
   const selectedServiceId = ref('complaints-and-assistance')
 
   const departmentsData: DepartmentGroup[] = [
@@ -203,6 +204,11 @@ export const useCitizensCharterData = () => {
     return departmentsData.flatMap(dept => dept.services)
   })
 
+  // Currently selected department / office
+  const selectedDepartment = computed(() => {
+    return departmentsData.find(d => d.id === selectedDepartmentId.value) || departmentsData[0]
+  })
+
   // Currently selected service detail object
   const selectedService = computed(() => {
     return allServices.value.find(s => s.id === selectedServiceId.value) || allServices.value[0]
@@ -215,28 +221,40 @@ export const useCitizensCharterData = () => {
     const q = searchQuery.value.toLowerCase().trim()
     return departmentsData
       .map(dept => {
+        const matchDeptName = dept.name.toLowerCase().includes(q) || dept.shortCode.toLowerCase().includes(q)
         const matchingServices = dept.services.filter(s =>
           s.serviceRendered.toLowerCase().includes(q) ||
           s.departmentName.toLowerCase().includes(q)
         )
         return {
           ...dept,
-          services: matchingServices
+          services: matchDeptName ? dept.services : matchingServices
         }
       })
       .filter(dept => dept.services.length > 0)
   })
 
+  const selectDepartment = (id: string) => {
+    selectedDepartmentId.value = id
+  }
+
   const selectService = (id: string) => {
     selectedServiceId.value = id
+    const service = allServices.value.find(s => s.id === id)
+    if (service) {
+      selectedDepartmentId.value = service.departmentId
+    }
   }
 
   return {
     searchQuery,
+    selectedDepartmentId,
+    selectedDepartment,
     selectedServiceId,
     selectedService,
     departmentsData,
     filteredDepartments,
+    selectDepartment,
     selectService
   }
 }
