@@ -174,3 +174,4 @@ const getCommitteeIcon = (committee?: string) => {
     </CardContent>
   </Card>
 </template>
+
