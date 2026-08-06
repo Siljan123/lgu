@@ -21,7 +21,7 @@ const displayContent = computed(() => props.content || defaultContent)
         <div 
           v-for="(stat, idx) in quickStats" 
           :key="idx" 
-          class="p-5 md:p-8 bg-[#fafafa] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#2e2e2e] rounded-xl flex flex-2 justify-between hover:border-[#c7c7c7] dark:hover:border-[#444] transition-all"
+          class="p-5 md:p-8 bg-[#fafafa] dark:bg-[#202020] border-r border-[#dfdfdf] dark:border-[#2e2e2e] flex flex-2 justify-between hover:border-[#c7c7c7] dark:hover:border-[#444] transition-all"
         >
           <div>
             <span class="text-sm uppercase tracking-wider text-[#707070] dark:text-[#a0a0a0] font-medium block mb-1">
@@ -66,7 +66,7 @@ const displayContent = computed(() => props.content || defaultContent)
             
             <!-- Floating Top Badges -->
             <div class="absolute top-4 left-4 right-4 flex items-center justify-between">
-              <span class="px-3">
+              <span class="px-3 py-1">
               </span>
               <span class="px-3 py-1 bg-black/60 backdrop-blur-md text-white text-xs font-mono rounded-full border border-white/20">
                 Agusan del Sur
