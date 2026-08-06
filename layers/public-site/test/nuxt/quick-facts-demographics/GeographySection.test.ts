@@ -6,7 +6,7 @@ describe('GeographySection Component', () => {
   it('renders Geography & Climate section with paragraph description and climate table', async () => {
     const wrapper = await mountSuspended(GeographySection)
 
-    expect(wrapper.text()).toContain('Geography & Climate')
+    expect(wrapper.text()).toContain('Geography')
     expect(wrapper.text()).toContain('392.53 square kilometres')
     expect(wrapper.text()).toContain('3.93%')
     expect(wrapper.text()).toContain('Climate Data for San Francisco, Agusan del Sur')

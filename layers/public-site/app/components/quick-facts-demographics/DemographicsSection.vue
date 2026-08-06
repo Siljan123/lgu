@@ -115,7 +115,7 @@ const activeTab = ref('all')
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#dfdfdf] dark:border-[#2c2c2c] pb-5">
             <div>
               <h3 class="text-xl font-medium text-[#171717] dark:text-[#ffffff] tracking-tight">
-                Population Census History
+               Demographics
               </h3>
               <p class="text-xs text-[#707070] dark:text-[#9a9a9a] mt-1">
                 San Francisco growth rate per census year (1960–2020)

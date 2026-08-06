@@ -28,7 +28,7 @@ const formatCellValue = (val: string) => {
         >
           <div class="flex items-center gap-4">
             <div class="text-left">
-              <h2 class="text-2xl md:text-3xl font-medium tracking-tight text-[#171717] px-4 dark:text-[#ffffff]">Geography &amp; Climate</h2>
+              <h2 class="text-2xl md:text-3xl font-medium tracking-tight text-[#171717] px-4 dark:text-[#ffffff]">Geography</h2>
            
             </div>
           </div>
@@ -57,23 +57,25 @@ const formatCellValue = (val: string) => {
           <div class="space-y-4 pt-2">
             <div class="border border-[#dfdfdf] dark:border-[#2e2e2e]  overflow-hidden bg-white dark:bg-[#1c1c1c] shadow-xs">
               <div class="overflow-x-auto">
-                <table class="w-full text-xs md:text-sm text-center whitespace-nowrap">
+                <table class="w-full text-xs md:text-sm text-center whitespace-nowrap border-collapse">
                   <thead class="bg-[#fafafa] dark:bg-[#242424] border-b border-[#dfdfdf] dark:border-[#2e2e2e] text-[#171717] dark:text-[#ffffff]">
                     <tr>
-                      <th colspan="14" class="py-3.5 px-4 text-xs md:text-sm font-semibold uppercase tracking-wider text-[oklch(0.497_0.18_26.815)] dark:text-red-400 border-b border-[#dfdfdf] dark:border-[#2e2e2e]">
-                        Climate Data for San Francisco, Agusan del Sur
+                      <th colspan="14" class="py-3.5 px-4 text-xs md:text-sm font-semibold uppercase tracking-wider text-[oklch(0.497_0.18_26.815)] dark:text-red-400 border-b border-[#dfdfdf] dark:border-[#2e2e2e] text-left">
+                        <span class="sticky left-4 inline-block">
+                          Climate Data for San Francisco, Agusan del Sur
+                        </span>
                       </th>
                     </tr>
-                    <tr class="text-[#707070] dark:text-[#9a9a9a] ">
-                      <th class="py-3 px-4 font-medium text-left">Month</th>
+                    <tr class="text-[#707070] dark:text-[#9a9a9a]">
+                      <th class="py-3 px-4 font-medium text-left sticky left-0 z-10 bg-[#fafafa] dark:bg-[#242424] border-r border-[#dfdfdf] dark:border-[#2e2e2e] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Month</th>
                       <th v-for="month in months" :key="month" class="py-3 px-4 bg-background font-medium">{{ month }}</th>
                       <th class="py-3 px-4 font-semibold text-[#171717] dark:text-[#ffffff] bg-[#f0f0f0] dark:bg-[#2a2a2a]">Year</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-[#dfdfdf] dark:divide-[#2e2e2e]">
                     <tr v-for="(row, idx) in climateData" :key="idx" class="hover:bg-[#fafafa] dark:hover:bg-[#222222] transition-colors">
-                      <td class="py-3.5 px-4 text-left font-medium bg-[#fafafa] dark:bg-[#242424] ">{{ row.label }}</td>
-                      <td v-for="(val, vIdx) in row.values" :key="vIdx" class="py-3.5 px-3 text-[] dark:text-[#e0e0e0] tabular-nums">
+                      <td class="py-3.5 px-4 text-left font-medium sticky left-0 z-10 bg-[#fafafa] dark:bg-[#242424] border-r border-[#dfdfdf] dark:border-[#2e2e2e] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">{{ row.label }}</td>
+                      <td v-for="(val, vIdx) in row.values" :key="vIdx" class="py-3.5 px-3 text-[#171717] dark:text-[#e0e0e0] tabular-nums">
                         <span v-html="formatCellValue(val)"></span>
                       </td>
                       <td class="py-3.5 px-4 font-semibold text-[#171717] dark:text-[#ffffff] bg-[#fafafa] dark:bg-[#242424] tabular-nums">
@@ -84,7 +86,9 @@ const formatCellValue = (val: string) => {
                   <tfoot class="bg-[#fafafa] dark:bg-[#242424] border-t border-[#dfdfdf] dark:border-[#2e2e2e]">
                     <tr>
                       <td colspan="14" class="py-3 px-4 text-left text-xs text-[#707070] dark:text-[#9a9a9a]">
-                        Source: Meteoblue (calculated / modeled climate statistics for San Francisco, Agusan del Sur)
+                        <span class="sticky left-4 inline-block">
+                          Source: Meteoblue (calculated / modeled climate statistics for San Francisco, Agusan del Sur)
+                        </span>
                       </td>
                     </tr>
                   </tfoot>

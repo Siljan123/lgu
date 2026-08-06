@@ -16,7 +16,7 @@ describe('DemographicsSection Component', () => {
   it('renders population census history table with growth rates and progress distribution bars', async () => {
     const wrapper = await mountSuspended(DemographicsSection)
 
-    expect(wrapper.text()).toContain('Population Census History')
+    expect(wrapper.text()).toContain('Demographics')
     expect(wrapper.text()).toContain('1960')
     expect(wrapper.text()).toContain('11,324')
     expect(wrapper.text()).toContain('2020')
