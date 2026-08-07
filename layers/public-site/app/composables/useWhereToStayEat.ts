@@ -120,10 +120,10 @@ export const useWhereToStayEat = () => {
     })
   })
 
-  // Reset page to 1 whenever filters or search query change
+  // Reset page to 1 synchronously whenever filters or search query change
   watch([selectedCategory, selectedBarangay, searchQuery], () => {
     currentPage.value = 1
-  })
+  }, { flush: 'sync' })
 
   // Paginated subset of filtered establishments
   const paginatedEstablishments = computed(() => {
