@@ -6,4 +6,9 @@ export default defineNuxtConfig({
     './layers/base',
     './layers/public-site'
   ],
+    runtimeConfig: {
+    public: {
+      googleMapsApiKey: process.env.NUXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+    },
+  },
 })
