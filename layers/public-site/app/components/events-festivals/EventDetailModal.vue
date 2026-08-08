@@ -65,7 +65,7 @@ onUnmounted(() => {
     >
       <div 
         v-if="isOpen && event" 
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-[#171717]/70 dark:bg-[#000000]/80 backdrop-blur-sm"
+        class="fixed inset-0 z-50 flex items-center justify-center mt-10 sm:p-6 overflow-y-auto bg-[#171717]/70 dark:bg-[#000000]/80 backdrop-blur-sm"
         @click.self="emit('close')"
       >
         <Transition
@@ -77,7 +77,7 @@ onUnmounted(() => {
           leave-to-class="opacity-0 scale-95 translate-y-4"
         >
           <div 
-            class="relative w-full max-w-4xl max-h-[90vh] flex flex-col bg-[#ffffff] dark:bg-[#1c1c1c] rounded-2xl border border-[#dfdfdf] dark:border-[#2e2e2e] shadow-2xl overflow-hidden"
+            class="relative w-full max-w-4xl max-h-[90vh] flex flex-col bg-[#ffffff] dark:bg-[#1c1c1c] rounded-lg border border-[#dfdfdf] dark:border-[#2e2e2e] overflow-hidden"
             role="dialog"
             aria-modal="true"
           >
@@ -104,29 +104,13 @@ onUnmounted(() => {
                 <div class="absolute inset-0 bg-linear-to-t from-[#171717] via-[#171717]/40 to-transparent"></div>
 
                 <div class="absolute bottom-6 left-6 right-6 text-[#ffffff] space-y-2">
-                  <div class="flex flex-wrap items-center gap-2">
-                    <span 
-                      v-if="event.isFlagship" 
-                      class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-[#85181a] dark:bg-[#ef4444] text-[#ffffff] shadow-md border border-[#ffffff]/20"
-                    >
-                      <Award :size="13" />
-                      Flagship Event
-                    </span>
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[#ffffff]/20 backdrop-blur-md text-[#ffffff] border border-[#ffffff]/20">
-                      {{ event.category }}
-                    </span>
-                  </div>
-
                   <h2 class="text-2xl sm:text-3xl md:text-4xl font-medium tracking-tight">
                     {{ event.name }}
                   </h2>
-                  <p class="text-xs sm:text-sm text-[#dfdfdf] font-mono">
-                    {{ event.tagline }}
-                  </p>
+                
                 </div>
               </div>
 
-              <!-- Quick Info Bar -->
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-6 bg-[#fafafa] dark:bg-[#202020]">
                 <div class="flex items-start gap-3">
                   <div>
@@ -165,13 +149,13 @@ onUnmounted(() => {
               </div>
 
               <!-- Program Highlights Section -->
-              <div class="p-6 md:p-8 space-y-6">
+              <div v-if="event.highlights && event.highlights.length > 0" class="p-6 md:p-8 space-y-6">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#85181a] dark:text-[#ef4444]">
                     <span>Schedule Activities</span>
                   </div>
                   <span class="text-xs text-[#707070] dark:text-[#a3a3a3]">
-                    {{ event.programHighlights.length }} Program Highlights
+                    {{ event.highlights.length }} Program Highlights
                   </span>
                 </div>
 
@@ -181,7 +165,7 @@ onUnmounted(() => {
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div 
-                    v-for="(item, idx) in event.programHighlights" 
+                    v-for="(item, idx) in event.highlights" 
                     :key="idx"
                     class="p-1 border-b flex items-start gap-3.5 transition-colors"
                   >
@@ -206,26 +190,6 @@ onUnmounted(() => {
                   <p class="text-sm text-[#707070] dark:text-[#a3a3a3] leading-relaxed">
                     {{ event.whyItMatters }}
                   </p>
-                </div>
-              </div>
-
-              <!-- How To Attend Section -->
-              <div class="p-6 md:p-8 space-y-4">
-                <h4 class="text-lg font-medium text-[#171717] dark:text-[#ffffff]">
-                  How to Attend
-                </h4>
-                <p class="text-sm text-[#707070] dark:text-[#a3a3a3] leading-relaxed">
-                  {{ event.howToAttend }}
-                </p>
-
-                <div class="pt-2 flex flex-wrap gap-2">
-                  <span 
-                    v-for="tag in event.tags" 
-                    :key="tag"
-                    class="px-2.5 py-1 rounded-md text-xs font-mono bg-[#ededed] dark:bg-[#2a2a2a] text-[#171717] dark:text-[#d4d4d4]"
-                  >
-                    #{{ tag }}
-                  </span>
                 </div>
               </div>
 

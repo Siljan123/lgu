@@ -27,29 +27,19 @@ const sampleRecurringEvents: RecurringEvent[] = [
 ]
 
 describe('EventRoadmapSection Component', () => {
-  it('renders section title, subtitle, and list of recurring events', async () => {
+  it('renders section title and list of recurring events', async () => {
     const wrapper = await mountSuspended(EventRoadmapSection, {
       props: {
         recurringEvents: sampleRecurringEvents
       }
     })
 
-    expect(wrapper.text()).toContain('Content Roadmap — Additional Observances')
     expect(wrapper.text()).toContain('Recurring Local & Municipal Events')
     expect(wrapper.text()).toContain('Barangay-Level Fiestas')
     expect(wrapper.text()).toContain('Independence Day Activities')
     expect(wrapper.text()).toContain('Dates vary by barangay throughout the year')
     expect(wrapper.text()).toContain('Annually, June 12')
-  })
-
-  it('renders LGU event calendar updates advisory box', async () => {
-    const wrapper = await mountSuspended(EventRoadmapSection, {
-      props: {
-        recurringEvents: sampleRecurringEvents
-      }
-    })
-
-    expect(wrapper.text()).toContain('LGU Event Calendar Updates')
-    expect(wrapper.text()).toContain('Submit Event Entry')
+    expect(wrapper.text()).toContain('Barangay Councils')
+    expect(wrapper.text()).toContain('LGU Executive Committee')
   })
 })

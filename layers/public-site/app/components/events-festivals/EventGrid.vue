@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Sparkles, RotateCcw, Calendar, MapPin, ChevronRight, Award } from '@lucide/vue'
 import type { EventFestival } from '../../composables/useEventsFestivals'
-import EventCard from './EventCard.vue'
 
 interface Props {
   events: EventFestival[]
@@ -22,12 +21,6 @@ const emit = defineEmits<{
       v-if="events.length > 0"
       class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8"
     >
-      <EventCard 
-        v-for="event in events" 
-        :key="event.id"
-        :event="event"
-        @select="emit('select', $event)"
-      />
     </div>
 
     <!-- Empty State -->

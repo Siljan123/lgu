@@ -3,23 +3,28 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import EventsFestivalsIndexPage from '../../../../app/pages/(tourism)/events-festivals/index.vue'
 
 describe('Events & Festivals Page', () => {
-  it('renders page hero header, title, and advisory section', async () => {
+  it('renders page hero header and section titles', async () => {
     const wrapper = await mountSuspended(EventsFestivalsIndexPage)
 
     expect(wrapper.text()).toContain('Events & Festivals')
     expect(wrapper.text()).toContain('Celebrate the vibrant culture, indigenous Manobo heritage')
-    expect(wrapper.text()).toContain('Participating in San Francisco Festivals?')
-    expect(wrapper.text()).toContain('Municipal Tourism Office')
+    expect(wrapper.text()).toContain('Municipal Festivals & Celebrations')
+    expect(wrapper.text()).toContain('Upcoming Events Feed')
   })
 
-  it('renders flagship event and category filter pills', async () => {
+  it('renders festival identity block and recurring highlights', async () => {
+    const wrapper = await mountSuspended(EventsFestivalsIndexPage)
+    expect(wrapper.text()).toContain('Magdiwata Festival')
+    expect(wrapper.text()).toContain('Tribal Street Dancing')
+    expect(wrapper.text()).toContain('Cultural & Indigenous')
+  })
+
+  it('renders upcoming events feed for dynamic scheduled events', async () => {
     const wrapper = await mountSuspended(EventsFestivalsIndexPage)
 
-    expect(wrapper.text()).toContain('Diwata / Magdiwata Festival')
-    expect(wrapper.text()).toContain('Cultural & Indigenous')
-    expect(wrapper.text()).toContain('Civic & Historical')
-    expect(wrapper.text()).toContain('Environmental & Conservation')
-    expect(wrapper.text()).toContain('Trade & Agriculture')
+    expect(wrapper.text()).toContain('Upcoming Events Feed')
+    expect(wrapper.text()).toContain('Manobo Tribal Street Dancing Competition')
+    expect(wrapper.text()).toContain('Philippine Independence Day Civic Parade')
   })
 
   it('renders content roadmap section with recurring events', async () => {
@@ -32,7 +37,7 @@ describe('Events & Festivals Page', () => {
     expect(wrapper.text()).toContain('LGU Agricultural & Trade Fairs')
   })
 
-  it('filters events when category pill is clicked', async () => {
+  it('filters events and festivals when category pill is clicked', async () => {
     const wrapper = await mountSuspended(EventsFestivalsIndexPage)
 
     const tradeButton = wrapper.findAll('button').find(b => b.text().trim() === 'Trade & Agriculture')
@@ -40,8 +45,8 @@ describe('Events & Festivals Page', () => {
 
     await tradeButton?.trigger('click')
 
-    expect(wrapper.text()).toContain('No events found matching your criteria')
-    expect(wrapper.text()).not.toContain('Diwata / Magdiwata Festival')
+    expect(wrapper.text()).not.toContain('Magdiwata Festival')
+    expect(wrapper.text()).toContain('Agusan del Sur Agricultural Produce & Craft Expo')
   })
 
   it('filters events when typing into search input', async () => {
@@ -51,7 +56,7 @@ describe('Events & Festivals Page', () => {
     expect(searchInput.exists()).toBe(true)
 
     await searchInput.setValue('Manobo')
-    expect(wrapper.text()).toContain('Diwata / Magdiwata Festival')
+    expect(wrapper.text()).toContain('Magdiwata Festival')
 
     await searchInput.setValue('NonMatchingSearchTerm')
     expect(wrapper.text()).toContain('No events found matching your criteria')

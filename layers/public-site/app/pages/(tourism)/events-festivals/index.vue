@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useEventsFestivals, type EventFestival } from '../../../composables/useEventsFestivals'
+import { ref, computed, watch } from 'vue'
+import { Calendar, Sparkles } from '@lucide/vue'
+import { useEventsFestivals, type Festival, type EventItem, type EventFestival } from '../../../composables/useEventsFestivals'
 import EventFilters from '../../../components/events-festivals/EventFilters.vue'
-import EventGrid from '../../../components/events-festivals/EventGrid.vue'
+import FestivalAboutCard from '../../../components/events-festivals/FestivalAboutCard.vue'
+import UpcomingEventCard from '../../../components/events-festivals/UpcomingEventCard.vue'
+import EventPagination from '../../../components/events-festivals/EventPagination.vue'
 import EventDetailModal from '../../../components/events-festivals/EventDetailModal.vue'
 import EventRoadmapSection from '../../../components/events-festivals/EventRoadmapSection.vue'
 
@@ -21,21 +24,67 @@ useHead({
 }) 
 
 const {
+  festivalsData,
   eventsData,
+  allEvents,
   recurringEventsData,
   categories,
   searchQuery,
   selectedCategory,
   filteredEvents,
+  filteredUpcomingEvents,
+  generalUpcomingEvents,
+  eventsForFestival,
   selectedEvent,
   selectEvent,
   selectCategory
 } = useEventsFestivals()
 
 const isModalOpen = ref(false)
+const modalEventItem = ref<EventFestival | null>(null)
 
-const handleSelectEvent = (item: EventFestival) => {
-  selectEvent(item)
+// Pagination state for Upcoming Events Feed
+const currentPage = ref(1)
+const itemsPerPage = 6
+
+const totalUpcomingPages = computed(() => {
+  return Math.ceil(filteredUpcomingEvents.value.length / itemsPerPage)
+})
+
+const paginatedUpcomingEvents = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  return filteredUpcomingEvents.value.slice(start, start + itemsPerPage)
+})
+
+watch([selectedCategory, searchQuery], () => {
+  currentPage.value = 1
+})
+
+const handleSelectEvent = (item: EventFestival | EventItem) => {
+  if ('tagline' in item) {
+    selectEvent(item)
+    modalEventItem.value = item
+  } else {
+    const mapped: EventFestival = {
+      id: item.id,
+      slug: item.id,
+      name: item.title,
+      tagline: item.badge || item.category,
+      category: item.category as any,
+      whenHeld: item.startDate + (item.endDate ? ` – ${item.endDate}` : ''),
+      venue: item.location,
+      shortDescription: item.shortDescription,
+      fullDescription: item.fullDescription || item.shortDescription,
+      highlights: [],
+      whyItMatters: 'Official municipal event organized for the community of San Francisco, Agusan del Sur.',
+      howToAttend: 'Open to the public at the designated venue.',
+      isFlagship: item.isFeatured || false,
+      image: item.image || '/images/destinations/mt_magdiwata.jpg',
+      organizer: item.organizer || 'LGU San Francisco',
+      tags: [item.category]
+    }
+    modalEventItem.value = mapped
+  }
   isModalOpen.value = true
 }
 
@@ -47,6 +96,20 @@ const handleResetFilters = () => {
   searchQuery.value = ''
   selectedCategory.value = 'All'
 }
+
+// Filtered festivals based on category and search
+const filteredFestivals = computed(() => {
+  return festivalsData.filter(festival => {
+    const matchesCategory = selectedCategory.value === 'All' || festival.category === selectedCategory.value
+    const query = searchQuery.value.toLowerCase().trim()
+    const matchesSearch = !query 
+      || festival.name.toLowerCase().includes(query)
+      || festival.shortDescription.toLowerCase().includes(query)
+      || festival.tags.some(t => t.toLowerCase().includes(query))
+
+    return matchesCategory && matchesSearch
+  })
+})
 </script>
 
 <template> 
@@ -67,59 +130,93 @@ const handleResetFilters = () => {
         :categories="categories"
         :selected-category="selectedCategory"
         :search-query="searchQuery"
-        :total-count="eventsData.length"
-        :filtered-count="filteredEvents.length"
+        :total-count="festivalsData.length + allEvents.length"
+        :filtered-count="filteredFestivals.length + filteredUpcomingEvents.length"
         @update:selected-category="selectCategory"
         @update:search-query="searchQuery = $event"
       />
 
-      <!-- Events & Festivals Grid -->
-      <EventGrid
-        :events="filteredEvents"
-        @select="handleSelectEvent"
-        @reset-filters="handleResetFilters"
-      />
+      <!-- Festivals Section (Static Identity Blocks with Live Events Underneath) -->
+      <section v-if="filteredFestivals.length > 0" class="space-y-8">
+        <div class="border-b border-[#dfdfdf] dark:border-[#2e2e2e] pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 class="text-2xl font-medium tracking-tight text-[#171717] dark:text-[#ffffff]">
+              Municipal Festivals & Celebrations
+            </h2>
+            <p class="text-xs md:text-sm text-[#707070] dark:text-[#a3a3a3] mt-0.5">
+              Cultural identity & heritage write-ups with live, scheduled festival activities listed underneath.
+            </p>
+          </div>
+        </div>
+
+        <div class="space-y-10">
+          <FestivalAboutCard 
+            v-for="festival in filteredFestivals"
+            :key="festival.id"
+            :festival="festival"
+            :events="eventsForFestival(festival.slug)"
+            @select-event="handleSelectEvent"
+          />
+        </div>
+      </section>
+
+      <!-- General Upcoming Events Feed Section -->
+      <section class="space-y-8">
+        <div class="border-b border-[#dfdfdf] dark:border-[#2e2e2e] pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 class="text-2xl font-medium tracking-tight text-[#171717] dark:text-[#ffffff] flex items-center gap-2">
+              <Calendar :size="22" class="text-[#85181a] dark:text-[#ef4444]" />
+              Upcoming Events Feed
+            </h2>
+            <p class="text-xs md:text-sm text-[#707070] dark:text-[#a3a3a3] mt-0.5">
+              Dynamic scheduled entries for civic, community, agricultural, and holiday town programs.
+            </p>
+          </div>
+        </div>
+
+        <!-- Paginated Events Feed -->
+        <div 
+          v-if="filteredUpcomingEvents.length > 0"
+          class="space-y-8"
+        >
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <UpcomingEventCard
+              v-for="event in paginatedUpcomingEvents"
+              :key="event.id"
+              :event="event"
+              @select="handleSelectEvent"
+            />
+          </div>
+
+          <!-- Pagination Bar -->
+          <EventPagination
+            v-model:current-page="currentPage"
+            :total-pages="totalUpcomingPages"
+            :total-items="filteredUpcomingEvents.length"
+            :items-per-page="itemsPerPage"
+          />
+        </div>
+
+        <div 
+          v-else-if="filteredFestivals.length === 0"
+          class="w-full p-12 text-center rounded-2xl border border-dashed border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#fafafa] dark:bg-[#1a1a1a]"
+        >
+          <p class="text-base text-[#707070] dark:text-[#a3a3a3]">
+            No events found matching your criteria. Try switching categories or clearing search.
+          </p>
+        </div>
+      </section>
 
       <!-- Recurring Events & Content Roadmap Section -->
       <EventRoadmapSection
         :recurring-events="recurringEventsData"
       />
 
-      <!-- Municipal Tourism Advisory Section -->
-      <section class="p-8 md:p-10 rounded-2xl bg-[#fafafa] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#2e2e2e] flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
-        <div class="space-y-2 max-w-2xl">
-          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-[#85181a]/10 dark:bg-[#ef4444]/10 text-[#85181a] dark:text-[#ef4444]">
-            Municipal Tourism Office
-          </div>
-          <h3 class="text-xl md:text-2xl font-medium tracking-tight text-[#171717] dark:text-[#ffffff]">
-            Participating in San Francisco Festivals?
-          </h3>
-          <p class="text-sm md:text-base text-[#707070] dark:text-[#a3a3a3] leading-relaxed">
-            For street dancing registration, trade fair stall accreditation, or environmental summit passes, contact the Municipal Tourism Office or check our official bulletins.
-          </p>
-        </div>
-
-        <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto shrink-0">
-          <NuxtLink 
-            to="/citizen-charter" 
-            class="inline-flex items-center justify-center px-5 py-3 rounded-lg border border-[#dfdfdf] dark:border-[#333333] text-sm font-semibold text-[#171717] dark:text-[#ffffff] hover:bg-[#ffffff] dark:hover:bg-[#1a1a1a] transition-colors"
-          >
-            Citizen's Charter
-          </NuxtLink>
-          <a 
-            href="mailto:tourism@sanfrancisco-ads.gov.ph"
-            class="inline-flex items-center justify-center px-6 py-3 rounded-lg text-sm font-semibold text-[#ffffff] bg-[#85181a] hover:bg-[#6b1214] dark:bg-[#ef4444] dark:hover:bg-[#dc2626] transition-colors shadow-sm"
-          >
-            Inquire Tourism Office
-          </a>
-        </div>
-      </section>
-
     </main>
 
     <!-- Event Detail Modal -->
     <EventDetailModal
-      :event="selectedEvent"
+      :event="modalEventItem"
       :is-open="isModalOpen"
       @close="handleCloseModal"
     />
