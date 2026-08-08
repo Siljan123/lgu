@@ -8,19 +8,13 @@ describe('CoreSection Component', () => {
 
     expect(wrapper.text()).toContain('Core Values')
 
-    expect(wrapper.text()).toContain('01')
-    expect(wrapper.text()).toContain('Respect for Human Worth and Dignity')
 
-    expect(wrapper.text()).toContain('02')
-    expect(wrapper.text()).toContain('Unity')
+    expect(wrapper.text()).toContain('Respect for Human Worth and Dignity; Unity;')
 
-    expect(wrapper.text()).toContain('03')
     expect(wrapper.text()).toContain('Trustworthiness and Accountability')
 
-    expect(wrapper.text()).toContain('04')
-    expect(wrapper.text()).toContain("Passion and Commitment for People's Development")
 
-    expect(wrapper.text()).toContain('05')
-    expect(wrapper.text()).toContain('Concern for Environment Conservation and Protection')
+    expect(wrapper.text()).toContain("Passion and Commitment for People's Development; and Concern for Environment Conservation and Protection")
+
   })
 })
