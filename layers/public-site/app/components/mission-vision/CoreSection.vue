@@ -6,7 +6,7 @@ const {core} = useContent()
 <template>
   <section class="px-6 py-24 md:py-32 bg-[#fafafa] dark:bg-[#1c1c1c] transition-colors">
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
-
+      <h1 class="uppercase text-2xl text-foreground font-semibold">Core Values</h1>
       <!-- Typographic Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-16 border-t border-[#dfdfdf] pt-16">
         <div

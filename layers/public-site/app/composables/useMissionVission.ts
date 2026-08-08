@@ -20,7 +20,7 @@ export const useContent = ():Content =>{
                     description:'Trustworthiness and Accountability'
                 },
                 {
-                    description:'Passion and Commitment for People`s Development; and Concern for Environment Conservation and Protection'
+                    description:"Passion and Commitment for People's Development; and Concern for Environment Conservation and Protection"
                 }
 
             ]
