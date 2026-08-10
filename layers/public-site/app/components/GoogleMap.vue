@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, shallowRef, watch, onMounted, nextTick, onBeforeUnmount } from 'vue'
+import type { RouteCalculationResult } from '../composables/useGooglemaps'
 
 export interface CustomSuggestion {
   id?: string
@@ -21,6 +22,11 @@ interface Props {
   showSearch?: boolean
   searchPlaceholder?: string
   showStreetViewBtn?: boolean
+  routeOrigin?: google.maps.LatLngLiteral | string | null
+  routeDestination?: google.maps.LatLngLiteral | string | null
+  travelMode?: 'DRIVING' | 'WALKING' | 'BICYCLING' | 'TRANSIT'
+  showRouteSummary?: boolean
+  mapTypeId?: 'hybrid' | 'roadmap' | 'satellite' | 'terrain'
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -31,6 +37,11 @@ const props = withDefaults(defineProps<Props>(), {
   showSearch: false,
   searchPlaceholder: 'Search location or address…',
   showStreetViewBtn: true,
+  routeOrigin: null,
+  routeDestination: null,
+  travelMode: 'DRIVING',
+  showRouteSummary: true,
+  mapTypeId: 'hybrid',
 })
 
 const emit = defineEmits<{
@@ -39,6 +50,7 @@ const emit = defineEmits<{
   click: [event: google.maps.MapMouseEvent]
   search: [result: { address: string; location: google.maps.LatLngLiteral }]
   'streetview-change': [active: boolean]
+  'route-calculated': [result: RouteCalculationResult | null]
 }>()
 
 const mapContainer = ref<HTMLElement | null>(null)
@@ -54,7 +66,15 @@ const activeInfoWindow = shallowRef<google.maps.InfoWindow | null>(null)
 const pending = ref(true)
 const error = ref<string | null>(null)
 
-const { loadGoogleMaps, createMap, createMarker, geocodeAddress, getNearestPanorama } = useGoogleMaps()
+const directionsRenderer = shallowRef<google.maps.DirectionsRenderer | null>(null)
+const routePolyline = shallowRef<google.maps.Polyline | null>(null)
+const routeStartMarker = shallowRef<google.maps.Marker | null>(null)
+const routeEndMarker = shallowRef<google.maps.Marker | null>(null)
+
+const currentRouteResult = ref<RouteCalculationResult | null>(null)
+const routeLoading = ref(false)
+
+const { loadGoogleMaps, createMap, createMarker, geocodeAddress, getNearestPanorama, calculateDirections } = useGoogleMaps()
 
 async function renderMarkers() {
   if (!map.value) return
@@ -83,6 +103,100 @@ async function renderMarkers() {
     })
   )
   mapMarkers.value = createdMarkers
+}
+
+function clearRouteGraphics() {
+  if (directionsRenderer.value) {
+    directionsRenderer.value.setMap(null)
+    directionsRenderer.value = null
+  }
+  if (routePolyline.value) {
+    routePolyline.value.setMap(null)
+    routePolyline.value = null
+  }
+  if (routeStartMarker.value) {
+    routeStartMarker.value.setMap(null)
+    routeStartMarker.value = null
+  }
+  if (routeEndMarker.value) {
+    routeEndMarker.value.setMap(null)
+    routeEndMarker.value = null
+  }
+  currentRouteResult.value = null
+}
+
+async function renderRoutePath() {
+  if (!map.value) return
+  if (!props.routeOrigin || !props.routeDestination) {
+    clearRouteGraphics()
+    emit('route-calculated', null)
+    return
+  }
+
+  routeLoading.value = true
+  try {
+    clearRouteGraphics()
+    const result = await calculateDirections(props.routeOrigin, props.routeDestination, props.travelMode)
+    if (!result || !map.value) {
+      emit('route-calculated', null)
+      return
+    }
+
+    currentRouteResult.value = result
+
+    if (result.directionsResult && typeof google !== 'undefined' && google.maps && google.maps.DirectionsRenderer) {
+      directionsRenderer.value = new google.maps.DirectionsRenderer({
+        map: map.value,
+        suppressMarkers: false,
+        polylineOptions: {
+          strokeColor: '#85181a',
+          strokeWeight: 5,
+          strokeOpacity: 0.85,
+        },
+      })
+      directionsRenderer.value.setDirections(result.directionsResult)
+    } else if (result.path && result.path.length > 0) {
+      // Custom Polyline Fallback
+      routePolyline.value = new google.maps.Polyline({
+        map: map.value,
+        path: result.path,
+        strokeColor: '#85181a',
+        strokeOpacity: 0.85,
+        strokeWeight: 5,
+        geodesic: true,
+      })
+
+      const originPt = result.path[0]!
+      const destPt = result.path[result.path.length - 1]!
+
+      routeStartMarker.value = new google.maps.Marker({
+        map: map.value,
+        position: originPt,
+        title: 'Start Location',
+        label: 'A',
+      })
+
+      routeEndMarker.value = new google.maps.Marker({
+        map: map.value,
+        position: destPt,
+        title: 'Destination',
+        label: 'B',
+      })
+
+      if (typeof google !== 'undefined' && google.maps && google.maps.LatLngBounds) {
+        const bounds = new google.maps.LatLngBounds()
+        result.path.forEach(p => bounds.extend(p))
+        map.value.fitBounds(bounds)
+      }
+    }
+
+    emit('route-calculated', result)
+  } catch (err) {
+    console.error('Failed to render route path:', err)
+    emit('route-calculated', null)
+  } finally {
+    routeLoading.value = false
+  }
 }
 
 function initAutocomplete() {
@@ -199,6 +313,7 @@ onMounted(async () => {
     map.value = createMap(mapContainer.value, {
       center: mapCenter,
       zoom: props.zoom,
+      mapTypeId: props.mapTypeId,
       streetViewControl: true,
       ...props.mapOptions,
     })
@@ -207,6 +322,9 @@ onMounted(async () => {
     setupStreetViewListener()
 
     await renderMarkers()
+    if (props.routeOrigin && props.routeDestination) {
+      await renderRoutePath()
+    }
     if (props.showSearch) {
       nextTick(() => initAutocomplete())
     }
@@ -228,9 +346,14 @@ watch(() => props.centerAddress, async (addr) => {
 })
 watch(() => props.zoom, (z) => { if (typeof z === 'number') map.value?.setZoom(z) })
 
+watch([() => props.routeOrigin, () => props.routeDestination, () => props.travelMode], () => {
+  renderRoutePath()
+})
+
 onBeforeUnmount(() => {
   mapMarkers.value.forEach(m => m.setMap(null))
   if (searchMarker.value) searchMarker.value.setMap(null)
+  clearRouteGraphics()
 })
 </script>
 
@@ -238,30 +361,43 @@ onBeforeUnmount(() => {
   <div class="relative w-full overflow-hidden rounded-xl border border-[#dfdfdf] dark:border-[#2e2e2e] shadow-md bg-[#ffffff] dark:bg-[#202020]" :style="{ height }">
 
     <div ref="mapContainer" class="h-full w-full" />
+
     <div
-      v-if="!pending && !error && showStreetViewBtn"
-      class="absolute top-3 right-20 z-10"
+      v-if="showRouteSummary && currentRouteResult"
+      class="absolute top-2 left-50 z-10 max-w-70 sm:max-w-xs bg-[#ffffff]/90 dark:bg-[#181818]/90 backdrop-blur-md p-3 rounded-xl border border-[#dfdfdf] dark:border-[#333333] shadow-lg text-xs space-y-1.5"
     >
-      <button
-        type="button"
-        @click="toggleStreetView"
-        class="flex items-center gap-1.5 px-3 py-2 text-xs  font border border-[#dfdfdf] dark:border-[#333333] shadow-md transition-colors bg-[#85181a]  backdrop-blur-md text-[#ffffff]"
-        :class="{ 'ring-2 ring-[#85181a] bg-[#85181a]/10': isStreetViewActive }"
-        :title="isStreetViewActive ? 'Exit Street View' : 'Open Street View'"
-      >
-        <span>{{ isStreetViewActive ? 'Exit Street View' : 'Street View' }}</span>
-      </button>
+      <div class="flex items-center justify-between text-[#171717] dark:text-[#ffffff] font-medium">
+        <span>Distance: <strong>{{ currentRouteResult.distanceText }}</strong></span>
+      </div>
+      <p v-if="currentRouteResult.isFallbackPolyline" class="text-[10px] text-[#707070] dark:text-[#a3a3a3] italic">
+        Direct polyline connecting landmarks
+      </p>
     </div>
 
-    <div v-if="pending" class="absolute inset-0 flex items-center justify-center bg-[#ffffff]/60 dark:bg-[#171717]/60 backdrop-blur-xs">
-      <span class="text-sm font-semibold text-[#707070] dark:text-[#a3a3a3]">Loading Map…</span>
+    <div v-if="pending || routeLoading" class="absolute inset-0 flex items-center justify-center bg-[#ffffff]/60 dark:bg-[#171717]/60 backdrop-blur-xs z-20">
+      <span class="text-sm font-semibold text-[#707070] dark:text-[#a3a3a3] animate-pulse">
+        {{ routeLoading ? 'Calculating Route Line…' : 'Loading Map…' }}
+      </span>
     </div>
 
-    <div v-if="error" class="absolute inset-0 flex items-center justify-center bg-red-500/10 px-4 text-center">
+    <div v-if="error" class="absolute inset-0 flex items-center justify-center bg-red-500/10 px-4 text-center z-20">
       <span class="text-sm text-red-600 font-medium">{{ error }}</span>
     </div>
   </div>
 </template>
+
+<style>
+/* Remove native top-right X close button from Google Maps InfoWindow */
+.gm-ui-hover-effect {
+  display: none !important;
+}
+
+/* Adjust InfoWindow content container padding for custom Close button */
+.gm-style-iw-c {
+  padding-right: 12px !important;
+}
+</style>
+
 
 <style>
 /* Remove native top-right X close button from Google Maps InfoWindow */

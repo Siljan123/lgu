@@ -15,14 +15,14 @@ describe('useDestinations composable', () => {
   it('filters destinations correctly by category', () => {
     const { selectCategory, selectedCategory, filteredDestinations } = useDestinations()
 
-    selectCategory('Heritage & Culture')
-    expect(selectedCategory.value).toBe('Heritage & Culture')
-    const heritageItems = filteredDestinations.value
-    expect(heritageItems.length).toBeGreaterThan(5)
-    expect(heritageItems.map(d => d.name)).toContain('Bible Baptist Church')
-    expect(heritageItems.map(d => d.name)).toContain('Forsquare Gospel Church')
+    selectCategory('Cultural & Historical Landmarks')
+    expect(selectedCategory.value).toBe('Cultural & Historical Landmarks')
+    const culturalItems = filteredDestinations.value
+    expect(culturalItems.length).toBeGreaterThan(5)
+    expect(culturalItems.map(d => d.name)).toContain('Bible Baptist Church')
+    expect(culturalItems.map(d => d.name)).toContain('Forsquare Gospel Church')
 
-    selectCategory('Inland Resorts')
+    selectCategory('Day-Tour Resorts / Swimming Spots')
     expect(filteredDestinations.value.map(d => d.name)).toContain('Carson Waterside Mountain Resort')
   })
 
