@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useDestinations } from '../../../composables/useDestinations'
+import { Search, X, MapPin, MoveLeft } from '@lucide/vue'
+import { useDestinations, type LandmarkOption } from '../../../composables/useDestinations'
 import GoogleMap from '../../../components/GoogleMap.vue'
-import { MoveLeft } from '@lucide/vue'
 
 definePageMeta({
   layout: 'guest'
 })
 
 const route = useRoute()
-const { getDestinationById, destinationsData } = useDestinations()
+const { getDestinationById, destinationsData, allLandmarkOptions } = useDestinations()
 
 const destinationId = computed(() => route.params.id as string)
 const destination = computed(() => getDestinationById(destinationId.value))
@@ -21,11 +21,41 @@ if (!destination.value) {
 
 const activePhotoIndex = ref(0)
 const hasImageError = ref(false)
+const originLandmarkId = ref<string>('')
+const pageSearchQuery = ref<string>('')
+const isPageDropdownOpen = ref(false)
+const sectionRef = ref<HTMLElement | null>(null)
 
 watch(destinationId, () => {
   activePhotoIndex.value = 0
   hasImageError.value = false
+  originLandmarkId.value = ''
+  pageSearchQuery.value = ''
+  isPageDropdownOpen.value = false
 })
+
+const originLandmark = computed(() => {
+  if (!originLandmarkId.value) return null
+  return allLandmarkOptions.find(l => l.id === originLandmarkId.value) || null
+})
+
+const filteredPageOrigins = computed(() => {
+  const q = pageSearchQuery.value.toLowerCase().trim()
+  return allLandmarkOptions.filter(l => {
+    return !q || l.name.toLowerCase().includes(q) || l.barangay.toLowerCase().includes(q) || l.category.toLowerCase().includes(q)
+  }).slice(0, 10)
+})
+
+function selectPageOrigin(item: LandmarkOption) {
+  originLandmarkId.value = item.id
+  pageSearchQuery.value = item.name
+  isPageDropdownOpen.value = false
+}
+
+function clearPageOrigin() {
+  originLandmarkId.value = ''
+  pageSearchQuery.value = ''
+}
 
 const currentImage = computed(() => {
   if (destination.value?.photoUrls && destination.value.photoUrls.length > activePhotoIndex.value) {
@@ -56,8 +86,18 @@ useHead({
   ]
 })
 
-const otherDestinations = computed(() => {
-  return destinationsData.filter(d => d.id !== destinationId.value).slice(0, 3)
+function handleClickOutsideSection(e: MouseEvent) {
+  if (sectionRef.value && !sectionRef.value.contains(e.target as Node)) {
+    isPageDropdownOpen.value = false
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('click', handleClickOutsideSection)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('click', handleClickOutsideSection)
 })
 </script>
 
@@ -107,7 +147,6 @@ const otherDestinations = computed(() => {
       </div>
     </section>
 
-    <!-- Main Detail Content -->
     <main class="flex-1 w-full max-w-7xl mx-auto px-6 lg:px-8 py-12 md:py-16 space-y-12">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
         
@@ -157,7 +196,6 @@ const otherDestinations = computed(() => {
           </div>
         </div>
 
-        <!-- Right Background Info -->
         <div class="lg:col-span-5 space-y-6">
           <div>
             <h2 class="text-xs font-semibold uppercase tracking-wider text-[#85181a] dark:text-[#ef4444] mb-2">
@@ -180,32 +218,81 @@ const otherDestinations = computed(() => {
             </NuxtLink>
           </div>
         </div>
-
       </div>
+    </main>
+      <!-- Google Map Pin & Route Line Path Widget -->
+      <section ref="sectionRef" v-if="destination.coordinates?.lat && destination.coordinates?.lng" class="bg-gray-50 dark:bg-background relative z-30 flex-1 w-full mx-auto px-6 lg:px-8 py-12 md:py-16 space-y-1">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 max-w-7xl mx-auto">
+          <div>
+            <h2 class="text-xl md:text-2xl font-medium text-[#171717] dark:text-[#ffffff]">
+              Map Location & Interactive Route Line Path
+            </h2>
+            <p class="text-xs text-[#707070] dark:text-[#a3a3a3] mt-0.5">
+              Exact GPS: {{ destination.coordinates.lat.toFixed(6) }}, {{ destination.coordinates.lng.toFixed(6) }}
+            </p>
+          </div>
 
-      <!-- Google Map Pin Widget -->
-      <section v-if="destination.coordinates?.lat && destination.coordinates?.lng" class="space-y-4">
-        <div class="flex items-center justify-between">
-          <h2 class="text-xl md:text-2xl font-medium text-[#171717] dark:text-[#ffffff]">
-            Map Location & Street View
-          </h2>
-          <span class="text-xs text-[#707070] dark:text-[#a3a3a3]">
-            {{ destination.coordinates.lat.toFixed(6) }}, {{ destination.coordinates.lng.toFixed(6) }}
-          </span>
+          <div class="relative min-w-65 sm:min-w-[320px]">
+            <div class="relative">
+              <input
+                type="text"
+                v-model="pageSearchQuery"
+                placeholder="Going to? Search here..."
+                class="w-full pl-9 pr-8 py-2 rounded-xl border border-[#dfdfdf] dark:border-[#333333] bg-[#fafafa] dark:bg-[#202020] text-xs font-medium text-[#171717] dark:text-[#ffffff] focus:outline-none focus:ring-2 focus:ring-[#85181a] dark:focus:ring-[#ef4444]"
+                @focus="isPageDropdownOpen = true"
+              />
+              <Search class="w-4 h-4 text-[#85181a] dark:text-[#ef4444] absolute left-2.5 top-2.5 pointer-events-none" />
+              <button
+                v-if="pageSearchQuery"
+                type="button"
+                @click="clearPageOrigin"
+                class="absolute right-2.5 top-2.5 text-[#9a9a9a] hover:text-[#171717] dark:hover:text-[#ffffff]"
+              >
+                <X class="w-4 h-4" />
+              </button>
+            </div>
+
+            <div
+              v-if="isPageDropdownOpen && filteredPageOrigins.length > 0"
+              class="absolute top-full left-0 right-0 mt-1 bg-[#ffffff] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#303030] rounded-xl shadow-xl z-50 max-h-56 overflow-y-auto divide-y divide-[#f0f0f0] dark:divide-[#2a2a2a]"
+            >
+              <div class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#888888] dark:text-[#777777] bg-[#fafafa] dark:bg-[#1a1a1a]">
+                Select Starting Point
+              </div>
+              <button
+                v-for="l in filteredPageOrigins"
+                :key="l.id"
+                type="button"
+                class="w-full text-left px-3.5 py-2 text-xs font-medium text-[#171717] dark:text-[#ffffff] hover:bg-[#fafafa] dark:hover:bg-[#282828] hover:text-[#85181a] dark:hover:text-[#ef4444] flex items-center justify-between transition-colors"
+                @mousedown.prevent="selectPageOrigin(l)"
+              >
+                <div class="truncate">
+                  <div class="font-semibold">{{ l.name }}</div>
+                  <div class="text-[10px] text-[#707070] dark:text-[#a3a3a3]">Brgy. {{ l.barangay }}</div>
+                </div>
+                <span class="px-2 py-0.5 rounded text-[9px] uppercase font-bold tracking-wider shrink-0 ml-2" :class="[l.type === 'bank' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-gray-500/10 text-gray-600 dark:text-gray-400']">
+                  {{ l.category }}
+                </span>
+              </button>
+            </div>
+          </div>
         </div>
-
-        <GoogleMap
+        <div class=" max-w-7xl mx-auto">
+          <GoogleMap
           :center="destination.coordinates"
           :zoom="15"
           :markers="mapMarkers"
-          height="360px"
+          :route-origin="originLandmark?.coordinates || null"
+          :route-destination="destination.coordinates"
+          height="380px"
           :show-street-view-btn="true"
         />
+        </div>
+        
       </section>
-
-    </main>
-
     <Footer />
   </div>
 </template>
+
+
 

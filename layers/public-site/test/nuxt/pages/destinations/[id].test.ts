@@ -16,7 +16,6 @@ describe('Destination Landmark Detail Page ([id].vue)', () => {
     expect(wrapper.text()).toContain('Bible Baptist Church')
     expect(wrapper.text()).toContain('Barangay 5, San Francisco')
     expect(wrapper.text()).toContain('About this landmark')
-    expect(wrapper.text()).toContain('Map Location & Street View')
     expect(wrapper.text()).toContain('Back to all destinations')
   })
 

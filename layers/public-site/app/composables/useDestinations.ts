@@ -32,6 +32,27 @@ interface CoordinateItem {
   closing?: string
 }
 
+export interface LandmarkOption {
+  id: string
+  name: string
+  category: string
+  barangay: string
+  coordinates: { lat: number; lng: number }
+  type: 'bank' | 'terminal' | 'resort' | 'church' | 'mall' | 'civic' | 'other'
+}
+
+export async function fetchCoordinatesData(apiUrl?: string): Promise<CoordinateItem[]> {
+  if (apiUrl) {
+    try {
+      const data = await $fetch<CoordinateItem[]>(apiUrl)
+      if (Array.isArray(data) && data.length > 0) return data
+    } catch (err) {
+      console.warn(`Coordinates API request to "${apiUrl}" failed, falling back to coordinates.json:`, err)
+    }
+  }
+  return rawCoordinates as CoordinateItem[]
+}
+
 export const useDestinations = () => {
   const searchQuery = ref('')
   const selectedCategory = ref<string>('All')
@@ -40,30 +61,61 @@ export const useDestinations = () => {
   const currentPage = ref(1)
   const pageSize = ref(6)
 
+  // Route Planning State
+  const routeOriginId = ref<string | null>(null)
+  const routeDestinationId = ref<string | null>(null)
+  const routeTravelMode = ref<'DRIVING' | 'WALKING' | 'BICYCLING' | 'TRANSIT'>('DRIVING')
+
   // Watch search and category to reset pagination to page 1
   watch([searchQuery, selectedCategory], () => {
     currentPage.value = 1
   })
 
-  // Map raw entries 
+  // All landmarks from coordinates.json formatted as selectable origin/destination options
+  const allLandmarkOptions: LandmarkOption[] = (rawCoordinates as CoordinateItem[])
+    .filter(item => typeof item.lat === 'number' && typeof item.lng === 'number')
+    .map(item => {
+      let type: LandmarkOption['type'] = 'other'
+      if (item.category === 'ATMS') type = 'bank'
+      else if (item.category.includes('TERMINAL') || item.name.toLowerCase().includes('terminal')) type = 'terminal'
+      else if (item.category === 'INDLAND_RESORTS' || item.category === 'HOMESTAYS' || item.category === 'MABUHAY_ACCOMMODATIONS') type = 'resort'
+      else if (item.category === 'Church') type = 'church'
+      else if (item.category === 'MALLS') type = 'mall'
+      else if (item.category === 'BARANGAY_HALL' || item.category === 'GOVERNMENT_OFFICES') type = 'civic'
+
+      const brgyMatch = item.short_description.match(/(?:Barangay|Brgy\.?|Purok)\s+([A-Za-z0-9\s]+?)(?:,|$)/i)
+      const barangay = brgyMatch ? brgyMatch[1]!.trim() : 'San Francisco'
+
+      return {
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        barangay,
+        coordinates: { lat: item.lat, lng: item.lng },
+        type
+      }
+    })
+
+  // Specific tourism destination categories:
+  // - Natural attractions (caves, springs, viewpoints, natural parks)
+  // - Cultural/historical landmarks (old structures, monuments, churches, heritage markers)
+  // - Craft/livelihood spots (artisans, local crafts)
+  // - Day-tour resorts / swimming spots (spring/river resorts)
   const destinationCategories = [
     'INDLAND_RESORTS',
     'Church',
     'PALARONG_PAMBANSA',
-    'MABUHAY_ACCOMMODATIONS',
-    'HOMESTAYS',
     'MALLS'
   ]
 
   const destinationsData: Destination[] = (rawCoordinates as CoordinateItem[])
     .filter(item => destinationCategories.includes(item.category))
     .map(item => {
-      let mappedCategory = 'Civic Landmarks'
-      if (item.category === 'INDLAND_RESORTS') mappedCategory = 'Inland Resorts'
-      else if (item.category === 'Church') mappedCategory = 'Heritage & Culture'
-      else if (item.category === 'PALARONG_PAMBANSA') mappedCategory = 'Parks & Viewpoints'
-      else if (item.category === 'MABUHAY_ACCOMMODATIONS' || item.category === 'HOMESTAYS') mappedCategory = 'Resorts & Staycations'
-      else if (item.category === 'MALLS') mappedCategory = 'Civic Landmarks'
+      let mappedCategory = 'Natural Attractions'
+      if (item.category === 'INDLAND_RESORTS') mappedCategory = 'Day-Tour Resorts / Swimming Spots'
+      else if (item.category === 'Church') mappedCategory = 'Cultural & Historical Landmarks'
+      else if (item.category === 'PALARONG_PAMBANSA') mappedCategory = 'Natural Attractions'
+      else if (item.category === 'MALLS') mappedCategory = 'Crafts & Livelihood Spots'
 
       const brgyMatch = item.short_description.match(/(?:Barangay|Brgy\.?|Purok)\s+([A-Za-z0-9\s]+?)(?:,|$)/i)
       const barangay = brgyMatch ? brgyMatch[1]!.trim() : 'San Francisco'
@@ -81,12 +133,12 @@ export const useDestinations = () => {
         secondaryCategory: item.category,
         barangay,
         shortDescription: item.short_description,
-        fullDescription: `${item.name} is an official landmark and visitor attraction in San Francisco, Agusan del Sur, located at ${item.short_description}. Sourced directly from the LGU dataset with exact coordinates at ${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}.`,
+        fullDescription: `${item.name} is an official tourism attraction and landmark in San Francisco, Agusan del Sur, located at ${item.short_description}. Sourced directly from the LGU dataset with exact coordinates at ${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}.`,
         highlights: [
           `Verified coordinates (${item.lat.toFixed(4)}, ${item.lng.toFixed(4)})`,
           `Located in ${item.short_description}`,
-          `Hours: ${item.opening || '8:00 AM'} - ${item.closing || '5:00 PM'}`,
-          `Category: ${mappedCategory}`
+          `Operating Hours: ${item.opening || '8:00 AM'} - ${item.closing || '5:00 PM'}`,
+          `Attraction Type: ${mappedCategory}`
         ],
         howToGetThere: `Accessible via local transport in ${item.short_description}. Head toward GPS location ${item.lat.toFixed(4)}, ${item.lng.toFixed(4)}.`,
         bestTimeToVisit: item.opening ? `During operational hours (${item.opening} - ${item.closing})` : 'Daytime visits recommended.',
@@ -101,11 +153,10 @@ export const useDestinations = () => {
 
   const categories = [
     'All',
-    'Inland Resorts',
-    'Heritage & Culture',
-    'Parks & Viewpoints',
-    'Resorts & Staycations',
-    'Civic Landmarks'
+    'Natural Attractions',
+    'Cultural & Historical Landmarks',
+    'Crafts & Livelihood Spots',
+    'Day-Tour Resorts / Swimming Spots'
   ]
 
   const filteredDestinations = computed(() => {
@@ -124,6 +175,40 @@ export const useDestinations = () => {
       return matchesCategory && matchesSearch
     })
   })
+
+  // Computed Origin & Destination objects for Route
+  const routeOriginLandmark = computed(() => {
+    if (!routeOriginId.value) return null
+    return allLandmarkOptions.find(l => l.id === routeOriginId.value) || null
+  })
+
+  const routeDestinationLandmark = computed(() => {
+    if (!routeDestinationId.value) return null
+    return allLandmarkOptions.find(l => l.id === routeDestinationId.value) || null
+  })
+
+  const setRouteOrigin = (landmarkOrId: LandmarkOption | string | null) => {
+    if (!landmarkOrId) routeOriginId.value = null
+    else if (typeof landmarkOrId === 'string') routeOriginId.value = landmarkOrId
+    else routeOriginId.value = landmarkOrId.id
+  }
+
+  const setRouteDestination = (landmarkOrId: LandmarkOption | string | null) => {
+    if (!landmarkOrId) routeDestinationId.value = null
+    else if (typeof landmarkOrId === 'string') routeDestinationId.value = landmarkOrId
+    else routeDestinationId.value = landmarkOrId.id
+  }
+
+  const swapRoutePoints = () => {
+    const temp = routeOriginId.value
+    routeOriginId.value = routeDestinationId.value
+    routeDestinationId.value = temp
+  }
+
+  const clearRoute = () => {
+    routeOriginId.value = null
+    routeDestinationId.value = null
+  }
 
   // Pagination computed properties
   const totalPages = computed(() => Math.ceil(filteredDestinations.value.length / pageSize.value) || 1)
@@ -152,7 +237,6 @@ export const useDestinations = () => {
     return Array.from(tagsSet)
   })
 
-  
   // Google Maps markers array format for Map Explorer
   const mapMarkers = computed(() => {
     return filteredDestinations.value
@@ -160,7 +244,6 @@ export const useDestinations = () => {
       .map(item => {
         const lat = item.coordinates!.lat
         const lng = item.coordinates!.lng
-        const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
 
         return {
           position: { lat, lng },
@@ -220,6 +303,7 @@ export const useDestinations = () => {
 
   return {
     destinationsData,
+    allLandmarkOptions,
     categories,
     searchQuery,
     selectedCategory,
@@ -233,6 +317,16 @@ export const useDestinations = () => {
     searchSuggestions,
     mapMarkers,
     viewMode,
+    routeOriginId,
+    routeDestinationId,
+    routeTravelMode,
+    routeOriginLandmark,
+    routeDestinationLandmark,
+    setRouteOrigin,
+    setRouteDestination,
+    swapRoutePoints,
+    clearRoute,
+    fetchCoordinatesData,
     selectDestination,
     getDestinationById,
     selectCategory,
@@ -240,5 +334,7 @@ export const useDestinations = () => {
     goToPage
   }
 }
+
+
 
 

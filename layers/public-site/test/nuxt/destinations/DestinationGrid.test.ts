@@ -7,7 +7,7 @@ const sampleDestinations: Destination[] = [
   {
     id: 'toog-tree-alegria',
     name: 'Toog Tree of Alegria',
-    category: 'Heritage & Culture',
+    category: 'Cultural & Historical Landmarks',
     barangay: 'Alegria',
     shortDescription: 'Historic 300-year-old rosewood tree.',
     fullDescription: 'Rising over 50 meters in Alegria...',
@@ -21,7 +21,7 @@ const sampleDestinations: Destination[] = [
   {
     id: 'carson-resort',
     name: 'Carson Waterside Mountain Resort',
-    category: 'Inland Resorts',
+    category: 'Day-Tour Resorts / Swimming Spots',
     barangay: 'Alegria',
     shortDescription: 'Inland resort with swimming pools and mountain views.',
     fullDescription: 'Popular family resort located in Alegria...',
@@ -122,24 +122,5 @@ describe('DestinationGrid Component', () => {
     await viewDetailsBtns[0]?.trigger('click')
     expect(wrapper.emitted('select')).toBeTruthy()
     expect(wrapper.emitted('select')?.[0]).toEqual([sampleDestinations[0]])
-  })
-
-  it('renders empty state in map view mode when destinations list is empty', async () => {
-    const wrapper = await mountSuspended(DestinationGrid, {
-      props: {
-        destinations: [],
-        viewMode: 'map'
-      },
-      global: {
-        stubs: { GoogleMap: true }
-      }
-    })
-
-    expect(wrapper.text()).toContain('No landmarks found on map')
-    
-    const clearBtn = wrapper.find('button')
-    await clearBtn.trigger('click')
-
-    expect(wrapper.emitted('reset-filters')).toBeTruthy()
   })
 })

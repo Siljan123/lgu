@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
-import type { Destination } from '../../composables/useDestinations'
+import { MapPin, Search, X, Tag } from '@lucide/vue'
+import { useDestinations, type Destination, type LandmarkOption } from '../../composables/useDestinations'
 import GoogleMap from '../GoogleMap.vue'
 
 const props = defineProps<{
@@ -12,13 +13,48 @@ const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
+const { allLandmarkOptions } = useDestinations()
+
 const activePhotoIndex = ref(0)
 const hasHeroImageError = ref(false)
+const originLandmarkId = ref<string>('')
+const modalSearchQuery = ref<string>('')
+const isDropdownOpen = ref(false)
+const selectedTagFilter = ref<string>('All')
+const modalRef = ref<HTMLElement | null>(null)
 
 watch(() => props.destination, () => {
   activePhotoIndex.value = 0
   hasHeroImageError.value = false
+  originLandmarkId.value = ''
+  modalSearchQuery.value = ''
+  isDropdownOpen.value = false
 })
+
+const originLandmark = computed(() => {
+  if (!originLandmarkId.value) return null
+  return allLandmarkOptions.find(l => l.id === originLandmarkId.value) || null
+})
+
+const filteredModalOrigins = computed(() => {
+  const q = modalSearchQuery.value.toLowerCase().trim()
+  return allLandmarkOptions.filter(l => {
+    const matchesTag = selectedTagFilter.value === 'All' || l.type === selectedTagFilter.value
+    const matchesQuery = !q || l.name.toLowerCase().includes(q) || l.barangay.toLowerCase().includes(q) || l.category.toLowerCase().includes(q)
+    return matchesTag && matchesQuery
+  }).slice(0, 10)
+})
+
+function selectModalOrigin(item: LandmarkOption) {
+  originLandmarkId.value = item.id
+  modalSearchQuery.value = item.name
+  isDropdownOpen.value = false
+}
+
+function clearModalOrigin() {
+  originLandmarkId.value = ''
+  modalSearchQuery.value = ''
+}
 
 const currentImage = computed(() => {
   if (props.destination?.photoUrls && props.destination.photoUrls.length > activePhotoIndex.value) {
@@ -45,12 +81,20 @@ const handleKeydown = (e: KeyboardEvent) => {
   }
 }
 
+function handleClickOutsideModal(e: MouseEvent) {
+  if (modalRef.value && !modalRef.value.contains(e.target as Node)) {
+    isDropdownOpen.value = false
+  }
+}
+
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('click', handleClickOutsideModal)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('click', handleClickOutsideModal)
 })
 </script>
 
@@ -84,12 +128,11 @@ onUnmounted(() => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
             </svg>
           </button>
-
           <!-- Modal Scrollable Content Container -->
           <div class="overflow-y-auto max-h-[90vh] divide-y divide-[#ededed] dark:divide-[#282828]">
             
             <!-- Hero Image Banner -->
-            <div class="relative w-full aspect-21/9 min-h-[280px] bg-[#fafafa] dark:bg-[#121212] overflow-hidden">
+            <div class="relative w-full aspect-21/9 min-h-70 bg-[#fafafa] dark:bg-[#121212] overflow-hidden">
               <NuxtImg 
                 v-if="!hasHeroImageError && currentImage"
                 :src="currentImage" 
@@ -101,7 +144,7 @@ onUnmounted(() => {
               />
               <div 
                 v-else 
-                class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#2a2a2a] via-[#1c1c1c] to-[#121212] text-[#a3a3a3] p-6 text-center select-none"
+                class="w-full h-full flex flex-col items-center justify-center bg-linear-to-br from-[#2a2a2a] via-[#1c1c1c] to-[#121212] text-[#a3a3a3] p-6 text-center select-none"
               >
                 <div class="p-3.5 rounded-full bg-[#ffffff]/10 backdrop-blur-md mb-2">
                   <svg class="w-8 h-8 text-[#ef4444]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -111,7 +154,7 @@ onUnmounted(() => {
                 <span class="text-sm font-bold uppercase tracking-wider text-[#dfdfdf]">No Image Available</span>
                 <span class="text-xs text-[#888888] mt-0.5">San Francisco, Agusan del Sur</span>
               </div>
-              <div class="absolute inset-0 bg-gradient-to-t from-[#0d0d0d]/90 via-[#0d0d0d]/30 to-transparent flex items-end p-6 md:p-8">
+              <div class="absolute inset-0 bg-linear-to-t from-[#0d0d0d]/90 via-[#0d0d0d]/30 to-transparent flex items-end p-6 md:p-8">
                 <div class="text-[#ffffff] max-w-2xl">
                   <div class="flex flex-wrap items-center gap-2 mb-3">
                     <span class="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-[#85181a] dark:bg-[#ef4444] text-[#ffffff]">
@@ -183,16 +226,67 @@ onUnmounted(() => {
                 </ul>
               </div>
 
-              <!-- Google Map Widget Section -->
-              <div v-if="destination.coordinates?.lat && destination.coordinates?.lng" class="space-y-3">
-                <h3 class="text-xs font-semibold uppercase tracking-wider text-[#85181a] dark:text-[#ef4444]">
-                  Exact Coordinates & Interactive Map
-                </h3>
+              <div ref="modalRef" v-if="destination.coordinates?.lat && destination.coordinates?.lng" class="space-y-3 relative z-30">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <h3 class="text-xs font-semibold uppercase tracking-wider text-[#85181a] dark:text-[#ef4444]">
+                    Exact Coordinates & Interactive Route Line Map
+                  </h3>
+                  
+                  <!-- Searchable Origin Selector -->
+                  <div class="relative min-w-60 sm:min-w-70">
+                    <div class="relative">
+                      <input
+                        type="text"
+                        v-model="modalSearchQuery"
+                        placeholder="Search or select route origin (e.g. Bank/Terminal)…"
+                        class="w-full pl-8 pr-7 py-1.5 rounded-xl border border-[#dfdfdf] dark:border-[#333333] bg-[#fafafa] dark:bg-[#202020] text-xs font-medium text-[#171717] dark:text-[#ffffff] focus:outline-none focus:ring-2 focus:ring-[#85181a] dark:focus:ring-[#ef4444]"
+                        @focus="isDropdownOpen = true"
+                      />
+                      <Search class="w-3.5 h-3.5 text-[#85181a] dark:text-[#ef4444] absolute left-2.5 top-2 pointer-events-none" />
+                      <button
+                        v-if="modalSearchQuery"
+                        type="button"
+                        @click="clearModalOrigin"
+                        class="absolute right-2 top-2 text-[#9a9a9a] hover:text-[#171717] dark:hover:text-[#ffffff]"
+                      >
+                        <X class="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <!-- Dropdown List -->
+                    <div
+                      v-if="isDropdownOpen && filteredModalOrigins.length > 0"
+                      class="absolute top-full left-0 right-0 mt-1 bg-[#ffffff] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#303030] rounded-xl shadow-xl z-50 max-h-52 overflow-y-auto divide-y divide-[#f0f0f0] dark:divide-[#2a2a2a]"
+                    >
+                      <div class="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[#888888] dark:text-[#777777] bg-[#fafafa] dark:bg-[#1a1a1a]">
+                        Select Starting Point
+                      </div>
+                      <button
+                        v-for="l in filteredModalOrigins"
+                        :key="l.id"
+                        type="button"
+                        class="w-full text-left px-3 py-2 text-xs font-medium text-[#171717] dark:text-[#ffffff] hover:bg-[#fafafa] dark:hover:bg-[#282828] hover:text-[#85181a] dark:hover:text-[#ef4444] flex items-center justify-between transition-colors"
+                        @mousedown.prevent="selectModalOrigin(l)"
+                      >
+                        <div class="truncate">
+                          <div class="font-semibold">{{ l.name }}</div>
+                          <div class="text-[10px] text-[#707070] dark:text-[#a3a3a3]">Brgy. {{ l.barangay }}</div>
+                        </div>
+                        <span class="px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-wider shrink-0 ml-2" :class="[l.type === 'bank' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-gray-500/10 text-gray-600 dark:text-gray-400']">
+                          {{ l.category }}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 <GoogleMap
                   :center="destination.coordinates"
                   :zoom="14"
                   :markers="destinationMarkers"
-                  height="260px"
+                  :route-origin="originLandmark?.coordinates || null"
+                  :route-destination="destination.coordinates"
+                  height="280px"
                   :show-street-view-btn="true"
                 />
               </div>
