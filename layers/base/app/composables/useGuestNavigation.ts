@@ -101,7 +101,7 @@ export function useGuestNavigation() {
         },
         {
           name: "Traveler's Guide",
-          to: '/travel-tips',
+          to: '/travelers-guide',
           type: 'link',
           description: 'Get travel tips and guidelines for visiting the LGU SFADS.',
         }
