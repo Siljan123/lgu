@@ -1,4 +1,5 @@
 import { computed } from 'vue'
+import rawCoordinates from '../../coordinates.json'
 
 export interface BarangayOfficial {
   id: string
@@ -14,6 +15,15 @@ export interface BarangayCoordinates {
   lat: number
   lng: number
   display: string
+}
+
+export interface BarangayLandmark {
+  id: string
+  name: string
+  category: string
+  lat: number
+  lng: number
+  address: string
 }
 
 export interface BarangayItem {
@@ -33,6 +43,7 @@ export interface BarangayItem {
   mapEmbedUrl?: string
   description?: string
   officials: BarangayOfficial[]
+  landmarks?: BarangayLandmark[]
 }
 
 const BARANGAY_LIST_DATA: BarangayItem[] = [
@@ -821,6 +832,89 @@ const BARANGAY_LIST_DATA: BarangayItem[] = [
   }
 ]
 
+// Extract exact coordinates & landmarks directly from coordinates.json
+interface RawCoordinateEntry {
+  id: string
+  category: string
+  name: string
+  short_description: string
+  lat: number
+  lng: number
+}
+
+const rawCoordsList = rawCoordinates as RawCoordinateEntry[]
+
+const barangayCoordsFromJSON: Record<string, { lat: number; lng: number }> = {}
+
+rawCoordsList.forEach(item => {
+  if (item.category === 'BARANGAY_HALL' && typeof item.lat === 'number' && typeof item.lng === 'number') {
+    const descLower = item.short_description.toLowerCase()
+
+    if (descLower.includes('alegria')) barangayCoordsFromJSON['alegria'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('bayugan 2') || descLower.includes('bayugan2')) barangayCoordsFromJSON['bayugan-2'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('bitan-agan') || descLower.includes('bitanagan')) barangayCoordsFromJSON['bitan-agan'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('borbon')) barangayCoordsFromJSON['borbon'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('buenasuerte')) barangayCoordsFromJSON['buenasuerte'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('caimpugan')) barangayCoordsFromJSON['caimpugan'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('das-agan') || descLower.includes('dasagan')) barangayCoordsFromJSON['das-agan'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('ebro')) barangayCoordsFromJSON['ebro'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('hubang')) barangayCoordsFromJSON['hubang'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('karaus')) barangayCoordsFromJSON['karaus'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('ladgadan')) barangayCoordsFromJSON['ladgadan'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('lapinigan')) barangayCoordsFromJSON['lapinigan'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('lucac')) barangayCoordsFromJSON['lucac'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('mate')) barangayCoordsFromJSON['mate'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('new visayas')) barangayCoordsFromJSON['new-visayas'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('ormaca')) barangayCoordsFromJSON['ormaca'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('pasta')) barangayCoordsFromJSON['pasta'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('pisa-an') || descLower.includes('pisaan')) barangayCoordsFromJSON['pisa-an'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('rizal')) barangayCoordsFromJSON['rizal'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('san isidro')) barangayCoordsFromJSON['san-isidro'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('santa ana') || descLower.includes('sta. ana')) barangayCoordsFromJSON['santa-ana'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('tagapua')) barangayCoordsFromJSON['tagapua'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('barangay 1') || descLower.includes('brgy 1')) barangayCoordsFromJSON['poblacion-1'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('barangay 2') || descLower.includes('brgy 2')) barangayCoordsFromJSON['poblacion-2'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('barangay 3') || descLower.includes('brgy 3')) barangayCoordsFromJSON['poblacion-3'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('barangay 4') || descLower.includes('brgy 4')) barangayCoordsFromJSON['poblacion-4'] = { lat: item.lat, lng: item.lng }
+    else if (descLower.includes('barangay 5') || descLower.includes('brgy 5')) barangayCoordsFromJSON['poblacion-5'] = { lat: item.lat, lng: item.lng }
+  }
+})
+
+const ENRICHED_BARANGAY_LIST_DATA: BarangayItem[] = BARANGAY_LIST_DATA.map(b => {
+  const jsonCoords = barangayCoordsFromJSON[b.id]
+  const coordinates = jsonCoords
+    ? { lat: jsonCoords.lat, lng: jsonCoords.lng, display: `${jsonCoords.lat.toFixed(4)}° N, ${jsonCoords.lng.toFixed(4)}° E` }
+    : b.coordinates
+
+  const cleanBName = b.name.replace(/Barangay/g, '').replace(/\(Poblacion\)/gi, '').trim().toLowerCase()
+
+  const landmarks: BarangayLandmark[] = rawCoordsList
+    .filter(item => typeof item.lat === 'number' && typeof item.lng === 'number')
+    .filter(item => {
+      const descLower = item.short_description.toLowerCase()
+      if (b.id === 'poblacion-1') return descLower.includes('barangay 1') || descLower.includes('brgy. 1')
+      if (b.id === 'poblacion-2') return descLower.includes('barangay 2') || descLower.includes('brgy. 2')
+      if (b.id === 'poblacion-3') return descLower.includes('barangay 3') || descLower.includes('brgy. 3')
+      if (b.id === 'poblacion-4') return descLower.includes('barangay 4') || descLower.includes('brgy. 4')
+      if (b.id === 'poblacion-5') return descLower.includes('barangay 5') || descLower.includes('brgy. 5')
+      return descLower.includes(cleanBName)
+    })
+    .map(item => ({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      lat: item.lat,
+      lng: item.lng,
+      address: item.short_description
+    }))
+
+  return {
+    ...b,
+    coordinates,
+    landmarks
+  }
+})
+
 export const useBarangayDirectory = () => {
   // Use Nuxt useState to guarantee single-source of truth shared state across components
   const searchQuery = useState<string>('brgy-dir-search-query', () => '')
@@ -828,7 +922,7 @@ export const useBarangayDirectory = () => {
   const selectedBarangayId = useState<string>('brgy-dir-selected-id', () => 'poblacion-1')
   const isLoading = useState<boolean>('brgy-dir-is-loading', () => false)
   const isDynamicSource = useState<boolean>('brgy-dir-is-dynamic', () => false)
-  const barangays = useState<BarangayItem[]>('brgy-dir-barangays-list', () => BARANGAY_LIST_DATA)
+  const barangays = useState<BarangayItem[]>('brgy-dir-barangays-list', () => ENRICHED_BARANGAY_LIST_DATA)
 
   const selectedBarangay = computed(() => {
     return barangays.value.find(b => b.id === selectedBarangayId.value) || barangays.value[0]

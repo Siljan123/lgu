@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { BarangayItem } from '../../composables/useBarangayDirectory'
-import { MapPin, Navigation, Copy, Check, ExternalLink, Layers, Mountain } from '@lucide/vue'
+import GoogleMap from '../GoogleMap.vue'
+import { Navigation, Copy, Check, ExternalLink } from '@lucide/vue'
 
 const props = defineProps<{
   barangay: BarangayItem
@@ -14,12 +15,17 @@ const googleMapsUrl = computed(() => {
   return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
 })
 
-const osmEmbedUrl = computed(() => {
-  const { lat, lng } = props.barangay.coordinates
-  const delta = 0.02
-  const bbox = `${lng - delta},${lat - delta},${lng + delta},${lat + delta}`
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lng}`
-})
+const mapCenter = computed(() => ({
+  lat: props.barangay.coordinates.lat,
+  lng: props.barangay.coordinates.lng
+}))
+
+const mapMarkers = computed(() => [
+  {
+    position: mapCenter.value,
+    title: `${props.barangay.name} Barangay Hall`
+  }
+])
 
 const copyCoordinates = async () => {
   try {
@@ -41,10 +47,10 @@ const copyCoordinates = async () => {
       <div class="flex items-center justify-between">
         <div>
           <h3 class="text-sm font-bold text-[#171717] dark:text-[#ffffff]">
-            Geographic Location & Mini Map
+            Geographic Location & Interactive Map
           </h3>
           <span class="text-[11px] text-[#707070] dark:text-[#a3a3a3]">
-            {{ barangay.name }} Coordinates & Boundary
+            {{ barangay.name }} Coordinates & Location
           </span>
         </div>
 
@@ -76,30 +82,19 @@ const copyCoordinates = async () => {
     <CardContent>
       <div class="relative w-full h-56 md:h-64 rounded-lg overflow-hidden border border-[#dfdfdf] dark:border-[#333333] bg-neutral-100 dark:bg-neutral-900 group">
       
-        <!-- OpenStreetMap Iframe Embed -->
-        <iframe
-          :src="osmEmbedUrl"
-          class="w-full h-full border-0 filter grayscale-20 contrast-105 group-hover:grayscale-0 transition-all duration-300 pointer-events-auto"
-          loading="lazy"
-          title="Barangay Map Preview"
-        ></iframe>
+        <!-- Interactive Google Map (Zoomed into Barangay Hall) -->
+        <GoogleMap
+          :center="mapCenter"
+          :zoom="17"
+          :markers="mapMarkers"
+          height="100%"
+          :show-street-view-btn="true"
+        />
         
         <!-- Floating Coordinate Overlay Pill -->
-        <div class="absolute bottom-3 left-3 bg-[#ffffff]/90 dark:bg-[#1c1c1c]/90 text-[#171717] dark:text-[#ffffff] backdrop-blur-md px-3 py-1.5 rounded-md text-[11px] font-mono shadow-md flex items-center space-x-2">
+        <div class="absolute bottom-3 left-3 bg-[#ffffff]/90 dark:bg-[#1c1c1c]/90 text-[#171717] dark:text-[#ffffff] backdrop-blur-md px-3 py-1.5 rounded-md text-[11px] font-mono shadow-md flex items-center space-x-2 z-10 pointer-events-none">
           <Navigation class="size-3 text-[#f87171]" />
           <span>{{ barangay.coordinates.display }}</span>
-        </div>
-
-        <!-- Area & Elevation Tag Overlay -->
-        <div class="absolute top-3 left-3 flex items-center space-x-2">
-          <div class="bg-[#ffffff]/90 dark:bg-[#1c1c1c]/90 text-[#171717] dark:text-[#ffffff] border border-[#dfdfdf] dark:border-[#333333] backdrop-blur-md px-2.5 py-1 rounded-md text-[11px] font-medium flex items-center space-x-1.5">
-            <Mountain class="size-3 text-[#dc2626]" />
-            <span>{{ barangay.elevationASL }}</span>
-          </div>
-          <div class="bg-[#ffffff]/90 dark:bg-[#1c1c1c]/90 text-[#171717] dark:text-[#ffffff] border border-[#dfdfdf] dark:border-[#333333] backdrop-blur-md px-2.5 py-1 rounded-md text-[11px] font-medium flex items-center space-x-1.5">
-            <Layers class="size-3 text-[#dc2626]" />
-            <span>{{ barangay.landAreaSqKm }} sq km</span>
-          </div>
         </div>
 
       </div>
@@ -121,7 +116,7 @@ const copyCoordinates = async () => {
           <span class="font-mono text-[10px]">{{ barangay.elevationASL }}</span>
         </div>
         <div class="p-2 rounded bg-[#fafafa] dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#333333]">
-            <span class="block text-md">Population: {{ barangay.population.toLocaleString() }}</span>
+          <span class="block text-md">Population: {{ barangay.population.toLocaleString() }}</span>
           <span class="block font-medium text-[#171717] dark:text-[#ffffff]">Census Period</span>
           <span class="font-mono text-[10px] text-[#dc2626] font-semibold">{{ barangay.censusYear }}</span>
         </div>
