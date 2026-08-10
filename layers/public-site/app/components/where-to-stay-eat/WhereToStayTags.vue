@@ -5,24 +5,25 @@ import {
   Search, 
   X, 
   Hotel, 
-  Sparkles, 
-  Home, 
-  Coffee, 
-  ShoppingBag, 
-  Scissors, 
   Utensils, 
-  Stethoscope, 
   Layers,
-  Fuel,
-  Church as ChurchIcon,
-  Landmark,
-  Filter
+  Bed,
+  Coffee,
+  Store,
+  Home,
+  Palmtree,
+  ChefHat,
+  Compass
 } from '@lucide/vue'
 
 interface Props {
-  categories: string[]
-  categoryCounts: Record<string, number>
-  selectedCategory: string
+  categories?: string[]
+  mainCategories?: string[]
+  selectedMainCategory?: string
+  selectedSubCategory?: string
+  selectedCategory?: string
+  categoryCounts?: Record<string, number>
+  mainCategoryCounts?: Record<string, number>
   selectedBarangay: string
   barangays: string[]
   searchQuery: string
@@ -31,9 +32,19 @@ interface Props {
   totalCount: number
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  categories: () => [],
+  mainCategories: () => ['All', 'Where to Stay', 'Where to Eat'],
+  selectedMainCategory: 'All',
+  selectedSubCategory: 'All',
+  selectedCategory: 'All',
+  categoryCounts: () => ({}),
+  mainCategoryCounts: () => ({})
+})
 
 const emit = defineEmits<{
+  (e: 'update:selectedMainCategory', mainCat: string): void
+  (e: 'update:selectedSubCategory', subCat: string): void
   (e: 'update:selectedCategory', category: string): void
   (e: 'update:selectedBarangay', barangay: string): void
   (e: 'update:searchQuery', query: string): void
@@ -48,8 +59,20 @@ const searchDropdownResults = computed(() => {
   return props.establishments.filter(item => 
     item.name.toLowerCase().includes(query) ||
     item.address.toLowerCase().includes(query) ||
-    item.category.toLowerCase().includes(query)
+    item.category.toLowerCase().includes(query) ||
+    (item.subCategory && item.subCategory.toLowerCase().includes(query)) ||
+    (item.mainCategory && item.mainCategory.toLowerCase().includes(query))
   ).slice(0, 8)
+})
+
+const activeMainCategory = computed(() => {
+  if (props.selectedMainCategory && props.selectedMainCategory !== 'All') {
+    return props.selectedMainCategory
+  }
+  if (props.selectedCategory === 'Where to Stay' || props.selectedCategory === 'Where to Eat') {
+    return props.selectedCategory
+  }
+  return 'All'
 })
 
 const onInputSearch = (e: Event) => {
@@ -68,15 +91,93 @@ const clearSearch = () => {
   emit('update:searchQuery', '')
   isDropdownOpen.value = false
 }
+
+const selectMainCategory = (mainCat: string) => {
+  emit('update:selectedMainCategory', mainCat)
+  emit('update:selectedCategory', mainCat)
+  emit('update:selectedSubCategory', 'All')
+}
+
+const selectSubCategory = (subCat: string) => {
+  emit('update:selectedSubCategory', subCat)
+  emit('update:selectedCategory', subCat)
+}
 </script>
 
 <template>
-  <div class="w-full bg-[#ffffff] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#2e2e2e] rounded-xl p-4 sm:p-5 shadow-sm">
+  <div class="w-full bg-[#ffffff] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#2e2e2e] rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
     
-    <!-- Clean Search & Category Dropdown Filter Bar -->
+    <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#dfdfdf] dark:border-[#2e2e2e]">
+      <div class="flex items-center gap-2 overflow-x-auto py-1 max-w-full">
+        <!-- ALL -->
+        <button
+          type="button"
+          class="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0"
+          :class="[
+            activeMainCategory === 'All'
+              ? 'bg-[#85181a] text-[#ffffff] shadow-md dark:bg-[#ef4444]'
+              : 'bg-[#fafafa] dark:bg-[#1a1a1a] text-[#171717] dark:text-[#e5e5e5] hover:bg-[#eaeaea] dark:hover:bg-[#2e2e2e]'
+          ]"
+          @click="selectMainCategory('All')"
+        >
+          <Layers :size="16" />
+          <span>All Places</span>
+          <span class="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-black/20 text-[#ffffff] font-medium">
+            {{ totalCount }}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          class="px-4 py-2 rounded-md text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0"
+          :class="[
+            activeMainCategory === 'Where to Stay'
+              ? 'bg-[#85181a] text-[#ffffff] shadow-md dark:bg-[#ef4444]'
+              : 'bg-[#fafafa] dark:bg-[#1a1a1a] text-[#171717] dark:text-[#e5e5e5] hover:bg-[#eaeaea] dark:hover:bg-[#2e2e2e]'
+          ]"
+          @click="selectMainCategory('Where to Stay')"
+        >
+          <Hotel :size="16" />
+          <span>Where to Stay</span>
+          <span 
+            v-if="mainCategoryCounts['Where to Stay'] !== undefined" 
+            class="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-black/20 text-[#ffffff] font-medium"
+          >
+            {{ mainCategoryCounts['Where to Stay'] }}
+          </span>
+        </button>
+
+        <!-- WHERE TO EAT -->
+        <button
+          type="button"
+          class="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0"
+          :class="[
+            activeMainCategory === 'Where to Eat'
+              ? 'bg-[#85181a] text-[#ffffff] shadow-md dark:bg-[#ef4444]'
+              : 'bg-[#fafafa] dark:bg-[#1a1a1a] text-[#171717] dark:text-[#e5e5e5] hover:bg-[#eaeaea] dark:hover:bg-[#2e2e2e]'
+          ]"
+          @click="selectMainCategory('Where to Eat')"
+        >
+          <Utensils :size="16" />
+          <span>Where to Eat</span>
+          <span 
+            v-if="mainCategoryCounts['Where to Eat'] !== undefined" 
+            class="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-black/20 text-[#ffffff] font-medium"
+          >
+            {{ mainCategoryCounts['Where to Eat'] }}
+          </span>
+        </button>
+      </div>
+
+      <div class="text-xs font-semibold text-[#707070] dark:text-[#a3a3a3]">
+        Showing {{ filteredCount }} of {{ totalCount }} establishments
+      </div>
+    </div>
+
+    <!-- Search & Subcategory & Barangay Filter Controls -->
     <div class="flex flex-col md:flex-row items-stretch md:items-center gap-3">
       
-      
+      <!-- Search Input -->
       <div class="relative flex-1">
         <div class="relative">
           <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#85181a] dark:text-[#ef4444]">
@@ -85,7 +186,7 @@ const clearSearch = () => {
           <input 
             type="text"
             :value="searchQuery"
-            placeholder="Search place, hotel, restaurant, salon, spa, clinic or street name..."
+            placeholder="Search hotel, restaurant, cafe, resort, homestay or street..."
             class="w-full pl-10 pr-10 py-3 text-sm rounded-xl border border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#fafafa] dark:bg-[#1a1a1a] text-[#171717] dark:text-[#ffffff] placeholder-[#9a9a9a] dark:placeholder-[#707070] focus:outline-none focus:ring-2 focus:ring-[#85181a] dark:focus:ring-[#ef4444] transition-all font-medium shadow-2xs"
             @input="onInputSearch"
             @focus="isDropdownOpen = true"
@@ -98,16 +199,15 @@ const clearSearch = () => {
           >
             <X :size="18" />
           </button>
-          
-    
         </div>
 
+        <!-- Search Auto-complete Dropdown -->
         <div 
           v-if="isDropdownOpen && searchQuery.trim() && searchDropdownResults.length > 0"
           class="absolute left-0 right-0 top-full mt-2 z-50 bg-[#ffffff] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#333333] rounded-xl shadow-2xl overflow-hidden max-h-80 overflow-y-auto divide-y divide-[#ededed] dark:divide-[#2e2e2e]"
         >
           <div class="px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-[#9a9a9a] bg-[#fafafa] dark:bg-[#1a1a1a]">
-            Matching Search Results ({{ searchDropdownResults.length }})
+            Matching Places ({{ searchDropdownResults.length }})
           </div>
 
           <div
@@ -118,13 +218,15 @@ const clearSearch = () => {
           >
             <div class="flex items-center gap-3 min-w-0">
               <div class="p-2 rounded-lg bg-[#fafafa] dark:bg-[#1a1a1a] text-[#85181a] dark:text-[#ef4444] shrink-0 border border-[#dfdfdf] dark:border-[#333333]">
+                <Hotel v-if="item.mainCategory === 'Where to Stay'" :size="16" />
+                <Utensils v-else :size="16" />
               </div>
               <div class="min-w-0">
                 <div class="font-bold text-sm text-[#171717] dark:text-[#ffffff] group-hover:text-[#85181a] dark:group-hover:text-[#ef4444] truncate">
                   {{ item.name }}
                 </div>
                 <div class="text-xs text-[#707070] dark:text-[#a3a3a3] truncate">
-                  {{ item.address }}
+                  {{ item.subCategory || item.category }} • {{ item.address }}
                 </div>
               </div>
             </div>
@@ -132,15 +234,13 @@ const clearSearch = () => {
         </div>
       </div>
  
-      <!-- Clean Category Filter Dropdown -->
       <div class="md:w-64 shrink-0">
-       
         <select 
-          :value="selectedCategory" 
+          :value="selectedSubCategory !== 'All' ? selectedSubCategory : (selectedCategory !== 'All' && selectedCategory !== 'Where to Stay' && selectedCategory !== 'Where to Eat' ? selectedCategory : 'All')" 
           class="w-full py-3 px-3.5 text-sm rounded-xl border border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#fafafa] dark:bg-[#1a1a1a] text-[#171717] dark:text-[#ffffff] focus:outline-none focus:ring-2 focus:ring-[#85181a] dark:focus:ring-[#ef4444] transition-all cursor-pointer font-semibold shadow-2xs"
-          @change="emit('update:selectedCategory', ($event.target as HTMLSelectElement).value)"
+          @change="selectSubCategory(($event.target as HTMLSelectElement).value)"
         >
-          <option value="All">All Categories ({{ totalCount }})</option>
+          <option value="All">All Subcategories</option>
           <option 
             v-for="cat in categories" 
             :key="cat" 
@@ -151,7 +251,6 @@ const clearSearch = () => {
         </select>
       </div>
 
-      <!-- Clean Barangay Filter Dropdown -->
       <div class="md:w-52 shrink-0">
         <select 
           :value="selectedBarangay" 

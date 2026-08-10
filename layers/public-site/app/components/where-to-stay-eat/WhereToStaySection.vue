@@ -23,9 +23,14 @@ import {
 
 const {
   categories,
+  mainCategories,
+  subCategories,
   barangays,
   categoryCounts,
+  mainCategoryCounts,
   searchQuery,
+  selectedMainCategory,
+  selectedSubCategory,
   selectedCategory,
   selectedBarangay,
   viewMode,
@@ -37,6 +42,8 @@ const {
   paginatedEstablishments,
   establishmentsData,
   mapMarkers,
+  selectMainCategory,
+  selectSubCategory,
   selectCategory,
   selectBarangay,
   selectEstablishment
@@ -113,29 +120,35 @@ const handleMarkerClick = (marker: any, index: number) => {
 </script>
 
 <template>
-  <section class="w-full py-4 px-4 sm:px-6 lg:px-8 max-w-[1600px] mx-auto space-y-6">
+  <section class="w-full py-4 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto space-y-6">
     
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 sm:p-6 shadow-xs">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div>
         <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#171717] dark:text-[#ffffff]">
-              <span>Interactive Directory Map & Street View 360°</span>
+          <span>Interactive Directory Map & Street View 360°</span>
         </h2>
         <p class="text-xs sm:text-sm text-[#707070] dark:text-[#a3a3a3] mt-1">
-          Search hotels, restaurants, cafes, spas, salons, malls, and clinics across San Francisco, Agusan del Sur.
+          Discover places to stay (Hotels, Inns, Homestays, Resorts) and places to eat (Restaurants, Eateries, Cafes, Local Food Stalls) across San Francisco, Agusan del Sur.
         </p>
       </div>
     </div>
 
     <WhereToStayTags 
       :categories="categories"
-      :category-counts="categoryCounts"
+      :main-categories="mainCategories"
+      :selected-main-category="selectedMainCategory"
+      :selected-sub-category="selectedSubCategory"
       :selected-category="selectedCategory"
+      :category-counts="categoryCounts"
+      :main-category-counts="mainCategoryCounts"
       :selected-barangay="selectedBarangay"
       :barangays="barangays"
       :search-query="searchQuery"
       :establishments="establishmentsData"
       :filtered-count="filteredEstablishments.length"
       :total-count="establishmentsData.length"
+      @update:selected-main-category="selectMainCategory"
+      @update:selected-sub-category="selectSubCategory"
       @update:selected-category="selectCategory"
       @update:selected-barangay="selectBarangay"
       @update:search-query="searchQuery = $event"
@@ -150,7 +163,7 @@ const handleMarkerClick = (marker: any, index: number) => {
         <div class="flex items-center justify-between px-1">
           <h3 class="text-xs font-bold uppercase tracking-wider text-[#707070] dark:text-[#a3a3a3] flex items-center gap-1.5">
             <MapPin :size="15" class="text-[#85181a] dark:text-[#ef4444]" />
-            Location Map — {{ selectedCategory }} (Click any point or pin to update Street View)
+            Location Map — {{ selectedCategory !== 'All' ? selectedCategory : 'Where to Stay & Eat' }} (Click any point or pin to update Street View)
           </h3>
         </div>
 
@@ -165,7 +178,6 @@ const handleMarkerClick = (marker: any, index: number) => {
         />
       </div>
 
-      <!-- RIGHT COLUMN: 360° Street View Panorama following marked position in real-time -->
       <div class="lg:col-span-6 lg:sticky lg:top-20 space-y-3">
         <WhereToStayStreetView 
           :establishment="selectedEstablishment"
@@ -176,13 +188,12 @@ const handleMarkerClick = (marker: any, index: number) => {
 
     </div>
 
-    <!-- DIRECTORY SECTION (CARDS VIEW AS DEFAULT, TABLE VIEW OPTIONAL) -->
     <div class="pt-6 border-t border-[#dfdfdf] dark:border-[#2e2e2e] space-y-4">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 class="text-lg font-bold text-[#171717] dark:text-[#ffffff] flex items-center gap-2">
             <LayoutGrid :size="20" class="text-[#85181a] dark:text-[#ef4444]" />
-            Establishments Showcase — {{ selectedCategory }}
+            Establishments Showcase — {{ selectedCategory !== 'All' ? selectedCategory : 'Where to Stay & Eat' }}
           </h3>
           <p class="text-xs text-[#707070] dark:text-[#a3a3a3] mt-0.5">
             Card view is shown by default. Toggle to table view for a compact spreadsheet layout.
