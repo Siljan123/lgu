@@ -2,15 +2,14 @@ import { describe, it, expect } from 'vitest'
 import { useDestinations } from '../../../app/composables/useDestinations'
 
 describe('useDestinations composable', () => {
-  it('provides the complete static list of destinations for San Francisco, Agusan del Sur', () => {
+  it('provides the complete dataset of destinations for San Francisco, Agusan del Sur', () => {
     const { destinationsData } = useDestinations()
     
-    expect(destinationsData).toHaveLength(4)
+    expect(destinationsData.length).toBeGreaterThan(50)
     const names = destinationsData.map(d => d.name)
-    expect(names).toContain('Toog Tree of Alegria')
-    expect(names).toContain('Mt. Magdiwata')
-    expect(names).toContain('Agusan Marsh Wildlife Sanctuary — San Francisco Gateway')
-    expect(names).toContain('Irosin Stone Crafts')
+    expect(names).toContain('Bible Baptist Church')
+    expect(names).toContain('Forsquare Gospel Church')
+    expect(names).toContain('Carson Waterside Mountain Resort')
   })
 
   it('filters destinations correctly by category', () => {
@@ -19,36 +18,36 @@ describe('useDestinations composable', () => {
     selectCategory('Heritage & Culture')
     expect(selectedCategory.value).toBe('Heritage & Culture')
     const heritageItems = filteredDestinations.value
-    expect(heritageItems.length).toBe(2)
-    expect(heritageItems.map(d => d.name)).toContain('Toog Tree of Alegria')
-    expect(heritageItems.map(d => d.name)).toContain('Irosin Stone Crafts')
+    expect(heritageItems.length).toBeGreaterThan(5)
+    expect(heritageItems.map(d => d.name)).toContain('Bible Baptist Church')
+    expect(heritageItems.map(d => d.name)).toContain('Forsquare Gospel Church')
 
-    selectCategory('Adventure & Outdoor')
-    expect(filteredDestinations.value).toHaveLength(1)
-    expect(filteredDestinations.value[0].name).toBe('Mt. Magdiwata')
+    selectCategory('Inland Resorts')
+    expect(filteredDestinations.value.map(d => d.name)).toContain('Carson Waterside Mountain Resort')
   })
 
   it('filters destinations correctly by search query', () => {
     const { searchQuery, filteredDestinations } = useDestinations()
 
-    searchQuery.value = 'San Isidro'
+    searchQuery.value = 'Bible Baptist'
     expect(filteredDestinations.value).toHaveLength(1)
-    expect(filteredDestinations.value[0].name).toBe('Mt. Magdiwata')
+    expect(filteredDestinations.value[0].name).toBe('Bible Baptist Church')
 
-    searchQuery.value = 'rosewood'
+    searchQuery.value = 'Carson Waterside'
     expect(filteredDestinations.value).toHaveLength(1)
-    expect(filteredDestinations.value[0].name).toBe('Toog Tree of Alegria')
+    expect(filteredDestinations.value[0].name).toBe('Carson Waterside Mountain Resort')
   })
 
   it('retrieves destination by ID and manages selected destination state', () => {
     const { getDestinationById, selectDestination, selectedDestination } = useDestinations()
 
-    const item = getDestinationById('mt-magdiwata')
+    const targetId = 'church_bible_baptist_church_8.502511_125.976772'
+    const item = getDestinationById(targetId)
     expect(item).toBeDefined()
-    expect(item?.barangay).toBe('San Isidro')
+    expect(item?.name).toBe('Bible Baptist Church')
 
-    selectDestination('mt-magdiwata')
-    expect(selectedDestination.value?.id).toBe('mt-magdiwata')
+    selectDestination(targetId)
+    expect(selectedDestination.value?.id).toBe(targetId)
 
     selectDestination(null)
     expect(selectedDestination.value).toBeNull()

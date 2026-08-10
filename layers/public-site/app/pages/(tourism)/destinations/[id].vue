@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useDestinations } from '../../../composables/useDestinations'
+import GoogleMap from '../../../components/GoogleMap.vue'
+import { MoveLeft } from '@lucide/vue'
 
 definePageMeta({
   layout: 'guest'
@@ -15,6 +18,33 @@ const destination = computed(() => getDestinationById(destinationId.value))
 if (!destination.value) {
   showError({ statusCode: 404, statusMessage: 'Destination landmark not found' })
 }
+
+const activePhotoIndex = ref(0)
+const hasImageError = ref(false)
+
+watch(destinationId, () => {
+  activePhotoIndex.value = 0
+  hasImageError.value = false
+})
+
+const currentImage = computed(() => {
+  if (destination.value?.photoUrls && destination.value.photoUrls.length > activePhotoIndex.value) {
+    return destination.value.photoUrls[activePhotoIndex.value]
+  }
+  return destination.value?.image || ''
+})
+
+const mapMarkers = computed(() => {
+  if (destination.value?.coordinates?.lat && destination.value?.coordinates?.lng) {
+    return [
+      {
+        position: destination.value.coordinates,
+        title: destination.value.name
+      }
+    ]
+  }
+  return []
+})
 
 useHead({
   title: computed(() => `${destination.value?.name || 'Destination'} — San Francisco, Agusan del Sur`),
@@ -32,15 +62,15 @@ const otherDestinations = computed(() => {
 </script>
 
 <template>
-  <div v-if="destination" class="bg-[#ffffff] dark:bg-[#1c1c1c] min-h-dvh flex flex-col">
+  <div v-if="destination" class="bg-[#ffffff] dark:bg-[#141414] min-h-dvh flex flex-col">
     
     <!-- Top Banner / Hero -->
-    <section class="relative w-full bg-[#171717] dark:bg-[#121212] border-b border-[#dfdfdf] dark:border-[#2e2e2e] pt-24 pb-16 lg:pt-32 lg:pb-24 overflow-hidden">
-      <div class="absolute inset-0 opacity-20 dark:opacity-30">
+    <section class="relative w-full bg-[#141414] dark:bg-[#0d0d0d] border-b border-[#dfdfdf] dark:border-[#282828] pt-24 pb-16 lg:pt-32 lg:pb-24 overflow-hidden">
+      <div class="absolute inset-0 opacity-25 dark:opacity-35 pointer-events-none">
         <NuxtImg 
-          :src="destination.image" 
+          :src="currentImage" 
           alt="Background overlay" 
-          class="w-full h-full object-cover blur-md"
+          class="w-full h-full object-cover blur-lg scale-110"
         />
       </div>
       
@@ -54,21 +84,23 @@ const otherDestinations = computed(() => {
           <span class="text-[#ffffff] truncate max-w-50 sm:max-w-none">{{ destination.name }}</span>
         </nav>
 
-        <div class="max-w-3xl">
-          <div class="flex flex-wrap items-center gap-2 mb-4">
-            <span class="px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-[#85181a] text-[#ffffff]">
-              {{ destination.category }}
-            </span>
-            <span class="px-3 py-1 rounded-full text-xs font-medium bg-[#ffffff]/20 text-[#ffffff] backdrop-blur-sm border border-[#ffffff]/20">
+        <div class="max-w-3xl space-y-4">
+          <div class="flex flex-wrap items-center gap-2">
+         
+            <Badge class="px-3 py-1 rounded-full text-xs font-medium bg-[#ffffff]/20 text-[#ffffff] backdrop-blur-md border border-[#ffffff]/20">
               Brgy. {{ destination.barangay }}
-            </span>
+            </Badge>
+            <Badge v-if="destination.opening" class="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300 backdrop-blur-md border border-emerald-400/20 flex items-center gap-1.5">
+             
+              {{ destination.opening }} - {{ destination.closing }}
+            </Badge>
           </div>
 
           <h1 class="text-3xl md:text-5xl lg:text-6xl font-medium tracking-tight text-[#ffffff] leading-[1.15]">
             {{ destination.name }}
           </h1>
 
-          <p class="mt-4 text-base md:text-lg text-[#dfdfdf] leading-relaxed">
+          <p class="text-base md:text-lg text-[#dfdfdf] leading-relaxed">
             {{ destination.shortDescription }}
           </p>
         </div>
@@ -78,21 +110,60 @@ const otherDestinations = computed(() => {
     <!-- Main Detail Content -->
     <main class="flex-1 w-full max-w-7xl mx-auto px-6 lg:px-8 py-12 md:py-16 space-y-12">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-        <div class="lg:col-span-7 rounded-2xl overflow-hidden border border-[#dfdfdf] dark:border-[#2e2e2e] shadow-lg bg-[#fafafa] dark:bg-[#202020]">
-          <NuxtImg 
-            :src="destination.image" 
-            :alt="destination.name"
-            class="w-full aspect-4/3 object-cover"
-            loading="eager"
-            format="webp"
-          />
+        
+        <!-- Left Photo Section & Gallery -->
+        <div class="lg:col-span-7 space-y-4">
+          <div class="rounded-2xl overflow-hidden border border-[#dfdfdf] dark:border-[#2e2e2e] shadow-xl bg-[#fafafa] dark:bg-[#202020] aspect-4/3 relative">
+            <NuxtImg 
+              v-if="!hasImageError && currentImage"
+              :src="currentImage" 
+              :alt="destination.name"
+              class="w-full h-full object-cover transition-all duration-500"
+              loading="eager"
+              format="webp"
+              @error="hasImageError = true"
+            />
+            <div 
+              v-else 
+              class="w-full h-full flex flex-col items-center justify-center bg-linear-to-br from-[#2a2a2a] via-[#1c1c1c] to-[#121212] text-[#a3a3a3] p-6 text-center select-none"
+            >
+              <div class="p-3.5 rounded-full bg-[#ffffff]/10 backdrop-blur-md mb-2">
+                <svg class="w-8 h-8 text-[#ef4444]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+              </div>
+              <span class="text-sm font-bold uppercase tracking-wider text-[#dfdfdf]">No Image Available</span>
+              <span class="text-xs text-[#888888] mt-0.5">San Francisco, Agusan del Sur</span>
+            </div>
+          </div>
+
+          <!-- Photo Gallery Thumbnails (if multiple available) -->
+          <div v-if="destination.photoUrls && destination.photoUrls.length > 1" class="flex items-center gap-3 overflow-x-auto p-2 bg-[#fafafa] dark:bg-[#1a1a1a] rounded-xl border border-[#e5e5e5] dark:border-[#282828]">
+            <span class="text-xs font-semibold uppercase tracking-wider text-[#707070] dark:text-[#a3a3a3] shrink-0 px-2">Photos:</span>
+            <button
+              v-for="(photo, idx) in destination.photoUrls"
+              :key="idx"
+              type="button"
+              class="w-16 h-12 rounded-lg overflow-hidden border-2 transition-all shrink-0"
+              :class="[
+                activePhotoIndex === idx
+                  ? 'border-[#85181a] dark:border-[#ef4444] scale-105 shadow-sm'
+                  : 'border-transparent opacity-60 hover:opacity-100'
+              ]"
+              @click="activePhotoIndex = idx"
+            >
+              <NuxtImg :src="photo" :alt="`Photo ${idx + 1}`" class="w-full h-full object-cover" format="webp" />
+            </button>
+          </div>
         </div>
+
+        <!-- Right Background Info -->
         <div class="lg:col-span-5 space-y-6">
           <div>
             <h2 class="text-xs font-semibold uppercase tracking-wider text-[#85181a] dark:text-[#ef4444] mb-2">
               Heritage & Background
             </h2>
-            <h3 class="text-2xl font-medium text-[#171717] dark:text-[#ffffff] tracking-tight">
+            <h3 class="text-2xl md:text-3xl font-medium text-[#171717] dark:text-[#ffffff] tracking-tight">
               About this landmark
             </h3>
           </div>
@@ -104,9 +175,7 @@ const otherDestinations = computed(() => {
               to="/destinations" 
               class="inline-flex items-center gap-2 text-sm font-semibold text-[#85181a] dark:text-[#ef4444] hover:underline"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-              </svg>
+           <MoveLeft :size="24"/>
               Back to all destinations
             </NuxtLink>
           </div>
@@ -114,98 +183,24 @@ const otherDestinations = computed(() => {
 
       </div>
 
-      <!-- Highlights Card -->
-      <section class="bg-background">
-        <h2 class="text-xl md:text-2xl font-medium text-[#171717] dark:text-[#ffffff] mb-6 flex items-center gap-2">
-          Key Site Highlights
-        </h2>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div 
-            v-for="(highlight, i) in destination.highlights" 
-            :key="i"
-            class="flex items-start gap-3 p-4 rounded-xl bg-[#ffffff] dark:bg-[#1a1a1a] border border-[#dfdfdf] dark:border-[#2a2a2a]"
-          >
-            <div class="p-1.5 rounded-full bg-[#85181a]/10 text-[#85181a] dark:bg-[#ef4444]/10 dark:text-[#ef4444] shrink-0 mt-0.5">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-              </svg>
-            </div>
-            <span class="text-sm md:text-base font-medium text-[#171717] dark:text-[#ffffff]">
-              {{ highlight }}
-            </span>
-          </div>
-        </div>
-      </section>
-
-      <!-- Visitor Guide Cards -->
-      <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="p-6 rounded-2xl border border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#ffffff] dark:bg-[#202020] space-y-3">
-          <div class="w-10 h-10 rounded-lg bg-[#fafafa] dark:bg-[#1a1a1a] flex items-center justify-center text-[#85181a] dark:text-[#ef4444]">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-            </svg>
-          </div>
-          <h3 class="text-base font-semibold text-[#171717] dark:text-[#ffffff]">How to get there</h3>
-          <p class="text-sm text-[#707070] dark:text-[#a3a3a3] leading-relaxed">
-            {{ destination.howToGetThere }}
-          </p>
+      <!-- Google Map Pin Widget -->
+      <section v-if="destination.coordinates?.lat && destination.coordinates?.lng" class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xl md:text-2xl font-medium text-[#171717] dark:text-[#ffffff]">
+            Map Location & Street View
+          </h2>
+          <span class="text-xs text-[#707070] dark:text-[#a3a3a3]">
+            {{ destination.coordinates.lat.toFixed(6) }}, {{ destination.coordinates.lng.toFixed(6) }}
+          </span>
         </div>
 
-        <div class="p-6 rounded-2xl border border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#ffffff] dark:bg-[#202020] space-y-3">
-          <div class="w-10 h-10 rounded-lg bg-[#fafafa] dark:bg-[#1a1a1a] flex items-center justify-center text-[#85181a] dark:text-[#ef4444]">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-          </div>
-          <h3 class="text-base font-semibold text-[#171717] dark:text-[#ffffff]">Best time to visit</h3>
-          <p class="text-sm text-[#707070] dark:text-[#a3a3a3] leading-relaxed">
-            {{ destination.bestTimeToVisit }}
-          </p>
-        </div>
-
-        <div class="p-6 rounded-2xl border border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#ffffff] dark:bg-[#202020] space-y-3">
-          <div class="w-10 h-10 rounded-lg bg-[#fafafa] dark:bg-[#1a1a1a] flex items-center justify-center text-[#85181a] dark:text-[#ef4444]">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-            </svg>
-          </div>
-          <h3 class="text-base font-semibold text-[#171717] dark:text-[#ffffff]">Access notes</h3>
-          <p class="text-sm text-[#707070] dark:text-[#a3a3a3] leading-relaxed">
-            {{ destination.accessNotes }}
-          </p>
-        </div>
-      </section>
-
-      <!-- Other Destinations -->
-      <section v-if="otherDestinations.length > 0" class="pt-8 border-t border-[#ededed] dark:border-[#2e2e2e]">
-        <h2 class="text-2xl font-medium tracking-tight text-[#171717] dark:text-[#ffffff] mb-8">
-          More Landmarks in San Francisco
-        </h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
-          <NuxtLink 
-            v-for="item in otherDestinations" 
-            :key="item.id"
-            :to="`/destinations/${item.id}`"
-            class="group border border-[#dfdfdf] dark:border-[#2e2e2e] p-4 bg-[#ffffff] dark:bg-[#202020] transition-all"
-          >
-            <div class="aspect-16/10  overflow-hidden mb-4 bg-[#fafafa] dark:bg-[#1a1a1a]">
-              <NuxtImg 
-                :src="item.image" 
-                :alt="item.name" 
-                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                format="webp"
-              />
-            </div>
-            <span class="text-xs font-semibold text-[#85181a] dark:text-[#ef4444] uppercase tracking-wider">
-              {{ item.category }}
-            </span>
-            <h3 class="text-base font-medium text-[#171717] dark:text-[#ffffff] group-hover:text-[#85181a] dark:group-hover:text-[#ef4444] transition-colors mt-1 line-clamp-1">
-              {{ item.name }}
-            </h3>
-          </NuxtLink>
-        </div>
+        <GoogleMap
+          :center="destination.coordinates"
+          :zoom="15"
+          :markers="mapMarkers"
+          height="360px"
+          :show-street-view-btn="true"
+        />
       </section>
 
     </main>
@@ -213,3 +208,4 @@ const otherDestinations = computed(() => {
     <Footer />
   </div>
 </template>
+

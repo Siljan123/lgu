@@ -7,6 +7,7 @@ export interface MarkerConfig {
   address?: string
   title?: string
   icon?: string | google.maps.Icon | google.maps.Symbol
+  infoWindowContent?: string
   onClick?: () => void
 }
 

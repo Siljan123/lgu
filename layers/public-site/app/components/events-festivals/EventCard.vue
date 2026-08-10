@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { Calendar, MapPin, Sparkles, ChevronRight, Award, Tag } from '@lucide/vue'
 import type { EventFestival } from '../../composables/useEventsFestivals'
 
@@ -9,6 +10,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'select', event: EventFestival): void
 }>()
+
+const hasImageError = ref(false)
 
 const onCardClick = () => {
   emit('select', props.event)
@@ -22,12 +25,26 @@ const onCardClick = () => {
     <!-- Image Header -->
     <div class="relative w-full aspect-16/10 overflow-hidden bg-[#fafafa] dark:bg-[#1a1a1a]">
       <NuxtImg 
+        v-if="!hasImageError && event.image"
         :src="event.image" 
         :alt="event.name"
         class="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 group-hover:scale-105 transition-all duration-700 ease-out"
         loading="lazy"
         format="webp"
+        @error="hasImageError = true"
       />
+      <div 
+        v-else 
+        class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#2a2a2a] via-[#1f1f1f] to-[#141414] text-[#a3a3a3] p-4 text-center select-none group-hover:scale-105 transition-transform duration-500"
+      >
+        <div class="p-3 rounded-full bg-[#ffffff]/10 backdrop-blur-md mb-2">
+          <svg class="w-6 h-6 text-[#ef4444]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <span class="text-xs font-bold uppercase tracking-wider text-[#dfdfdf]">No Image Available</span>
+        <span class="text-[10px] text-[#888888] mt-0.5 max-w-40 truncate">San Francisco, Agusan del Sur</span>
+      </div>
 
       <!-- Overlay Overlay Gradients -->
       <div class="absolute inset-0 bg-linear-to-t from-[#171717]/80 via-transparent to-transparent opacity-80 group-hover:opacity-60 transition-opacity"></div>

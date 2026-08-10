@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useDestinations, type Destination } from '../../../composables/useDestinations'
 import DestinationFilters from '../../../components/destinations/DestinationFilters.vue'
 import DestinationGrid from '../../../components/destinations/DestinationGrid.vue'
-import DestinationDetailModal from '../../../components/destinations/DestinationDetailModal.vue'
 
 definePageMeta({ 
   layout: 'guest' 
@@ -13,31 +14,36 @@ useHead({
   meta: [
     { 
       name: 'description', 
-      content: 'Explore the iconic natural wonders, sacred mountains, ancient trees, and cultural heritage of San Francisco, Agusan del Sur including Mt. Magdiwata, Toog Tree of Alegria, Agusan Marsh, and Irosin Stone Crafts.' 
+      content: 'Explore the iconic natural wonders, inland resorts, sacred churches, parks, and cultural landmarks of San Francisco, Agusan del Sur.' 
     }
   ] 
 }) 
 
+const router = useRouter()
 const {
   destinationsData,
   categories,
   searchQuery,
   selectedCategory,
   filteredDestinations,
-  selectedDestination,
-  selectDestination,
-  selectCategory
+  paginatedDestinations,
+  currentPage,
+  totalPages,
+  searchSuggestions,
+  mapMarkers,
+  viewMode,
+  selectCategory,
+  toggleViewMode,
+  goToPage
 } = useDestinations()
 
-const isModalOpen = ref(false)
+// Display list: use paginated list in grid mode, full filtered list in map mode for complete sidebar listing
+const activeDisplayDestinations = computed(() => {
+  return viewMode.value === 'map' ? filteredDestinations.value : paginatedDestinations.value
+})
 
 const handleSelectDestination = (item: Destination) => {
-  selectDestination(item)
-  isModalOpen.value = true
-}
-
-const handleCloseModal = () => {
-  isModalOpen.value = false
+  router.push(`/destinations/${item.id}`)
 }
 
 const handleResetFilters = () => {
@@ -47,73 +53,47 @@ const handleResetFilters = () => {
 </script>
 
 <template> 
-  <div class="bg-[#ffffff] dark:bg-[#1c1c1c] min-h-dvh flex flex-col">
+  <div class="bg-[#ffffff] dark:bg-[#141414] min-h-dvh flex flex-col">
     <!-- Hero Section -->
     <UiHeroSection 
       title="Destinations & Landmarks" 
-      description="Discover the natural wonders, sacred mountains, ancient landmarks, and rich cultural traditions of the Municipality of San Francisco, Agusan del Sur."
-      image="/images/destinations/mt_magdiwata.jpg"
-      image-alt="Mt. Magdiwata and San Francisco Agusan del Sur landscape"
+      description="Discover the natural wonders, sacred mountains, inland resorts, and rich cultural traditions of the Municipality of San Francisco, Agusan del Sur."
+      image="https://firebasestorage.googleapis.com/v0/b/tologan-8554a.firebasestorage.app/o/place_photos%2Findland_resorts_carson_waterside_mountain_resort_8.489293_125.984219_photo_1_1771539863241.jpg?alt=media&token=167a0b54-bd82-418f-bc22-cc70fe5774ce"
+      image-alt="San Francisco Agusan del Sur landscape"
     />
 
     <!-- Main Content Section -->
-    <main class="flex-1 w-full max-w-7xl mx-auto px-6 lg:px-8 py-12 md:py-16 space-y-12">
+    <main class="flex-1 w-full max-w-7xl mx-auto px-6 lg:px-8 py-12 md:py-16 space-y-10">
       
-      <!-- Filter Bar -->
+      <!-- Filter Bar & View Toggle -->
       <DestinationFilters
         :categories="categories"
         :selected-category="selectedCategory"
         :search-query="searchQuery"
         :total-count="destinationsData.length"
         :filtered-count="filteredDestinations.length"
+        :view-mode="viewMode"
+        :search-suggestions="searchSuggestions"
         @update:selected-category="selectCategory"
         @update:search-query="searchQuery = $event"
+        @update:view-mode="toggleViewMode"
       />
 
-      <!-- Destinations Grid -->
+      <!-- Destinations Grid / Map View -->
       <DestinationGrid
-        :destinations="filteredDestinations"
+        :destinations="activeDisplayDestinations"
+        :view-mode="viewMode"
+        :map-markers="mapMarkers"
+        :current-page="currentPage"
+        :total-pages="totalPages"
         @select="handleSelectDestination"
         @reset-filters="handleResetFilters"
+        @page-change="goToPage"
       />
-
-      <!-- Municipal Tourism Office Advisory Box -->
-      <section class="mt-16 p-8 md:p-10 rounded-2xl bg-[#fafafa] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#2e2e2e] flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
-        <div class="space-y-2 max-w-2xl">
-          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-[#85181a]/10 dark:bg-[#ef4444]/10 text-[#85181a] dark:text-[#ef4444]">
-            Municipal Tourism Office
-          </div>
-          <h3 class="text-xl md:text-2xl font-medium tracking-tight text-[#171717] dark:text-[#ffffff]">
-            Planning a Visit to San Francisco, Agusan del Sur?
-          </h3>
-          <p class="text-sm md:text-base text-[#707070] dark:text-[#a3a3a3] leading-relaxed">
-            Our local tourism officers are available to assist with guided tours, environmental clearance permits, and cultural visitation protocol for protected sites.
-          </p>
-        </div>
-
-        <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto shrink-0">
-          <NuxtLink 
-            to="/citizen-charter" 
-            class="inline-flex items-center justify-center px-5 py-3 rounded-lg border border-[#dfdfdf] dark:border-[#333333] text-sm font-semibold text-[#171717] dark:text-[#ffffff] hover:bg-[#ffffff] dark:hover:bg-[#1a1a1a] transition-colors"
-          >
-            Citizen's Charter
-          </NuxtLink>
-          <a 
-            href="mailto:tourism@sanfrancisco-ads.gov.ph"
-            class="inline-flex items-center justify-center px-6 py-3 rounded-lg text-sm font-semibold text-[#ffffff] bg-[#85181a] hover:bg-[#6b1214] dark:bg-[#ef4444] dark:hover:bg-[#dc2626] transition-colors shadow-sm"
-          >
-            Inquire Tourism Office
-          </a>
-        </div>
-      </section>
-
     </main>
 
-    <DestinationDetailModal
-      :destination="selectedDestination"
-      :is-open="isModalOpen"
-      @close="handleCloseModal"
-    />
     <Footer />
   </div>
 </template>
+
+

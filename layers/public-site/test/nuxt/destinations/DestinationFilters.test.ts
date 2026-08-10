@@ -3,58 +3,109 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import DestinationFilters from '../../../app/components/destinations/DestinationFilters.vue'
 
 describe('DestinationFilters Component', () => {
-  it('renders category pill buttons and search input', async () => {
-    const categories = ['All', 'Natural Attractions', 'Heritage & Culture']
+  it('renders search input, category select toggle button, and count stats', async () => {
+    const categories = ['All', 'Inland Resorts', 'Heritage & Culture', 'Parks & Viewpoints']
     const wrapper = await mountSuspended(DestinationFilters, {
       props: {
         categories,
         selectedCategory: 'All',
         searchQuery: '',
-        totalCount: 4,
-        filteredCount: 4
+        totalCount: 10,
+        filteredCount: 10,
+        viewMode: 'grid'
       }
     })
 
-    expect(wrapper.text()).toContain('Natural Attractions')
-    expect(wrapper.text()).toContain('Heritage & Culture')
-    expect(wrapper.text()).toContain('Showing 4 of 4 destinations')
+    expect(wrapper.find('input[type="text"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Category:')
+    expect(wrapper.text()).toContain('All')
+    expect(wrapper.text()).toContain('Showing 10 of 10')
   })
 
-  it('emits update:searchQuery when typing in the search input', async () => {
+  it('emits update:searchQuery when user types into the search input', async () => {
     const wrapper = await mountSuspended(DestinationFilters, {
       props: {
         categories: ['All'],
         selectedCategory: 'All',
         searchQuery: '',
-        totalCount: 4,
-        filteredCount: 4
+        totalCount: 10,
+        filteredCount: 10,
+        viewMode: 'grid'
       }
     })
 
     const input = wrapper.find('input[type="text"]')
-    await input.setValue('Magdiwata')
+    await input.setValue('Carson')
 
     expect(wrapper.emitted('update:searchQuery')).toBeTruthy()
-    expect(wrapper.emitted('update:searchQuery')?.[0]).toEqual(['Magdiwata'])
+    expect(wrapper.emitted('update:searchQuery')?.[0]).toEqual(['Carson'])
   })
 
-  it('emits update:selectedCategory when clicking a category pill', async () => {
-    const categories = ['All', 'Adventure & Outdoor']
+  it('opens category dropdown and emits update:selectedCategory when clicking a category option', async () => {
+    const categories = ['All', 'Heritage & Culture', 'Inland Resorts']
     const wrapper = await mountSuspended(DestinationFilters, {
       props: {
         categories,
         selectedCategory: 'All',
         searchQuery: '',
-        totalCount: 4,
-        filteredCount: 4
+        totalCount: 10,
+        filteredCount: 10,
+        viewMode: 'grid'
       }
     })
 
-    const categoryButton = wrapper.findAll('button').find(b => b.text().includes('Adventure & Outdoor'))
-    expect(categoryButton).toBeDefined()
+    // Click category dropdown trigger button
+    const categoryToggleBtn = wrapper.findAll('button').find(b => b.text().includes('Category:'))
+    expect(categoryToggleBtn?.exists()).toBe(true)
 
-    await categoryButton?.trigger('click')
+    await categoryToggleBtn?.trigger('click')
+
+    // Dropdown is now open
+    expect(wrapper.text()).toContain('Heritage & Culture')
+    const optionBtn = wrapper.findAll('button').find(b => b.text().trim() === 'Heritage & Culture')
+    expect(optionBtn?.exists()).toBe(true)
+
+    await optionBtn?.trigger('click')
     expect(wrapper.emitted('update:selectedCategory')).toBeTruthy()
-    expect(wrapper.emitted('update:selectedCategory')?.[0]).toEqual(['Adventure & Outdoor'])
+    expect(wrapper.emitted('update:selectedCategory')?.[0]).toEqual(['Heritage & Culture'])
+  })
+
+  it('emits update:viewMode when toggling between Grid and Map Explorer view buttons', async () => {
+    const wrapper = await mountSuspended(DestinationFilters, {
+      props: {
+        categories: ['All'],
+        selectedCategory: 'All',
+        searchQuery: '',
+        totalCount: 10,
+        filteredCount: 10,
+        viewMode: 'grid'
+      }
+    })
+
+    const mapExplorerBtn = wrapper.findAll('button').find(b => b.text().includes('Map Explorer'))
+    expect(mapExplorerBtn?.exists()).toBe(true)
+
+    await mapExplorerBtn?.trigger('click')
+    expect(wrapper.emitted('update:viewMode')).toBeTruthy()
+    expect(wrapper.emitted('update:viewMode')?.[0]).toEqual(['map'])
+  })
+
+  it('displays search suggestions when typing query matching searchSuggestions prop', async () => {
+    const wrapper = await mountSuspended(DestinationFilters, {
+      props: {
+        categories: ['All'],
+        selectedCategory: 'All',
+        searchQuery: 'Carson',
+        totalCount: 1,
+        filteredCount: 1,
+        viewMode: 'grid',
+        searchSuggestions: ['Carson Waterside Mountain Resort', 'Carson Pool']
+      }
+    })
+
+    const input = wrapper.find('input[type="text"]')
+    await input.trigger('focus')
+
+    expect(wrapper.text()).toContain('Carson Waterside Mountain Resort')
   })
 })
