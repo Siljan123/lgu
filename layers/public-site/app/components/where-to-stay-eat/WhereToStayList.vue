@@ -8,14 +8,7 @@ import {
   Check, 
   Building2, 
   Hotel, 
-  Sparkles, 
-  Home, 
-  Coffee, 
-  ShoppingBag, 
-  Scissors, 
-  Utensils, 
-  Stethoscope, 
-  Layers,
+  Utensils,
   ExternalLink,
   Clock,
   Image as ImageIcon
@@ -80,12 +73,13 @@ const onImageError = (id: string) => {
         Try adjusting your search terms or filter selections to find what you are looking for.
       </p>
     </div>
+
     <div v-else-if="viewMode === 'grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <article
         v-for="item in establishments"
         :key="item.id"
-        class="group relative flex flex-col h-full bg-[#ffffff] dark:bg-[#202020] rounded-xl border border-[#dfdfdf] dark:border-[#2e2e2e] overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-[#c7c7c7] dark:hover:border-[#404040]"
-        :class="[activeId === item.id ? 'ring-2 ring-[#85181a] dark:ring-[#ef4444]' : '']"
+        class="group relative flex flex-col h-full bg-[#ffffff] dark:bg-[#202020] rounded-xl border border-[#dfdfdf] dark:border-[#2e2e2e] overflow-hidden transition-all duration-300 hover:shadow-sm hover:border-[#c7c7c7] dark:hover:border-[#404040]"
+        :class="[activeId === item.id ? 'ring-2' : '']"
       >
         <!-- Card Photo Thumbnail or Fallback UI when no image available -->
         <div class="relative w-full aspect-video overflow-hidden bg-[#18181b] flex flex-col items-center justify-center border-b border-[#dfdfdf] dark:border-[#2e2e2e]">
@@ -108,12 +102,6 @@ const onImageError = (id: string) => {
               <span class="text-[11px] font-medium tracking-wider text-[#a1a1aa] uppercase">No Image Available</span>
             </div>
           </template>
-
-          <div class="absolute top-3 left-3">
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#171717]/85 backdrop-blur-xs text-[#ffffff] border border-[#ffffff]/10">
-              {{ item.category }}
-            </span>
-          </div>
         </div>
 
         <div class="p-5 flex flex-col flex-1">
@@ -154,7 +142,7 @@ const onImageError = (id: string) => {
         <div class="flex items-center gap-3">
           <div>
             <h2 class="text-lg font-bold uppercase tracking-wider text-[#ffffff]">
-              {{ currentCategory && currentCategory !== 'All' ? currentCategory : 'Official Business & Services Directory' }}
+              {{ currentCategory && currentCategory !== 'All' ? currentCategory : 'Where to Stay & Eat Directory' }}
             </h2>
             <p class="text-xs text-[#dfdfdf]/80">San Francisco, Agusan del Sur</p>
           </div>
@@ -170,7 +158,7 @@ const onImageError = (id: string) => {
           <thead>
             <tr class="bg-[#243048] dark:bg-[#1a2333] text-[#ffffff] font-bold text-xs uppercase tracking-wider border-b border-[#dfdfdf] dark:border-[#2e2e2e]">
               <th scope="col" class="py-4 px-6 text-center w-1/3 min-w-50">
-                Name / Establishment
+                Name / Category
               </th>
               <th scope="col" class="py-4 px-6 text-center w-1/3 min-w-50">
                 Address
@@ -211,7 +199,10 @@ const onImageError = (id: string) => {
                     <div class="font-bold text-base text-[#171717] dark:text-[#ffffff] group-hover:text-[#85181a] dark:group-hover:text-[#ef4444] transition-colors">
                       {{ item.name }}
                     </div>
-                    <div class="mt-1 flex justify-center gap-1.5">
+                    <div class="mt-1 flex items-center gap-1.5 flex-wrap">
+                      <span class="inline-block text-[11px] font-semibold text-[#85181a] dark:text-[#ef4444] bg-[#85181a]/10 dark:bg-[#ef4444]/20 px-2 py-0.5 rounded">
+                        {{ item.subCategory || item.category }}
+                      </span>
                       <span v-if="item.operatingHours" class="inline-flex items-center gap-1 text-[10px] text-[#707070] dark:text-[#a3a3a3]">
                         <Clock :size="10" />
                         {{ item.operatingHours }}
@@ -221,7 +212,7 @@ const onImageError = (id: string) => {
                 </div>
               </td>
 
-              <td class="py-4 px-6  text-sm text-[#212121] dark:text-[#d4d4d4] font-medium leading-snug">
+              <td class="py-4 px-6 text-sm text-[#212121] dark:text-[#d4d4d4] font-medium leading-snug">
                 <div class="flex gap-1.5">
                   <MapPin :size="15" class="text-[#85181a] dark:text-[#ef4444] shrink-0" />
                   <span>{{ item.address }}</span>
