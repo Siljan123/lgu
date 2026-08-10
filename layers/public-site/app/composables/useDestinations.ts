@@ -1,9 +1,10 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+import rawCoordinates from '../../coordinates.json'
 
 export interface Destination {
   id: string
   name: string
-  category: 'Heritage & Culture' | 'Adventure & Outdoor' | 'Wildlife & Conservation' | 'Natural Attractions'
+  category: string
   secondaryCategory?: string
   barangay: string
   shortDescription: string
@@ -13,106 +14,100 @@ export interface Destination {
   bestTimeToVisit: string
   accessNotes: string
   image: string
+  photoUrls?: string[]
   coordinates?: { lat: number; lng: number }
+  opening?: string
+  closing?: string
+}
+
+interface CoordinateItem {
+  id: string
+  category: string
+  name: string
+  short_description: string
+  lat: number
+  lng: number
+  photoUrls?: string[]
+  opening?: string
+  closing?: string
 }
 
 export const useDestinations = () => {
   const searchQuery = ref('')
   const selectedCategory = ref<string>('All')
   const activeDestinationId = ref<string | null>(null)
+  const viewMode = ref<'grid' | 'map'>('grid')
+  const currentPage = ref(1)
+  const pageSize = ref(6)
 
-  const destinationsData: Destination[] = [
-    {
-      id: 'toog-tree-of-alegria',
-      name: 'Toog Tree of Alegria',
-      category: 'Heritage & Culture',
-      secondaryCategory: 'Natural Attractions',
-      barangay: 'Alegria',
-      shortDescription: 'A 300-year-old Philippine rosewood tree, believed to be the oldest and tallest of its kind in the country — standing proudly along the national highway.',
-      fullDescription: 'Rising over 50 meters along the roadside in Barangay Alegria, the Toog Tree (Petersianthus quadrialatus) is one of San Francisco\'s most iconic natural landmarks. Estimated at three centuries old, it holds deep spiritual significance for the town\'s Indigenous communities, who regard it as a sacred tree. Over the years it has drawn conservationists, travel bloggers, and curious travelers passing through Agusan del Sur, and remains a living symbol of the town\'s connection to its natural and cultural heritage.',
-      highlights: [
-        'One of the tallest and oldest trees of its species in the Philippines',
-        'Deep cultural and spiritual significance to local Indigenous peoples',
-        'Easily accessible roadside landmark — no hike required',
-        'A living heritage site currently under conservation care'
-      ],
-      howToGetThere: 'Located along the national highway in Barangay Alegria. Any Butuan–Davao-bound bus, van, or jeepney passing through San Francisco can drop passengers near the site.',
-      bestTimeToVisit: 'Anytime — early morning offers the best light for photos.',
-      accessNotes: 'Free entry, open 24 hours. As a protected heritage tree with ongoing conservation efforts, visitors are asked to view and photograph it respectfully rather than climb or disturb the trunk.',
-      image: '/images/destinations/toog_tree_alegria.jpg',
-      coordinates: { lat: 8.528, lng: 125.987 }
-    },
-    {
-      id: 'mt-magdiwata',
-      name: 'Mt. Magdiwata',
-      category: 'Adventure & Outdoor',
-      secondaryCategory: 'Natural Attractions',
-      barangay: 'San Isidro',
-      shortDescription: 'A watershed mountain rising about 590 meters above the town, offering panoramic views of San Francisco and the Agusan Marsh — a favorite among local and visiting hikers.',
-      fullDescription: 'Mt. Magdiwata is San Francisco\'s signature hiking destination and the primary source of potable water for the town. Cloaked in tropical forest and home to native birds and wildlife, the mountain holds spiritual importance to the Manobo people, who consider it home to a diwata (spirit). Hikers who reach the summit plateau are rewarded with sweeping views of the Agusan Marsh and surrounding lowlands — a rare vantage point over one of Mindanao\'s most important wetland ecosystems.',
-      highlights: [
-        'Panoramic summit views of the Agusan Marsh',
-        'Forest trails with native birdlife and wildlife',
-        'Culturally significant to the Manobo community',
-        'A protected watershed reserve supplying the town\'s water'
-      ],
-      howToGetThere: 'Trailhead near Barangay San Isidro. From the town center, take a tricycle or habal-habal to the jump-off point.',
-      bestTimeToVisit: 'Early morning, when trails are cooler and the summit often catches a scenic mist.',
-      accessNotes: 'Mt. Magdiwata is a declared watershed forest reserve, so access is coordinated rather than open trail. Visitors should arrange their climb through the Municipal Tourism Office or the San Francisco Mountaineers\' Club.',
-      image: '/images/destinations/mt_magdiwata.jpg',
-      coordinates: { lat: 8.498, lng: 125.965 }
-    },
-    {
-      id: 'agusan-marsh-wildlife-sanctuary',
-      name: 'Agusan Marsh Wildlife Sanctuary — San Francisco Gateway',
-      category: 'Wildlife & Conservation',
-      secondaryCategory: 'Natural Attractions',
-      barangay: 'Caimpugan / New Visayas',
-      shortDescription: 'San Francisco serves as one of the gateway municipalities to the Agusan Marsh Wildlife Sanctuary, a protected wetland reachable through Barangays Caimpugan and New Visayas.',
-      fullDescription: 'The Agusan Marsh is one of the largest and most ecologically important wetlands in the Philippines, home to migratory birds, diverse aquatic life, and communities that have long lived in harmony with the marsh\'s rhythms. Through Barangays Caimpugan and New Visayas, San Francisco offers visitors an accessible entry point into this vast wetland sanctuary, where boat trips reveal floating settlements, flooded forests, and rich birdlife found in few other places in the country.',
-      highlights: [
-        'Gateway access to one of the Philippines\' major wetland sanctuaries',
-        'Boat trips through flooded forests and open marsh',
-        'Birdwatching and wetland biodiversity',
-        'Glimpse of floating riverside communities and their way of life'
-      ],
-      howToGetThere: 'Access points via Barangay Caimpugan or Barangay New Visayas; boat transport is arranged locally.',
-      bestTimeToVisit: 'Dry season, when water levels make boat access easier and more predictable.',
-      accessNotes: 'Best arranged through the Municipal Tourism Office or a local guide familiar with the marsh\'s protected areas.',
-      image: '/images/destinations/agusan_marsh.jpg',
-      coordinates: { lat: 8.412, lng: 125.882 }
-    },
-    {
-      id: 'irosin-stone-crafts',
-      name: 'Irosin Stone Crafts',
-      category: 'Heritage & Culture',
-      secondaryCategory: 'Local Livelihood',
-      barangay: 'San Francisco Artisan Workshops',
-      shortDescription: 'A centuries-old Indigenous stone-carving tradition, passed down through generations of San Francisco\'s local families.',
-      fullDescription: 'For hundreds of years, Indigenous families in San Francisco have practiced Irosin stone craft — a cottage industry of carving and shaping stone into decorative and functional pieces. The craftsmanship reflects generations of accumulated skill and cultural identity, and has drawn enough scholarly attention that the tradition has been floated for consideration under the UNESCO Creative Cities Network. Visiting artisans offers a window into a living tradition rather than a static museum piece.',
-      highlights: [
-        'Generations-old Indigenous cottage industry',
-        'Recognized craftsmanship, considered for UNESCO Creative Cities recognition',
-        'Opportunity to meet artisans and see the craft in progress',
-        'Locally made stone pieces available to purchase'
-      ],
-      howToGetThere: 'Inquire at the Municipal Tourism Office for current artisan workshops open to visitors.',
-      bestTimeToVisit: 'Anytime — best coordinated in advance with local artisans.',
-      accessNotes: 'Best experienced with a local guide or through the Municipal Tourism Office, both for authentic engagement and to support the artisans directly.',
-      image: '/images/destinations/irosin_stone_crafts.jpg',
-      coordinates: { lat: 8.502, lng: 125.975 }
-    }
+  // Watch search and category to reset pagination to page 1
+  watch([searchQuery, selectedCategory], () => {
+    currentPage.value = 1
+  })
+
+  // Map raw entries 
+  const destinationCategories = [
+    'INDLAND_RESORTS',
+    'Church',
+    'PALARONG_PAMBANSA',
+    'MABUHAY_ACCOMMODATIONS',
+    'HOMESTAYS',
+    'MALLS'
   ]
+
+  const destinationsData: Destination[] = (rawCoordinates as CoordinateItem[])
+    .filter(item => destinationCategories.includes(item.category))
+    .map(item => {
+      let mappedCategory = 'Civic Landmarks'
+      if (item.category === 'INDLAND_RESORTS') mappedCategory = 'Inland Resorts'
+      else if (item.category === 'Church') mappedCategory = 'Heritage & Culture'
+      else if (item.category === 'PALARONG_PAMBANSA') mappedCategory = 'Parks & Viewpoints'
+      else if (item.category === 'MABUHAY_ACCOMMODATIONS' || item.category === 'HOMESTAYS') mappedCategory = 'Resorts & Staycations'
+      else if (item.category === 'MALLS') mappedCategory = 'Civic Landmarks'
+
+      const brgyMatch = item.short_description.match(/(?:Barangay|Brgy\.?|Purok)\s+([A-Za-z0-9\s]+?)(?:,|$)/i)
+      const barangay = brgyMatch ? brgyMatch[1]!.trim() : 'San Francisco'
+
+      const photoList = item.photoUrls && item.photoUrls.length > 0
+        ? item.photoUrls
+        : []
+
+      const image = photoList[0] || ''
+
+      return {
+        id: item.id,
+        name: item.name,
+        category: mappedCategory,
+        secondaryCategory: item.category,
+        barangay,
+        shortDescription: item.short_description,
+        fullDescription: `${item.name} is an official landmark and visitor attraction in San Francisco, Agusan del Sur, located at ${item.short_description}. Sourced directly from the LGU dataset with exact coordinates at ${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}.`,
+        highlights: [
+          `Verified coordinates (${item.lat.toFixed(4)}, ${item.lng.toFixed(4)})`,
+          `Located in ${item.short_description}`,
+          `Hours: ${item.opening || '8:00 AM'} - ${item.closing || '5:00 PM'}`,
+          `Category: ${mappedCategory}`
+        ],
+        howToGetThere: `Accessible via local transport in ${item.short_description}. Head toward GPS location ${item.lat.toFixed(4)}, ${item.lng.toFixed(4)}.`,
+        bestTimeToVisit: item.opening ? `During operational hours (${item.opening} - ${item.closing})` : 'Daytime visits recommended.',
+        accessNotes: `Open to visitors. Operating hours: ${item.opening || '8:00 AM'} to ${item.closing || '5:00 PM'}.`,
+        image,
+        photoUrls: photoList.length > 0 ? photoList : [image],
+        coordinates: { lat: item.lat, lng: item.lng },
+        opening: item.opening || '8:00 AM',
+        closing: item.closing || '5:00 PM'
+      }
+    })
 
   const categories = [
     'All',
-    'Natural Attractions',
+    'Inland Resorts',
     'Heritage & Culture',
-    'Adventure & Outdoor',
-    'Wildlife & Conservation'
+    'Parks & Viewpoints',
+    'Resorts & Staycations',
+    'Civic Landmarks'
   ]
 
-  // Filtered destinations list
   const filteredDestinations = computed(() => {
     return destinationsData.filter(item => {
       const matchesCategory = selectedCategory.value === 'All'
@@ -128,6 +123,68 @@ export const useDestinations = () => {
 
       return matchesCategory && matchesSearch
     })
+  })
+
+  // Pagination computed properties
+  const totalPages = computed(() => Math.ceil(filteredDestinations.value.length / pageSize.value) || 1)
+
+  const paginatedDestinations = computed(() => {
+    const start = (currentPage.value - 1) * pageSize.value
+    return filteredDestinations.value.slice(start, start + pageSize.value)
+  })
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages.value) {
+      currentPage.value = page
+    }
+  }
+
+  const searchSuggestions = computed(() => {
+    const tagsSet = new Set<string>()
+    destinationsData.forEach(d => {
+      tagsSet.add(d.name)
+      tagsSet.add(`Brgy. ${d.barangay}`)
+      tagsSet.add(d.category)
+      d.highlights.forEach(h => {
+        if (h.length < 30) tagsSet.add(h)
+      })
+    })
+    return Array.from(tagsSet)
+  })
+
+  
+  // Google Maps markers array format for Map Explorer
+  const mapMarkers = computed(() => {
+    return filteredDestinations.value
+      .filter(item => item.coordinates?.lat && item.coordinates?.lng)
+      .map(item => {
+        const lat = item.coordinates!.lat
+        const lng = item.coordinates!.lng
+        const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
+
+        return {
+          position: { lat, lng },
+          title: `${item.name} (${item.barangay})`,
+          infoWindowContent: `
+            <div style="padding: 6px; max-width: 220px; font-family: system-ui, -apple-system, sans-serif;">
+              <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #85181a; margin-bottom: 2px;">${item.category}</div>
+              <h4 style="font-size: 13px; font-weight: 700; color: #171717; margin: 0 0 3px 0; line-height: 1.3;">${item.name}</h4>
+              <p style="font-size: 11px; color: #666; margin: 0 0 8px 0;">Brgy. ${item.barangay}</p>
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <button type="button" onclick="if(window.closeGoogleMapInfoWindow)window.closeGoogleMapInfoWindow()" style="display: inline-flex; align-items: center; justify-content: center; padding: 5px 10px; font-size: 11px; font-weight: 600; color: #ffffff; background-color: #85181a; border: none; border-radius: 6px; cursor: pointer;">
+                  Close
+                </button>
+                <a href="/destinations/${item.id}" style="display: inline-flex; align-items: center; justify-content: center; padding: 5px 10px; font-size: 11px; font-weight: 600; color: #171717; background-color: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 6px; text-decoration: none;">
+                  Details
+                </a>
+              </div>
+            </div>
+          `,
+          onClick: () => {
+            selectDestination(item)
+          }
+        }
+      })
   })
 
   const selectedDestination = computed(() => {
@@ -153,6 +210,14 @@ export const useDestinations = () => {
     selectedCategory.value = cat
   }
 
+  const toggleViewMode = (mode?: 'grid' | 'map') => {
+    if (mode) {
+      viewMode.value = mode
+    } else {
+      viewMode.value = viewMode.value === 'grid' ? 'map' : 'grid'
+    }
+  }
+
   return {
     destinationsData,
     categories,
@@ -161,8 +226,19 @@ export const useDestinations = () => {
     activeDestinationId,
     selectedDestination,
     filteredDestinations,
+    paginatedDestinations,
+    currentPage,
+    pageSize,
+    totalPages,
+    searchSuggestions,
+    mapMarkers,
+    viewMode,
     selectDestination,
     getDestinationById,
-    selectCategory
+    selectCategory,
+    toggleViewMode,
+    goToPage
   }
 }
+
+

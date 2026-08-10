@@ -50,6 +50,7 @@ const isStreetViewActive = ref(false)
 
 const map = shallowRef<google.maps.Map | null>(null)
 const mapMarkers = shallowRef<google.maps.Marker[]>([])
+const activeInfoWindow = shallowRef<google.maps.InfoWindow | null>(null)
 const pending = ref(true)
 const error = ref<string | null>(null)
 
@@ -57,12 +58,23 @@ const { loadGoogleMaps, createMap, createMarker, geocodeAddress, getNearestPanor
 
 async function renderMarkers() {
   if (!map.value) return
+  if (activeInfoWindow.value) {
+    activeInfoWindow.value.close()
+    activeInfoWindow.value = null
+  }
   mapMarkers.value.forEach(m => m.setMap(null))
   const createdMarkers = await Promise.all(
     props.markers.map(async (cfg, index) => {
       const marker = await createMarker(map.value!, {
         ...cfg,
         onClick: () => {
+          if (cfg.infoWindowContent && typeof google !== 'undefined' && google.maps) {
+            if (activeInfoWindow.value) activeInfoWindow.value.close()
+            activeInfoWindow.value = new google.maps.InfoWindow({
+              content: cfg.infoWindowContent,
+            })
+            activeInfoWindow.value.open(map.value!, marker)
+          }
           cfg.onClick?.()
           emit('marker-click', marker, index)
         },
@@ -165,6 +177,15 @@ function setupStreetViewListener() {
 }
 
 onMounted(async () => {
+  if (typeof window !== 'undefined') {
+    (window as any).closeGoogleMapInfoWindow = () => {
+      if (activeInfoWindow.value) {
+        activeInfoWindow.value.close()
+        activeInfoWindow.value = null
+      }
+    }
+  }
+
   try {
     await loadGoogleMaps()
     if (!mapContainer.value) return
@@ -215,36 +236,41 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="relative w-full overflow-hidden rounded-xl border border-[#dfdfdf] dark:border-[#2e2e2e] shadow-md bg-[#ffffff] dark:bg-[#202020]" :style="{ height }">
-    <!-- Map Canvas -->
-    <div ref="mapContainer" class="h-full w-full" />
 
-    <!-- Optional Floating Controls (Street View toggle) -->
+    <div ref="mapContainer" class="h-full w-full" />
     <div
       v-if="!pending && !error && showStreetViewBtn"
-      class="absolute top-3 right-3 z-10"
+      class="absolute top-3 right-20 z-10"
     >
       <button
         type="button"
         @click="toggleStreetView"
-        class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl border border-[#dfdfdf] dark:border-[#333333] shadow-md transition-colors bg-[#ffffff]/95 dark:bg-[#1c1c1c]/95 backdrop-blur-md hover:bg-[#fafafa] text-[#171717] dark:text-[#ffffff]"
+        class="flex items-center gap-1.5 px-3 py-2 text-xs  font border border-[#dfdfdf] dark:border-[#333333] shadow-md transition-colors bg-[#85181a]  backdrop-blur-md text-[#ffffff]"
         :class="{ 'ring-2 ring-[#85181a] bg-[#85181a]/10': isStreetViewActive }"
         :title="isStreetViewActive ? 'Exit Street View' : 'Open Street View'"
       >
-        <svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M12 2a3 3 0 00-3 3v3.5a.5.5 0 00.5.5h5a.5.5 0 00.5-.5V5a3 3 0 00-3-3zM9.5 10A1.5 1.5 0 008 11.5V17a1 1 0 001 1h1v4a1 1 0 002 0v-4h1a1 1 0 001-1v-5.5a1.5 1.5 0 00-1.5-1.5h-5z" />
-        </svg>
         <span>{{ isStreetViewActive ? 'Exit Street View' : 'Street View' }}</span>
       </button>
     </div>
 
-    <!-- Loading State -->
     <div v-if="pending" class="absolute inset-0 flex items-center justify-center bg-[#ffffff]/60 dark:bg-[#171717]/60 backdrop-blur-xs">
       <span class="text-sm font-semibold text-[#707070] dark:text-[#a3a3a3]">Loading Map…</span>
     </div>
 
-    <!-- Error State -->
     <div v-if="error" class="absolute inset-0 flex items-center justify-center bg-red-500/10 px-4 text-center">
       <span class="text-sm text-red-600 font-medium">{{ error }}</span>
     </div>
   </div>
 </template>
+
+<style>
+/* Remove native top-right X close button from Google Maps InfoWindow */
+.gm-ui-hover-effect {
+  display: none !important;
+}
+
+/* Adjust InfoWindow content container padding for custom Close button */
+.gm-style-iw-c {
+  padding-right: 12px !important;
+}
+</style>
