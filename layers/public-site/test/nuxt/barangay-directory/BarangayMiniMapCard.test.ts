@@ -29,15 +29,13 @@ describe('BarangayMiniMapCard Component', () => {
       }
     })
 
-    expect(wrapper.text()).toContain('Geographic Location & Mini Map')
-    expect(wrapper.text()).toContain('Alegria Coordinates & Boundary')
+    expect(wrapper.text()).toContain('Geographic Location & Interactive Map')
+    expect(wrapper.text()).toContain('Alegria Coordinates & Location')
     expect(wrapper.text()).toContain('8.5124° N, 125.9512° E')
-    expect(wrapper.text()).toContain('65m ASL')
-    expect(wrapper.text()).toContain('14.2 sq km')
     expect(wrapper.text()).toContain('2025 Official Census')
   })
 
-  it('generates correct external Google Maps and OpenStreetMap URLs', async () => {
+  it('generates correct external Google Maps URL link', async () => {
     const wrapper = await mountSuspended(BarangayMiniMapCard, {
       props: {
         barangay: mockBarangay
@@ -47,10 +45,6 @@ describe('BarangayMiniMapCard Component', () => {
     const googleLink = wrapper.find('a[href*="google.com/maps"]')
     expect(googleLink.exists()).toBe(true)
     expect(googleLink.attributes('href')).toContain('query=8.5124,125.9512')
-
-    const iframe = wrapper.find('iframe')
-    expect(iframe.exists()).toBe(true)
-    expect(iframe.attributes('src')).toContain('openstreetmap.org/export/embed.html')
   })
 
   it('copies coordinates to clipboard when copy button is clicked', async () => {

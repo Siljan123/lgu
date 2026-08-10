@@ -11,7 +11,7 @@ describe('BarangayDirectorySection Component', () => {
 
     // Details area rendered for default selected barangay (Alegria)
     expect(wrapper.text()).toContain('Alegria')
-    expect(wrapper.text()).toContain('Geographic Location & Mini Map')
+    expect(wrapper.text()).toContain('Geographic Location & Interactive Map')
     expect(wrapper.text()).toContain('Barangay Officials & Organizational Structure')
   })
 })
