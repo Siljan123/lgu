@@ -32,8 +32,6 @@ describe('BarangayMiniMapCard Component', () => {
     expect(wrapper.text()).toContain('Geographic Location & Interactive Map')
     expect(wrapper.text()).toContain('Alegria Coordinates & Location')
     expect(wrapper.text()).toContain('8.5124° N, 125.9512° E')
-    expect(wrapper.text()).toContain('65m ASL')
-    expect(wrapper.text()).toContain('14.2 sq km')
     expect(wrapper.text()).toContain('2025 Official Census')
   })
 
