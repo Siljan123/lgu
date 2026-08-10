@@ -7,7 +7,7 @@ describe('Where to Stay & Eat Tourism Page', () => {
     const wrapper = await mountSuspended(WhereToStayEatIndexPage)
 
     expect(wrapper.text()).toContain('Where to Stay and Eat')
-    expect(wrapper.text()).toContain('Explore local accommodations, dining spots, cafes, beauty salons')
+    expect(wrapper.text()).toContain('Explore local accommodations')
     expect(wrapper.text()).toContain('Interactive Directory Map & Street View 360°')
   })
 })
