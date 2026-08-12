@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const { censusData, municipalFacts } = useDemographics()
 
-// Calculate maximum population for visual growth bar scaling
+
 const maxPopulation = computed(() => {
   return Math.max(...censusData.value.map(item => item.population))
 })
@@ -30,26 +30,17 @@ const activeTab = ref('all')
 
       <!-- Main Grid: Demographic Table & Municipal Fact Card -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        
-        <!-- Left Column: Municipal Profile Card with Photo (5 cols) -->
-        <div class="lg:col-span-5 bg-white dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#2c2c2c] rounded-2xl overflow-hidden shadow-xs flex flex-col">
-          
-          <!-- Card Image Header -->
+        <div class="lg:col-span-5 bg-white dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#2c2c2c] rounded-sm overflow-hidden shadow-xs flex flex-col">
           <div class="relative h-64 w-full bg-[#1c1c1c] overflow-hidden group">
             <img 
               src="/images/municipal_hall.jpg" 
               alt="San Francisco Municipal Hall, Agusan del Sur"
               class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700"
             />
-            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
-            
-            <!-- Floating Badge Overlays -->
+            <div class="absolute inset-0 bg-linear-to-t from-black/80 via-black/30 to-transparent"></div>
             <div class="absolute top-4 left-4 right-4 flex items-center justify-between">
               <span class="px-3 py-1 bg-black/60 backdrop-blur-md text-white text-xs font-medium rounded-full border border-white/20">
                 LGU Profile
-              </span>
-              <span class="px-3 py-1 bg-black/60 backdrop-blur-md text-white text-xs font-mono rounded-full border border-white/20">
-                8°31′N 125°59′E
               </span>
             </div>
 
@@ -63,13 +54,13 @@ const activeTab = ref('all')
           <div class="p-6 space-y-6 flex-1">
             <div class="flex items-center justify-between border-b border-[#dfdfdf] dark:border-[#2c2c2c] pb-4">
               <h4 class="text-sm font-semibold uppercase tracking-wider text-[#171717] dark:text-[#ffffff]">
-                Municipal of San Francisco
+                Municipality of San Francisco
               </h4>
               <span class="text-xs text-[#707070] dark:text-[#9a9a9a]">1st Class Municipality</span>
             </div>
 
             <!-- Grouped Data Fields -->
-            <div class="space-y-6 max-h-[500px] overflow-y-auto pr-1">
+            <div class="space-y-6 max-h-125 overflow-y-auto pr-1">
               <div 
                 v-for="(section, sIdx) in municipalFacts" 
                 :key="sIdx"
@@ -110,8 +101,7 @@ const activeTab = ref('all')
 
         </div>
 
-        <!-- Right Column: Historical Population Census Table (7 cols) -->
-        <div class="lg:col-span-7 bg-white dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#2c2c2c] rounded-2xl p-6 md:p-8 shadow-xs space-y-6">
+        <div class="lg:col-span-7 bg-white dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#2c2c2c] rounded-sm p-6 md:p-8 shadow-xs space-y-6">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#dfdfdf] dark:border-[#2c2c2c] pb-5">
             <div>
               <h3 class="text-xl font-medium text-[#171717] dark:text-[#ffffff] tracking-tight">
@@ -122,7 +112,7 @@ const activeTab = ref('all')
               </p>
             </div>
             <div class="inline-flex items-center gap-2 text-xs text-[#707070] dark:text-[#9a9a9a] bg-[#fafafa] dark:bg-[#222] px-3 py-1.5 rounded-md border border-[#dfdfdf] dark:border-[#333]">
-              <span class="font-medium text-[#171717] dark:text-[#fff]">27</span> Barangays
+              <span class="font-medium text-[#171717] dark:text-white">27</span> Barangays
             </div>
           </div>
 

@@ -32,7 +32,7 @@ export const useGeography = () => {
       year: '19 (66)'
     },
     {
-      label: 'Average precipitation mm (inches)',
+      label: 'Average precipitation mm (in)',
       values: ['482 (19.0)', '381 (15.0)', '294 (11.6)', '220 (8.7)', '218 (8.6)', '212 (8.3)', '198 (7.8)', '191 (7.5)', '195 (7.7)', '245 (9.6)', '310 (12.2)', '425 (16.7)'],
       year: '3,371 (132.7)'
     },

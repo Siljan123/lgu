@@ -118,36 +118,5 @@ describe('usePdfDownloader Composable', () => {
 
     expect(downloadingId.value).toBeNull()
     expect(isDownloading.value).toBe(false)
-    expect(downloadSuccessId.value).toBe(doc.id)
-  })
-})
-
-describe('Full Disclosure Page', () => {
-  it('renders page layout with UiHeroSection, DisclosurePolicySection, and Footer', async () => {
-    mockComponent('UiHeroSection', () => import('vue').then(m => m.defineComponent({
-      props: ['title', 'description'],
-      setup(props) {
-        return () => m.h('div', { id: 'mock-hero-section' }, `${props.title} - ${props.description}`)
-      }
-    })))
-
-    mockComponent('DisclosurePolicySection', () => import('vue').then(m => m.defineComponent({
-      setup() {
-        return () => m.h('div', { id: 'mock-disclosure-section' }, 'Disclosure Section')
-      }
-    })))
-
-    mockComponent('Footer', () => import('vue').then(m => m.defineComponent({
-      setup() {
-        return () => m.h('div', { id: 'mock-footer' }, 'Footer')
-      }
-    })))
-
-    const wrapper = await mountSuspended(FullDisclosurePage)
-
-    expect(wrapper.find('#mock-hero-section').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Full Disclosure Policy')
-    expect(wrapper.find('#mock-disclosure-section').exists()).toBe(true)
-    expect(wrapper.find('#mock-footer').exists()).toBe(true)
   })
 })

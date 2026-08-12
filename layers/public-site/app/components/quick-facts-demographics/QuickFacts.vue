@@ -30,11 +30,12 @@ const displayContent = computed(() => props.content || defaultContent)
             <p class="text-xs text-[oklch(0.497_0.18_26.815)] dark:text-red-400  mt-3 font-normal">
             {{ stat.subtext }}
           </p>
-          </div>
-         
-           <div class="text-xl md:text-2xl font-semibold text-[#171717] dark:text-[#ffffff] tracking-tight tabular-nums">
+           <div class="text-xl mt-4 font-semibold text-[#171717] dark:text-[#ffffff] tracking-tight tabular-nums">
               {{ stat.value }}
             </div>
+          </div>
+         
+          
         </div>
       </div>
 
@@ -56,13 +57,13 @@ const displayContent = computed(() => props.content || defaultContent)
 
         <!-- Sample Reference Image Card (5 cols) -->
         <div class="lg:col-span-5 bg-[#fafafa] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#2e2e2e] overflow-hidden shadow-xs relative flex flex-col group min-h-[300px] md:min-h-[360px]">
-          <div class="relative w-full h-full min-h-[300px] bg-[#1a1a1a] overflow-hidden flex-1">
+          <div class="relative w-full h-full min-h-75 bg-[#1a1a1a] overflow-hidden flex-1">
             <img 
               :src="props.imageSrc" 
               :alt="props.imageAlt" 
               class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 absolute inset-0"
             />
-            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+            <div class="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent"></div>
             
             <!-- Floating Top Badges -->
             <div class="absolute top-4 left-4 right-4 flex items-center justify-between">

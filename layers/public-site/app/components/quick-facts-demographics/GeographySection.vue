@@ -16,13 +16,13 @@ const formatCellValue = (val: string) => {
 </script>
 
 <template>
-  <Card>
-    <div class="max-w-7xl mx-auto px-6 lg:px-8 space-y-8">  
+  <div>
+    <div class="max-w-7xl mx-auto px-6 lg:px-8 space-y-8 mb-4">  
       <!-- Accordion Container -->
       
-      <div class="border border-[#dfdfdf] dark:border-[#2e2e2e] rounded-2xl overflow-hidden bg-[#fafafa] dark:bg-[#202020] shadow-xs">
+      <div class="overflow-hidden">
         <button 
-          class="w-full flex items-center justify-between px-6 md:px-8 py-6 bg-[#fafafa] dark:bg-[#202020] hover:bg-[#f2f2f2] dark:hover:bg-[#252525] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#171717] dark:focus-visible:ring-[#ffffff] cursor-pointer"
+          class="w-full flex items-center justify-between px-2 md:px-4 py-2 bg-[#fafafa] dark:bg-[#202020] hover:bg-[#f2f2f2] dark:hover:bg-[#252525] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#171717] dark:focus-visible:ring-[#ffffff] cursor-pointer"
           @click="isExpanded = !isExpanded"
           :aria-expanded="isExpanded"
         >
@@ -48,7 +48,7 @@ const formatCellValue = (val: string) => {
      
         <div 
           v-show="isExpanded" 
-          class="px-6 md:px-8 py-8 border-t border-[#dfdfdf] dark:border-[#2e2e2e] bg-white dark:bg-[#1c1c1c] space-y-8"
+          class="px-2 py-8 border-t border-[#dfdfdf] dark:border-[#2e2e2e] bg-white dark:bg-[#1c1c1c] space-y-8"
         >
           <p class="text-base text-[#707070] dark:text-[#9a9a9a] leading-relaxed">
             According to official statistics from the Philippine Statistics Authority (PSA), the municipality of San Francisco covers a total land area of 392.53 square kilometres (151.56 sq mi), representing 3.93% of the 9,989.52-square-kilometre total land area of the province of Agusan del Sur.
@@ -60,7 +60,7 @@ const formatCellValue = (val: string) => {
                 <table class="w-full text-xs md:text-sm text-center whitespace-nowrap border-collapse">
                   <thead class="bg-[#fafafa] dark:bg-[#242424] border-b border-[#dfdfdf] dark:border-[#2e2e2e] text-[#171717] dark:text-[#ffffff]">
                     <tr>
-                      <th colspan="14" class="py-3.5 px-4 text-xs md:text-sm font-semibold uppercase tracking-wider text-[oklch(0.497_0.18_26.815)] dark:text-red-400 border-b border-[#dfdfdf] dark:border-[#2e2e2e] text-left">
+                      <th colspan="14" class="py-3.5 px-4 text-xs md:text-sm font-semibold tracking-wider text-[oklch(0.497_0.18_26.815)] dark:text-red-400 border-b border-[#dfdfdf] dark:border-[#2e2e2e] text-left">
                         <span class="sticky left-4 inline-block">
                           Climate Data for San Francisco, Agusan del Sur
                         </span>
@@ -100,6 +100,6 @@ const formatCellValue = (val: string) => {
       </div>
 
     </div>
-  </Card>
+  </div>
 </template>
 
