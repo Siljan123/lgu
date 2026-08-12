@@ -8,7 +8,7 @@ describe('DemographicsSection Component', () => {
 
     expect(wrapper.text()).toContain('Demographics & Municipal Data')
     expect(wrapper.text()).toContain('San Francisco')
-    expect(wrapper.text()).toContain('Municipal of San Francisco')
+    expect(wrapper.text()).toContain('Municipality of San Francisco')
     expect(wrapper.text()).toContain('Solomon T. Rufila')
     expect(wrapper.text()).toContain('Caraga (Region XIII)')
   })

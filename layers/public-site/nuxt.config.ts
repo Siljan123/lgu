@@ -6,4 +6,7 @@ export default defineNuxtConfig({
       },
     },
   },
+  runtimeConfig: {
+  openWeatherApiKey: process.env.OPENWEATHER_API_KEY,
+}
 })

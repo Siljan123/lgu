@@ -11,7 +11,7 @@ describe('GeographySection Component', () => {
     expect(wrapper.text()).toContain('3.93%')
     expect(wrapper.text()).toContain('Climate Data for San Francisco, Agusan del Sur')
     expect(wrapper.text()).toContain('Record high °C (°F)')
-    expect(wrapper.text()).toContain('Average precipitation mm (inches)')
+    expect(wrapper.text()).toContain('Average precipitation mm (in)')
     expect(wrapper.text()).toContain('Meteoblue')
   })
 

@@ -18,7 +18,7 @@ withDefaults(defineProps<Props>(), {
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
         <!-- Text Content -->
         <div class="max-w-2xl flex flex-col justify-center">
-          
+        
           <slot name="title">
             <h1 class="text-4xl md:text-5xl lg:text-7xl font-medium tracking-tight md:tracking-[-1.44px] lg:tracking-[-1.92px] text-primary leading-[1.1] mb-6 whitespace-pre-line text-balance">
               {{ title }}

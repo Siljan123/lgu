@@ -41,10 +41,11 @@ import { Button } from '../components/ui/button'
           <NavDesktopMenu />
         </div>
 
+        
         <!-- Header Actions -->
         <div class="flex items-center gap-2">
+           <QuickFactsDemographicsCurrentClimate/>
           <ThemeSwitcher />
-
           <div class="hidden lg:flex items-center gap-2">
             <Button size="sm" as-child class="gap-1.5 font-medium shadow-xs bg-brand! text-white dark:text-white hover:bg-brand/90">
               <NuxtLink to="/directory">

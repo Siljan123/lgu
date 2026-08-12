@@ -11,8 +11,9 @@ definePageMeta({
       description="Comprehensive municipal profile, historical population census records, geographic indicators, and official statistics for San Francisco, Agusan del Sur."
     />
     <QuickFactsDemographicsQuickFacts/>
+   
     <QuickFactsDemographicsSection/>
- 
+   
     <QuickFactsDemographicsGeographySection />
    
     <Footer />
