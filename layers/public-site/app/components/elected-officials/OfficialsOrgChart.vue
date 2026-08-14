@@ -61,3 +61,9 @@ function handleSelect(payload: OrganizationChartSelectPayload) {
     </div>
   </div>
 </template>
+
+<style scoped>
+:deep(.org-table) {
+  margin: 0 auto;
+}
+</style>

@@ -13,12 +13,13 @@ const {treeRoot, pending, error} = useOfficials()
 </script>
 
 <template>
+
     <UiHeroSection
     title="Elected Officlal's"
     description="Municipality of Sanfrancisco Agusan del sur Elected Official's"
     />
-    <div>
-    <section class="container mx-auto py-8 max-w-7xl">
+    <div class="w-full">
+    <div class="mx-auto py-8 max-w-7xl justify-center text-center">
     <h1 class="text-2xl font-semibold mb-6">Elected Officials</h1>
  
     <ElectedOfficialsOrgChart
@@ -26,6 +27,6 @@ const {treeRoot, pending, error} = useOfficials()
       :pending="pending"
       :error="error"
     />
-  </section>
+  </div>
     </div>
 </template>
