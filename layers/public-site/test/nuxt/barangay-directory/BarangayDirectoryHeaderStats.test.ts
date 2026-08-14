@@ -32,7 +32,6 @@ describe('BarangayDirectoryHeaderStats Component', () => {
     expect(wrapper.text()).toContain('Alegria')
     expect(wrapper.text()).toContain('Known for rich agricultural valleys.')
     expect(wrapper.text()).toContain('Postal Code: 8500')
-    expect(wrapper.text()).toContain('Purok 2, Brgy. Alegria')
     expect(wrapper.text()).toContain('+63 (085) 839-1001')
     expect(wrapper.text()).toContain('brgy.alegria@sfads.gov.ph')
   })

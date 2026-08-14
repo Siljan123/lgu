@@ -711,7 +711,7 @@ const BARANGAY_LIST_DATA: BarangayItem[] = [
       { id: 'p1-8', name: 'Hon. Eduardo K. Gomez', title: 'Barangay Kagawad', role: 'kagawad', committee: 'Infrastructure & Urban Planning' },
       { id: 'p1-9', name: 'Hon. Flordeliza N. Santos', title: 'Barangay Kagawad', role: 'kagawad', committee: 'Education & Culture' },
       { id: 'p1-10', name: 'Hon. Gabriel T. Morales', title: 'Barangay Kagawad', role: 'kagawad', committee: 'Ordinances & Legal' },
-      { id: 'p1-11', name: 'Hon. Angela Marie D. Dela Cruz', title: 'SK Chairperson', role: 'sk_chairperson' }
+      { id: 'p1-11', name: 'Angela Marie D. Dela Cruz', title: 'SK Chairperson', role: 'sk_chairperson' }
     ]
   },
   {
@@ -958,7 +958,7 @@ export const useBarangayDirectory = () => {
     selectedClassification.value = classification
   }
 
-  // Dynamic Loader Hook: Replaces or extends local state when live backend API or CMS is available
+  // Dynamic Loader Hook: Replaces or extends local state when live backend API if available
   const setDynamicBarangays = (data: BarangayItem[]) => {
     if (data && Array.isArray(data) && data.length > 0) {
       barangays.value = data

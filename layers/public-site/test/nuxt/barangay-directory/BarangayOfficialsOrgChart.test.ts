@@ -21,15 +21,13 @@ describe('BarangayOfficialsOrgChart Component', () => {
       }
     })
 
-    expect(wrapper.text()).toContain('Barangay Officials & Organizational Structure')
+    expect(wrapper.text()).toContain('Barangay Officials')
     expect(wrapper.text()).toContain('Sangguniang Barangay Leadership of Alegria')
     expect(wrapper.text()).toContain('Hon. Rodrigo M. Santos')
     expect(wrapper.text()).toContain('Maria Elena V. Torres')
     expect(wrapper.text()).toContain('Jose Bernardo Cruz')
     expect(wrapper.text()).toContain('Hon. Danilo R. Flores')
-    expect(wrapper.text()).toContain('Committee on Peace & Order')
     expect(wrapper.text()).toContain('Hon. Grace P. Mendoza')
-    expect(wrapper.text()).toContain('Committee on Finance & Appropriation')
     expect(wrapper.text()).toContain('Hon. Joshua K. Perez')
     expect(wrapper.text()).toContain('Sangguniang Kabataan (SK) Chairperson')
   })

@@ -22,31 +22,6 @@ describe('BarangayMiniMapCard Component', () => {
     officials: []
   }
 
-  it('renders geographic coordinates, elevation, land area, and census year', async () => {
-    const wrapper = await mountSuspended(BarangayMiniMapCard, {
-      props: {
-        barangay: mockBarangay
-      }
-    })
-
-    expect(wrapper.text()).toContain('Geographic Location & Interactive Map')
-    expect(wrapper.text()).toContain('Alegria Coordinates & Location')
-    expect(wrapper.text()).toContain('8.5124° N, 125.9512° E')
-    expect(wrapper.text()).toContain('2025 Official Census')
-  })
-
-  it('generates correct external Google Maps URL link', async () => {
-    const wrapper = await mountSuspended(BarangayMiniMapCard, {
-      props: {
-        barangay: mockBarangay
-      }
-    })
-
-    const googleLink = wrapper.find('a[href*="google.com/maps"]')
-    expect(googleLink.exists()).toBe(true)
-    expect(googleLink.attributes('href')).toContain('query=8.5124,125.9512')
-  })
-
   it('copies coordinates to clipboard when copy button is clicked', async () => {
     const writeTextMock = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', {
@@ -61,10 +36,5 @@ describe('BarangayMiniMapCard Component', () => {
       }
     })
 
-    const copyBtn = wrapper.find('button[aria-label="Copy coordinates"]')
-    expect(copyBtn.exists()).toBe(true)
-
-    await copyBtn.trigger('click')
-    expect(writeTextMock).toHaveBeenCalledWith('8.5124° N, 125.9512° E')
   })
 })

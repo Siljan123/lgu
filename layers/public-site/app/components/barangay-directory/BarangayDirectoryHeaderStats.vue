@@ -8,9 +8,9 @@ defineProps<{
 </script>
 
 <template>
-  <Card>
-     <CardHeader>
-       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#dfdfdf] dark:border-[#333333] pb-6">
+  <div>
+     <div class="mb-4">
+       <div class="flex flex-col md:flex-row md:items-center justify-between pb-6">
         <div class="space-y-1">
           <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-[#171717] dark:text-[#ffffff]">
             {{ barangay.name }}
@@ -26,10 +26,6 @@ defineProps<{
         </div>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3  text-xs text-[#707070] dark:text-[#a3a3a3] dark:border-[#333333]">
-        <div class="flex items-center space-x-2">
-          <Building2 class="size-4 text-[#dc2626] shrink-0" />
-          <span><strong class="text-[#171717] dark:text-[#ffffff]">Barangay Hall:</strong> {{ barangay.hallAddress }}</span>
-        </div>
         <div class="flex items-center space-x-4">
           <span class="flex items-center space-x-1.5">
             <Phone class="size-3.5 text-[#dc2626] shrink-0" />
@@ -41,7 +37,6 @@ defineProps<{
           </span>
         </div>
       </div>
-     </CardHeader>
-
-  </Card>
+     </div>
+  </div>
 </template>
