@@ -9,6 +9,7 @@ export default defineConfig<ConfigOptions>({
   use: {
     nuxt: {
       rootDir: fileURLToPath(new URL('.', import.meta.url)),
+      setupTimeout: 180_000,
     },
   },
   projects: [
