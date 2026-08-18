@@ -14,7 +14,7 @@ export function useServerSupabase(schema: string = 'governance'): SupabaseClient
     'http://127.0.0.1:54321'
   ) as string
 
-  // Studio port (54323) is a Next.js UI, not the Supabase API Gateway (54321)
+  // Studio port (54323) 
   if (supabaseUrl.includes(':54323')) {
     supabaseUrl = supabaseUrl.replace(':54323', ':54321')
   }
