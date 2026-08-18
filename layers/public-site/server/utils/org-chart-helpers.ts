@@ -169,7 +169,7 @@ export function buildOrgChartTree(
 }
 
 export async function seedDefaultOrgDataToSupabase() {
-  const supabase = useServerSupabase()
+  const supabase = useServerSupabase('governance')
 
   // Flatten default tree grouped by hierarchy level/depth
   const deptByDepth = new Map<number, DepartmentRow[]>()
@@ -227,27 +227,27 @@ export async function seedDefaultOrgDataToSupabase() {
   }
 
   // Clear existing records
-  await supabase.from('employees').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-  await supabase.from('positions').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-  await supabase.from('departments').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+  await supabase.schema('governance').from('employees').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+  await supabase.schema('governance').from('positions').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+  await supabase.schema('governance').from('departments').delete().neq('id', '00000000-0000-0000-0000-000000000000')
 
   // Insert departments level by level to respect parent_id foreign key hierarchy
   const maxDepth = Math.max(...Array.from(deptByDepth.keys()))
   for (let d = 0; d <= maxDepth; d++) {
     const depts = deptByDepth.get(d)
     if (depts && depts.length > 0) {
-      const { error: deptErr } = await supabase.from('departments').upsert(depts)
+      const { error: deptErr } = await supabase.schema('governance').from('departments').upsert(depts)
       if (deptErr) console.error(`Error inserting depth ${d} departments in Supabase:`, deptErr)
     }
   }
 
   if (posInserts.length > 0) {
-    const { error: posErr } = await supabase.from('positions').upsert(posInserts)
+    const { error: posErr } = await supabase.schema('governance').from('positions').upsert(posInserts)
     if (posErr) console.error('Error seeding positions in Supabase:', posErr)
   }
 
   if (empInserts.length > 0) {
-    const { error: empErr } = await supabase.from('employees').upsert(empInserts)
+    const { error: empErr } = await supabase.schema('governance').from('employees').upsert(empInserts)
     if (empErr) console.error('Error seeding employees in Supabase:', empErr)
   }
 }

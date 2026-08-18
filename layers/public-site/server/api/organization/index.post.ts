@@ -11,13 +11,14 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const supabase = useServerSupabase()
+  const supabase = useServerSupabase('governance')
   const isRootNode = !body.parentId || body.parentId === '__root__' || body.parentId === 'null' || body.parentId === 'undefined'
   const parentUUID = isRootNode ? null : toValidUUID(body.parentId!)
 
   if (parentUUID) {
     // Verify parent node exists in database; if not, seed default data
     const { data: parentDept } = await supabase
+      .schema('governance')
       .from('departments')
       .select('id')
       .eq('id', parentUUID)
@@ -44,6 +45,7 @@ export default defineEventHandler(async (event) => {
 
   // Insert department (matching schema: id, name, acronym, description, parent_id, order_index)
   const { error: deptErr } = await supabase
+    .schema('governance')
     .from('departments')
     .insert({
       id: nodeId,
@@ -64,6 +66,7 @@ export default defineEventHandler(async (event) => {
 
   // Insert position (matching schema: id, title)
   await supabase
+    .schema('governance')
     .from('positions')
     .insert({
       id: posId,
@@ -72,6 +75,7 @@ export default defineEventHandler(async (event) => {
 
   // Insert employee (matching schema: id, first_name, middle_name, last_name, position_id, department_id, contact)
   await supabase
+    .schema('governance')
     .from('employees')
     .insert({
       id: empId,

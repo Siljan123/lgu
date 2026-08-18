@@ -2,9 +2,10 @@ import { useServerSupabase } from '../../utils/supabase'
 import { seedDefaultOrgDataToSupabase } from '../../utils/org-chart-helpers'
 
 export default defineEventHandler(async (event): Promise<string[]> => {
-  const supabase = useServerSupabase()
+  const supabase = useServerSupabase('governance')
 
   let { data: positions, error: posErr } = await supabase
+    .schema('governance')
     .from('positions')
     .select('title')
     .order('title', { ascending: true })
@@ -18,6 +19,7 @@ export default defineEventHandler(async (event): Promise<string[]> => {
     try {
       await seedDefaultOrgDataToSupabase()
       const { data: rePositions } = await supabase
+        .schema('governance')
         .from('positions')
         .select('title')
         .order('title', { ascending: true })

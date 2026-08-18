@@ -37,7 +37,7 @@ withDefaults(defineProps<Props>(), {
         </div>
 
         <!-- Image Content -->
-       <div v-if="image || $slots.image" class="relative w-full aspect-4/3 rounded-lg overflow-hidden bg-[#fafafa] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#2a2a2a]">
+       <div v-if="image || $slots.image" class="relative w-full aspect-5/3 rounded-lg overflow-hidden bg-[#fafafa] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#2a2a2a]">
         <slot name="image">
           <NuxtImg 
             :src="image" 

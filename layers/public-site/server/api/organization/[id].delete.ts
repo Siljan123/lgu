@@ -17,9 +17,10 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const supabase = useServerSupabase()
+  const supabase = useServerSupabase('governance')
 
   const { error } = await supabase
+    .schema('governance')
     .from('departments')
     .delete()
     .eq('id', deptUUID)
