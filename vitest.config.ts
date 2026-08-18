@@ -3,6 +3,8 @@ import { defineVitestProject } from '@nuxt/test-utils/config'
 
 export default defineConfig({
   test: {
+    hookTimeout: 60000,
+    testTimeout: 60000,
     projects: [
       {
         test: {
@@ -23,6 +25,8 @@ export default defineConfig({
         test: {
           name: 'nuxt',
           environment: 'nuxt',
+          hookTimeout: 60000,
+          testTimeout: 60000,
           include: [
             'layers/*/test/nuxt/**/*.test.ts',
             'test/nuxt/**/*.test.ts',

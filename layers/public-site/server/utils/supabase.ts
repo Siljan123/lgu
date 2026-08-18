@@ -5,7 +5,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
  * Uses service role key to bypass RLS.
  * A fresh client is created per call to avoid stale connections after db restarts.
  */
-export function useServerSupabase(): SupabaseClient {
+export function useServerSupabase(schema: string = 'governance'): SupabaseClient<any, any, any> {
   const config = useRuntimeConfig()
 
   let supabaseUrl = (
@@ -26,6 +26,9 @@ export function useServerSupabase(): SupabaseClient {
   ) as string
 
   return createClient(supabaseUrl, supabaseKey, {
+    db: {
+      schema: schema || 'governance',
+    },
     auth: {
       persistSession: false,
       autoRefreshToken: false,

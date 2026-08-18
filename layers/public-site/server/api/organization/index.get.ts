@@ -1,9 +1,10 @@
 import type { MunicipalDepartmentNode } from '../../../types/organization'
 
 export default defineEventHandler(async (event): Promise<MunicipalDepartmentNode> => {
-  const supabase = useServerSupabase()
+  const supabase = useServerSupabase('governance')
 
   let { data: departments, error: deptErr } = await supabase
+    .schema('governance')
     .from('departments')
     .select('*')
     .order('order_index', { ascending: true })
@@ -19,6 +20,7 @@ export default defineEventHandler(async (event): Promise<MunicipalDepartmentNode
   if (!departments || departments.length === 0) {
     await seedDefaultOrgDataToSupabase()
     const { data: seededDepts, error: reDeptErr } = await supabase
+      .schema('governance')
       .from('departments')
       .select('*')
       .order('order_index', { ascending: true })
@@ -32,8 +34,8 @@ export default defineEventHandler(async (event): Promise<MunicipalDepartmentNode
   }
 
   const [{ data: positions, error: posErr }, { data: employees, error: empErr }] = await Promise.all([
-    supabase.from('positions').select('*'),
-    supabase.from('employees').select('*'),
+    supabase.schema('governance').from('positions').select('*'),
+    supabase.schema('governance').from('employees').select('*'),
   ])
 
   if (posErr) {

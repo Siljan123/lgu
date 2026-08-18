@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const supabase = useServerSupabase()
+  const supabase = useServerSupabase('governance')
   const deptUUID = toValidUUID(paramId)
 
   // Update department (matching schema: name, acronym, description, updated_at)
@@ -35,6 +35,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const { error: deptErr } = await supabase
+    .schema('governance')
     .from('departments')
     .update(updatePayload)
     .eq('id', deptUUID)
@@ -60,6 +61,7 @@ export default defineEventHandler(async (event) => {
 
     // Find existing employee in this department
     const { data: existingEmployees } = await supabase
+      .schema('governance')
       .from('employees')
       .select('id, position_id')
       .eq('department_id', deptUUID)
@@ -79,10 +81,11 @@ export default defineEventHandler(async (event) => {
         empUpdate.contact = body.contact.trim() || null
       }
 
-      await supabase.from('employees').update(empUpdate).eq('id', emp.id)
+      await supabase.schema('governance').from('employees').update(empUpdate).eq('id', emp.id)
 
       if (positionTitle && emp.position_id) {
         await supabase
+          .schema('governance')
           .from('positions')
           .update({ title: positionTitle, updated_at: new Date().toISOString() })
           .eq('id', emp.position_id)
@@ -90,11 +93,11 @@ export default defineEventHandler(async (event) => {
     } else if (nameSplit) {
       const posId = crypto.randomUUID()
       const empId = crypto.randomUUID()
-      await supabase.from('positions').insert({
+      await supabase.schema('governance').from('positions').insert({
         id: posId,
         title: positionTitle || 'Office Head',
       })
-      await supabase.from('employees').insert({
+      await supabase.schema('governance').from('employees').insert({
         id: empId,
         first_name: nameSplit.first_name,
         middle_name: nameSplit.middle_name,
