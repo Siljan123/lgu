@@ -1,0 +1,358 @@
+/* ==========================================================================
+   organization-chart-vue3 — reorganized base styles + entrance animation
+   Load AFTER 'organization-chart-vue3/style.css' in your css array so these
+   rules win. Do not edit the copy inside node_modules directly — it gets
+   overwritten on every install.
+   ========================================================================== */
+
+/* ---------- 1. Table layout ---------- */
+
+.org-table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+.org-table td {
+  position: relative;
+  vertical-align: top;
+  text-align: center;
+  padding: 0 0 50px;
+}
+
+/* ---------- 2. Node & container ---------- */
+
+.org-node {
+  position: relative;
+  display: inline-block;
+  box-sizing: border-box;
+  margin: 0 1em;
+}
+
+.org-node .org-container {
+  position: relative;
+  z-index: 2;
+  display: inline-block;
+  width: 100%;
+  min-width: 150px;
+}
+
+/* ---------- 3. Title bar ---------- */
+
+.org-title {
+  width: 100%;
+  padding: 15px 5px;
+  font-weight: 700;
+  white-space: pre;
+  background-color: #e3e3e3;
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+
+/* ---------- 4. Content card ---------- */
+
+.org-content {
+  width: 100%;
+  margin-top: 3px;
+  padding: 5px;
+  text-align: left;
+  white-space: pre;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.org-content .org-content-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 5px;
+  border-bottom: 1px solid #e7e7e7;
+}
+
+.org-content .org-content-item:last-child {
+  border-bottom: none;
+}
+
+.org-content-item .item-box {
+  flex: 1;
+}
+
+.org-content-item .item-box .item-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.org-content-item .item-box .item-add {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.org-content-item .avat {
+  display: block;
+  overflow: hidden;
+  box-sizing: border-box;
+  width: 3em;
+  height: 3em;
+  margin-left: 5px;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 2em;
+}
+
+.org-content-item .avat img {
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- 5. Connector lines ---------- */
+
+/* vertical stub: node up to the shared horizontal bar (middle children) */
+.org-child-level::before {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  height: 15px;
+  border-left: 2px solid #ccc;
+  transform: translate(-1px);
+}
+
+/* horizontal bar: connects siblings (middle children — full width) */
+.org-child-level::after {
+  content: "";
+  position: absolute;
+  top: -15px;
+  left: 0;
+  right: 0;
+  border-top: 2px solid #ccc;
+}
+
+/* first/last child don't need the separate vertical stub —
+   their :after corner (below) already includes it */
+.org-child-level:first-child::before,
+.org-child-level:last-child::before {
+  display: none;
+}
+
+/* first child: corner from center going right + up */
+.org-child-level:first-child::after {
+  left: 50%;
+  height: 13px;
+  border: 2px solid transparent;
+  border-color: #ccc transparent transparent #ccc;
+  transform: translate(1px);
+}
+
+/* last child: corner from center going left + up (mirrored) */
+.org-child-level:last-child::after {
+  right: 50%;
+  height: 13px;
+  border: 2px solid #ccc;
+  border-color: #ccc #ccc transparent transparent;
+  transform: translate(-1px);
+}
+
+/* only child (both first and last): plain vertical stub, no corner */
+.org-child-level:first-child.org-child-level:last-child::after {
+  left: 50%;
+  right: auto;
+  border: 0;
+  border-left: 2px solid #ccc;
+  transform: translate(-1px);
+}
+
+/* ---------- 6. Extend / collapse arrow ---------- */
+
+.org-extend::after {
+  content: "";
+  position: absolute;
+  bottom: 13px;
+  left: 50%;
+  height: 17px;
+  border-left: 2px solid #ccc;
+  transform: translate(-1px);
+}
+
+.org-extend-arrow {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  display: block;
+  width: 16px;
+  height: 16px;
+  padding: 10px;
+  margin: 0;
+  font-size: 0;
+  line-height: 0;
+  appearance: none;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  transform: translate(-18px);
+}
+
+.org-extend-arrow::before {
+  content: "";
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  border: 3px solid #ccc;
+  border-color: #ccc #ccc transparent transparent;
+  transform-origin: 50% 50% 0;
+  transform: rotate(135deg);
+  transition: transform 0.3s;
+}
+
+.org-extend .org-extend-arrow::before {
+  transform: rotate(-45deg);
+}
+
+.org-extend-arrow:hover::before {
+  border-color: #333 #333 transparent transparent;
+}
+
+.org-extend-arrow:focus-visible {
+  outline: 2px solid #66abd3;
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   7. Entrance animation
+   Top-down cascade by tree depth, connector lines grow in sync.
+   Transforms below are combined with the base positioning transforms
+   above (translate offsets) so animating them doesn't knock lines
+   out of alignment.
+   ========================================================================== */
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes org-fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes org-line-grow-v {
+    from { transform: translate(-1px) scaleY(0); }
+    to   { transform: translate(-1px) scaleY(1); }
+  }
+
+  @keyframes org-line-grow-h {
+    from { transform: scaleX(0); }
+    to   { transform: scaleX(1); }
+  }
+
+  @keyframes org-line-grow-h-first {
+    from { transform: translate(1px) scaleX(0); }
+    to   { transform: translate(1px) scaleX(1); }
+  }
+
+  @keyframes org-line-grow-h-last {
+    from { transform: translate(-1px) scaleX(0); }
+    to   { transform: translate(-1px) scaleX(1); }
+  }
+
+  /* tier 1: root node */
+  .org-node {
+    animation: org-fade-in-up 0.45s ease-out both;
+    animation-delay: 0.05s;
+  }
+
+  /* tier 2: nested one level */
+  .org-node .org-node {
+    animation-delay: 0.25s;
+  }
+
+  /* tier 3: nested two levels */
+  .org-node .org-node .org-node {
+    animation-delay: 0.45s;
+  }
+
+  /* vertical stub grows down toward the node it feeds */
+  .org-child-level::before {
+    transform-origin: bottom;
+    animation: org-line-grow-v 0.25s ease-out both;
+    animation-delay: 0.2s;
+  }
+
+  /* horizontal bar: middle children grow from center outward */
+  .org-child-level::after {
+    transform-origin: center;
+    animation: org-line-grow-h 0.25s ease-out both;
+    animation-delay: 0.35s;
+  }
+
+  .org-child-level:first-child::after {
+    transform-origin: left;
+    animation: org-line-grow-h-first 0.25s ease-out both;
+    animation-delay: 0.35s;
+  }
+
+  .org-child-level:last-child::after {
+    transform-origin: right;
+    animation: org-line-grow-h-last 0.25s ease-out both;
+    animation-delay: 0.35s;
+  }
+
+  /* subtle lift on hover */
+  .org-container {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .org-container:hover {
+    transform: translateY(-2px);
+  }
+
+  .org-container:hover .org-content {
+    box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
+  }
+}
+
+/* ==========================================================================
+   8. Collapse / expand transition
+   The library toggles the children row via inline `visibility`, not
+   `display` or v-if — so the row's space stays reserved either way and we
+   only need a cross-fade, no height animation. It also sets `.org-extend`
+   on the toggle button's parent <td> when expanded, which is what we key
+   off of via :has() to target its sibling row.
+   `@starting-style` + `allow-discrete` lets `visibility` itself animate
+   instead of jumping instantly. Needs Chrome/Edge 117+, Safari 17.4+,
+   Firefox 129+ — older browsers just get the instant toggle, no breakage.
+   ========================================================================== */
+
+@media (prefers-reduced-motion: no-preference) {
+  .org-table > tbody > tr + tr {
+    transform-origin: top center;
+    transition:
+      opacity 0.3s ease,
+      transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+      visibility 0.3s ease allow-discrete;
+    transition-behavior: allow-discrete;
+  }
+
+  /* collapsed: preceding row's toggle cell has no .org-extend —
+     children scale down + fade, folding up toward the connector line */
+  .org-table > tbody > tr:not(:has(> td.org-extend)) + tr {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+
+  /* expanded: preceding row's toggle cell has .org-extend */
+  .org-table > tbody > tr:has(> td.org-extend) + tr {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* starting point for the hidden -> visible (expand) transition */
+  @starting-style {
+    .org-table > tbody > tr:has(> td.org-extend) + tr {
+      opacity: 0;
+      transform: scale(0.85);
+    }
+  }
+}

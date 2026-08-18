@@ -409,19 +409,105 @@ function handleSelect(payload: OrganizationChartSelectPayload) {
   overflow-wrap: anywhere !important;
 }
 
+/* Connector lines styling */
 :deep(.org-child-level:before),
 :deep(.org-child-level:after),
 :deep(.org-extend:after) {
-  border-color: #dfdfdf !important;
+  border-color: #cbd5e1 !important;
+  border-width: 2px !important;
 }
 
 .dark :deep(.org-child-level:before),
 .dark :deep(.org-child-level:after),
 .dark :deep(.org-extend:after) {
-  border-color: #333333 !important;
+  border-color: #475569 !important;
 }
 
+:deep(.org-extend:after) {
+  height: 20px !important;
+  bottom: 10px !important;
+}
+
+/* Extend arrow button styling */
+:deep(.org-extend-arrow) {
+  box-sizing: border-box !important;
+  appearance: none !important;
+  cursor: pointer !important;
+  width: 24px !important;
+  height: 24px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  position: absolute !important;
+  bottom: 12px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 10 !important;
+  background-color: #ffffff !important;
+  border: 2px solid #cbd5e1 !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.dark :deep(.org-extend-arrow) {
+  background-color: #1e293b !important;
+  border-color: #475569 !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
+:deep(.org-extend-arrow:hover) {
+  transform: translateX(-50%) scale(1.2) !important;
+  border-color: #dc2626 !important;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25) !important;
+}
+
+/* Arrowhead icon inside the circular button */
 :deep(.org-extend-arrow:before) {
-  border-color: #707070 #707070 transparent transparent !important;
+  content: "" !important;
+  box-sizing: border-box !important;
+  width: 7px !important;
+  height: 7px !important;
+  border-style: solid !important;
+  border-width: 2px 2px 0 0 !important;
+  border-color: #64748b !important;
+  margin: 0 !important;
+  display: block !important;
+  transform-origin: center !important;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s ease !important;
+  transform: translateY(-1px) rotate(135deg) !important;
+}
+
+.dark :deep(.org-extend-arrow:before) {
+  border-color: #94a3b8 !important;
+}
+
+:deep(.org-extend-arrow:hover:before) {
+  border-color: #dc2626 !important;
+}
+
+/* Expanded state rotation animation */
+:deep(.org-extend .org-extend-arrow:before) {
+  transform: translateY(1px) rotate(-45deg) !important;
+}
+
+/* Smooth expansion and collapse animation transform for child nodes */
+:deep(.org-child-level) {
+  animation: org-node-expand 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: top center;
+  will-change: transform, opacity;
+}
+
+@keyframes org-node-expand {
+  0% {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 </style>
