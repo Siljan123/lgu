@@ -5,12 +5,12 @@ import type { BarangayOfficial } from '../../../app/composables/useBarangayDirec
 
 describe('BarangayOfficialsOrgChart Component', () => {
   const mockOfficials: BarangayOfficial[] = [
-    { id: 'al-1', name: 'Hon. Rodrigo M. Santos', title: 'Punong Barangay', role: 'captain' },
-    { id: 'al-2', name: 'Maria Elena V. Torres', title: 'Barangay Secretary', role: 'secretary' },
-    { id: 'al-3', name: 'Jose Bernardo Cruz', title: 'Barangay Treasurer', role: 'treasurer' },
-    { id: 'al-4', name: 'Hon. Danilo R. Flores', title: 'Barangay Kagawad', role: 'kagawad', committee: 'Peace & Order' },
-    { id: 'al-5', name: 'Hon. Grace P. Mendoza', title: 'Barangay Kagawad', role: 'kagawad', committee: 'Finance & Appropriation' },
-    { id: 'al-11', name: 'Hon. Joshua K. Perez', title: 'SK Chairperson', role: 'sk_chairperson', committee: 'Youth & Sports Development' }
+    { id: 'al-1', name: 'Hon. Rodrigo M. Santos', title: 'Punong Barangay (Captain)' },
+    { id: 'al-2', name: 'Maria Elena V. Torres', title: 'Barangay Secretary' },
+    { id: 'al-3', name: 'Jose Bernardo Cruz', title: 'Barangay Treasurer' },
+    { id: 'al-4', name: 'Hon. Danilo R. Flores', title: 'Barangay Kagawad', committee: 'Peace & Order' },
+    { id: 'al-5', name: 'Hon. Grace P. Mendoza', title: 'Barangay Kagawad', committee: 'Finance & Appropriation' },
+    { id: 'al-11', name: 'Hon. Joshua K. Perez', title: 'SK Chairperson', committee: 'Youth & Sports Development' }
   ]
 
   it('renders barangay officials hierarchy including captain, secretary, treasurer, kagawads and SK chairperson', async () => {

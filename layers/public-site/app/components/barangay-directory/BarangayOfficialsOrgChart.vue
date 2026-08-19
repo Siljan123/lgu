@@ -9,13 +9,16 @@ import type {
 import type { BarangayOfficial } from '../../composables/useBarangayDirectory'
 import {
   UserCheck,
-  Crown,
-  Sparkles,
-  Maximize2,
   ZoomIn,
   ZoomOut,
   RotateCcw,
   Move,
+  Plus,
+  Edit3,
+  Trash2,
+  Phone,
+  Info,
+  UserPlus
 } from '@lucide/vue'
 
 const props = defineProps<{
@@ -24,10 +27,13 @@ const props = defineProps<{
   barangayId?: string
 }>()
 
-const barangaySlug = computed(() => {
-  if (props.barangayId) return props.barangayId
-  return props.barangayName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-})
+const emit = defineEmits<{
+  (e: 'add-official'): void
+  (e: 'add-child', parentId: string): void
+  (e: 'edit', official: BarangayOfficial): void
+  (e: 'delete', official: BarangayOfficial): void
+  (e: 'view-details', official: BarangayOfficial): void
+}>()
 
 // Pan & Zoom state
 const scale = ref(1)
@@ -71,7 +77,7 @@ function handleMouseUp() {
 }
 
 function handleMouseDown(e: MouseEvent) {
-  if ((e.target as HTMLElement).closest('button, a, select')) return
+  if ((e.target as HTMLElement).closest('button, a, select, input')) return
   isDragging.value = true
   startX.value = e.clientX - panX.value
   startY.value = e.clientY - panY.value
@@ -94,7 +100,7 @@ function handleTouchEnd() {
 
 function handleTouchStart(e: TouchEvent) {
   if (e.touches.length === 1) {
-    if ((e.target as HTMLElement).closest('button, a, select')) return
+    if ((e.target as HTMLElement).closest('button, a, select, input')) return
     isDragging.value = true
     startX.value = e.touches[0]!.clientX - panX.value
     startY.value = e.touches[0]!.clientY - panY.value
@@ -110,13 +116,92 @@ onUnmounted(() => {
   window.removeEventListener('touchend', handleTouchEnd)
 })
 
-const captain = computed(() => props.officials.find((o) => o.role === 'captain'))
-const secretary = computed(() => props.officials.find((o) => o.role === 'secretary'))
-const treasurer = computed(() => props.officials.find((o) => o.role === 'treasurer'))
-const kagawads = computed(() => props.officials.filter((o) => o.role === 'kagawad'))
-const skChairperson = computed(() => props.officials.find((o) => o.role === 'sk_chairperson'))
+function buildMemberObject(o?: BarangayOfficial, fallbackTitle = 'Official', fallbackName = 'Hon. Official') {
+  return {
+    id: o?.id || `fallback-${fallbackTitle.toLowerCase().replace(/\s+/g, '-')}`,
+    name: o?.name || fallbackName,
+    avatar: o?.avatar || o?.avatar_url,
+    image_url: o?.avatar || o?.avatar_url,
+    committee: o?.committee,
+    contact: o?.contact,
+    rawOfficial: o
+  }
+}
+
+function getOfficialTitle(o: BarangayOfficial): string {
+  return (o.title || o.position?.title || '').toLowerCase()
+}
+
+// Direct position categorizers from database titles
+const captain = computed(() => props.officials.find(o => {
+  const t = getOfficialTitle(o)
+  return t.includes('captain') || t.includes('punong')
+}))
+
+const secretary = computed(() => props.officials.find(o => {
+  const t = getOfficialTitle(o)
+  return t.includes('secretary') || t.includes('kalihim')
+}))
+
+const treasurer = computed(() => props.officials.find(o => {
+  const t = getOfficialTitle(o)
+  return t.includes('treasurer') || t.includes('ingat-yaman')
+}))
+
+const skChairperson = computed(() => props.officials.find(o => {
+  const t = getOfficialTitle(o)
+  return t.includes('sk') || t.includes('kabataan')
+}))
+
+const kagawads = computed(() => props.officials.filter(o => {
+  const t = getOfficialTitle(o)
+  return !t.includes('captain') && !t.includes('punong') && !t.includes('secretary') && !t.includes('kalihim') && !t.includes('treasurer') && !t.includes('ingat-yaman') && !t.includes('sk') && !t.includes('kabataan')
+}))
+
+// Check if officials have explicit parent-child hierarchy in database
+const hasExplicitHierarchy = computed(() => {
+  return props.officials.some(o => o.parent_id || o.parentId)
+})
 
 const treeRoot = computed<OrganizationChartNode>(() => {
+  if (hasExplicitHierarchy.value && props.officials.length > 0) {
+    const officialMap = new Map<string, OrganizationChartNode>()
+    const rootNodes: OrganizationChartNode[] = []
+
+    props.officials.forEach(o => {
+      const displayTitle = o.title || o.position?.title || 'Official'
+      officialMap.set(o.id, {
+        id: o.id,
+        title: displayTitle,
+        member: [buildMemberObject(o, o.title || 'Official', o.name)],
+        children: []
+      })
+    })
+
+    props.officials.forEach(o => {
+      const node = officialMap.get(o.id)!
+      const parentId = o.parent_id || o.parentId
+      if (parentId && officialMap.has(parentId)) {
+        officialMap.get(parentId)!.children!.push(node)
+      } else {
+        rootNodes.push(node)
+      }
+    })
+
+    if (rootNodes.length > 0) {
+      if (rootNodes.length === 1) {
+        return rootNodes[0]!
+      }
+      return {
+        id: 'root-cluster',
+        title: 'Sangguniang Barangay',
+        member: [buildMemberObject(captain.value, 'Punong Barangay (Captain)', captain.value?.name || 'Hon. Barangay Captain')],
+        children: rootNodes
+      }
+    }
+  }
+
+  // 2. Standard Barangay Hierarchy by Position Titles
   const captainObj = captain.value
   const secretaryObj = secretary.value
   const treasurerObj = treasurer.value
@@ -128,27 +213,13 @@ const treeRoot = computed<OrganizationChartNode>(() => {
   const execChildren: OrganizationChartNode[] = [
     {
       id: secretaryObj?.id || 'sec-node',
-      title: 'Barangay Secretary',
-      member: [
-        {
-          id: secretaryObj?.id || 'sec-member',
-          name: secretaryObj?.name || 'Barangay Secretary',
-          role: 'secretary',
-          avatar: secretaryObj?.avatar,
-        },
-      ],
+      title: secretaryObj?.title || 'Barangay Secretary',
+      member: [buildMemberObject(secretaryObj, 'Barangay Secretary', secretaryObj?.name || 'Barangay Secretary')],
     },
     {
       id: treasurerObj?.id || 'treas-node',
-      title: 'Barangay Treasurer',
-      member: [
-        {
-          id: treasurerObj?.id || 'treas-member',
-          name: treasurerObj?.name || 'Barangay Treasurer',
-          role: 'treasurer',
-          avatar: treasurerObj?.avatar,
-        },
-      ],
+      title: treasurerObj?.title || 'Barangay Treasurer',
+      member: [buildMemberObject(treasurerObj, 'Barangay Treasurer', treasurerObj?.name || 'Barangay Treasurer')],
     },
   ]
 
@@ -158,17 +229,8 @@ const treeRoot = computed<OrganizationChartNode>(() => {
     const kagawadChildren: OrganizationChartNode[] = kagawadObjs.map((k, idx) => {
       return {
         id: k.id || `kag-${idx}`,
-        title: `Kagawad #${idx + 1}`,
-        member: [
-          {
-            id: k.id || `kag-mem-${idx}`,
-            name: k.name,
-      
-            committee: k.committee,
-            role: 'kagawad',
-            avatar: k.avatar,
-          },
-        ],
+        title: k.title || 'Barangay Kagawad',
+        member: [buildMemberObject(k, k.title || 'Barangay Kagawad', k.name || `Barangay Kagawad #${idx + 1}`)],
       }
     })
 
@@ -179,43 +241,56 @@ const treeRoot = computed<OrganizationChartNode>(() => {
     children.push({
       id: skObj.id || 'sk-node',
       title: 'Sangguniang Kabataan (SK) Chairperson',
-      member: [
-        {
-          id: skObj.id || 'sk-member',
-          name: skObj.name,
-          role: 'sk_chairperson',
-          avatar: skObj.avatar,
-        },
-      ],
+      member: [buildMemberObject(skObj, 'SK Chairperson', skObj.name || 'SK Chairperson')],
     })
   }
 
   return {
     id: captainObj?.id || 'captain-node',
-    title: 'Punong Barangay (Captain)',
-    member: [
-      {
-        id: captainObj?.id || 'captain-member',
-        name: captainObj?.name || 'Hon. Barangay Captain',
-        role: 'captain',
-        avatar: captainObj?.avatar,
-      },
-    ],
+    title: captainObj?.title || 'Punong Barangay (Captain)',
+    member: [buildMemberObject(captainObj, 'Punong Barangay (Captain)', captainObj?.name || 'Hon. Barangay Captain')],
     children,
   }
 })
 
 function handleSelect(payload: OrganizationChartSelectPayload) {
   if (payload.kind === 'member') {
-    console.log('official selected', payload.member?.name)
-    return
+    const raw = payload.member?.rawOfficial as BarangayOfficial | undefined
+    if (raw) {
+      emit('view-details', raw)
+    }
   }
-  console.log('position selected', payload.node.title)
+}
+
+function onCardAddChild(member: any) {
+  const raw = member?.rawOfficial as BarangayOfficial | undefined
+  emit('add-child', raw?.id || member?.id || '')
+}
+
+function onCardEdit(member: any) {
+  const raw = member?.rawOfficial as BarangayOfficial | undefined
+  if (raw) {
+    emit('edit', raw)
+  }
+}
+
+function onCardDelete(member: any) {
+  const raw = member?.rawOfficial as BarangayOfficial | undefined
+  if (raw) {
+    emit('delete', raw)
+  }
+}
+
+function onCardViewDetails(member: any) {
+  const raw = member?.rawOfficial as BarangayOfficial | undefined
+  if (raw) {
+    emit('view-details', raw)
+  }
 }
 </script>
 
 <template>
-  <Card class="p-4 bg-white dark:bg-[#1c1c1c] border-[#dfdfdf] dark:border-[#333333] shadow-sm">
+  <Card class="p-4 bg-white dark:bg-[#1c1c1c] border-[#dfdfdf] dark:border-[#333333] shadow-xs">
     <CardHeader class="px-0 pt-0 pb-4">
       <div class="flex flex-wrap items-center justify-between border-b border-[#dfdfdf] dark:border-[#333333] pb-4 gap-3">
         <div class="flex items-center space-x-3">
@@ -223,14 +298,28 @@ function handleSelect(payload: OrganizationChartSelectPayload) {
             <UserCheck class="size-5" />
           </div>
           <div>
-            <h2 class="text-lg font-bold text-[#171717] dark:text-[#ffffff] tracking-tight">
-              {{ 'Barangay Officials' }}
-            </h2>
+            <div class="flex items-center space-x-2">
+              <h2 class="text-base sm:text-lg font-bold text-[#171717] dark:text-[#ffffff] tracking-tight">
+                Barangay Officials
+              </h2>
+              <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300">
+                {{ officials.length }} Members
+              </span>
+            </div>
             <p class="text-xs text-[#707070] dark:text-[#a3a3a3]">
               Sangguniang Barangay Leadership of {{ barangayName }}
             </p>
           </div>
         </div>
+
+        <button
+          type="button"
+          @click="emit('add-official')"
+          class="inline-flex items-center space-x-1.5 px-3.5 py-2 text-xs font-semibold bg-[#dc2626] hover:bg-[#b91c1c] text-white rounded-xl shadow-xs transition cursor-pointer"
+        >
+          <Plus class="size-3.5" />
+          <span>Add Official</span>
+        </button>
       </div>
     </CardHeader>
 
@@ -247,7 +336,7 @@ function handleSelect(payload: OrganizationChartSelectPayload) {
           <button
             type="button"
             @click="zoomOut"
-            class="p-1.5 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-800 text-[#171717] dark:text-[#ffffff] transition-colors"
+            class="p-1.5 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-800 text-[#171717] dark:text-[#ffffff] transition-colors cursor-pointer"
             title="Zoom Out (-)"
           >
             <ZoomOut class="size-4" />
@@ -260,7 +349,7 @@ function handleSelect(payload: OrganizationChartSelectPayload) {
           <button
             type="button"
             @click="zoomIn"
-            class="p-1.5 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-800 text-[#171717] dark:text-[#ffffff] transition-colors"
+            class="p-1.5 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-800 text-[#171717] dark:text-[#ffffff] transition-colors cursor-pointer"
             title="Zoom In (+)"
           >
             <ZoomIn class="size-4" />
@@ -271,7 +360,7 @@ function handleSelect(payload: OrganizationChartSelectPayload) {
           <button
             type="button"
             @click="resetZoom"
-            class="p-1.5 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-800 text-[#171717] dark:text-[#ffffff] transition-colors flex items-center space-x-1"
+            class="p-1.5 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-800 text-[#171717] dark:text-[#ffffff] transition-colors flex items-center space-x-1 cursor-pointer"
             title="Reset View"
           >
             <RotateCcw class="size-3.5" />
@@ -301,40 +390,111 @@ function handleSelect(payload: OrganizationChartSelectPayload) {
             @select="handleSelect"
             class="barangay-org-chart mx-auto"
           >
+            <!-- Node Title Bar -->
             <template #node-title="{ node }">
               <div
-                class="px-2 py-1.5 font-bold text-xs rounded-b-lg transition-colors flex items-center justify-center text-center break-words leading-tight"
+                class="px-2.5 py-1.5 font-bold text-xs flex items-center justify-center text-center wrap-break-words leading-tight transition-colors shadow-xs"
                 :class="[
-                  node.id === 'captain-node' || node.title.includes('Captain')
-                    ? 'bg-[#dc2626] text-white'
-                    : node.title.includes('SK') || node.title.includes('Kabataan')
-                      ? 'bg-blue-600 dark:bg-blue-700 text-white'
-                      : 'bg-[#fafafa] dark:bg-[#262626] text-[#171717] dark:text-[#ffffff] border-t border-[#dfdfdf] dark:border-[#333333]'
+                  node.title.toLowerCase().includes('captain') || node.title.toLowerCase().includes('punong')
+                    ? 'bg-neutral-900 text-white dark:bg-black dark:text-white border-b border-neutral-700'
+                    : node.title.toLowerCase().includes('sk') || node.title.toLowerCase().includes('chairperson')
+                      ? 'bg-[#dc2626] text-white border-b border-red-700'
+                      : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 border-b border-neutral-200 dark:border-neutral-700'
                 ]"
               >
-                <span>{{ node.title }}</span>
+                <span class="truncate">{{ node.title }}</span>
               </div>
             </template>
 
-            <template #member="{ member }">
-              <div class="p-3 text-center w-full bg-white dark:bg-[#1c1c1c] text-[#171717] dark:text-[#ffffff]">
-                <div v-if="member.image_url || member.avatar" class="mb-2 flex justify-center">
-                  <img
-                    :src="(member.image_url || member.avatar) as string"
-                    :alt="(member.name as string)"
-                    class="w-10 h-10 rounded-full object-cover border border-[#dfdfdf] dark:border-[#333333] pointer-events-none select-none"
-                  />
-                </div>
-                <div v-else class="mb-2 flex justify-center">
+            <!-- Member / Official Card Template with inside-node CRUD actions -->
+            <template #member="{ member, node }">
+              <div class="group/card relative p-3 text-center w-full bg-white dark:bg-[#1c1c1c] text-[#171717] dark:text-[#ffffff] transition-all">
+                <!-- Avatar Photo or Initials -->
+                <div class="mb-2 flex justify-center">
                   <div
-                    class="w-10 h-10 rounded-full flex items-center justify-center bg-[#dc2626]/10 dark:bg-[#dc2626]/20 text-[#dc2626] dark:text-[#f87171] font-bold text-sm border border-[#dfdfdf] dark:border-[#333333] select-none"
+                    v-if="member.image_url || member.avatar"
+                    class="size-12 rounded-full overflow-hidden border-2 border-[#dfdfdf] dark:border-[#333333] shadow-xs shrink-0"
+                  >
+                    <img
+                      :src="(member.image_url || member.avatar) as string"
+                      :alt="(member.name as string)"
+                      class="size-full object-cover pointer-events-none select-none"
+                    />
+                  </div>
+                  <div
+                    v-else
+                    class="size-12 rounded-full flex items-center justify-center bg-[#dc2626]/10 dark:bg-[#dc2626]/20 text-[#dc2626] dark:text-[#f87171] font-bold text-sm border border-[#dfdfdf] dark:border-[#333333] select-none shadow-xs shrink-0"
                   >
                     {{ (member.name as string)?.charAt(0).toUpperCase() ?? '?' }}
                   </div>
                 </div>
-                <strong class="block text-sm font-bold text-[#171717] dark:text-[#ffffff] leading-snug select-none break-words whitespace-normal">
+
+                <!-- Full Name -->
+                <strong class="block text-xs sm:text-sm font-bold text-[#171717] dark:text-[#ffffff] leading-snug wrap-break-words whitespace-normal line-clamp-2">
                   {{ member.name }}
                 </strong>
+
+                <!-- Committee -->
+                <p v-if="member.committee" class="text-[10px] text-neutral-500 dark:text-neutral-400 mt-0.5 line-clamp-1">
+                  {{ member.committee }}
+                </p>
+
+                <!-- Contact Badge -->
+                <div
+                  v-if="member.contact"
+                  class="mt-1.5 inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400"
+                >
+                  <Phone class="size-2.5 text-[#dc2626]" />
+                  <span>{{ member.contact }}</span>
+                </div>
+
+                <!-- CRUD Actions Toolbar Inside the Node -->
+                <div
+                  class="mt-2.5 pt-2 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-center space-x-1"
+                >
+                  <!-- View Profile Details -->
+                  <button
+                    v-if="member.rawOfficial"
+                    type="button"
+                    @click.stop="onCardViewDetails(member)"
+                    class="p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-500 hover:text-neutral-900 dark:hover:text-white transition cursor-pointer"
+                    title="View Profile Details"
+                  >
+                    <Info class="size-3.5" />
+                  </button>
+
+           
+                  <button
+                    type="button"
+                    @click.stop="onCardAddChild(member)"
+                    class="p-1.5 rounded-md hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-neutral-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition cursor-pointer"
+                    title="Add Subordinate Official (Child Node)"
+                  >
+                    <UserPlus class="size-3.5" />
+                  </button>
+
+                  <!-- Edit Official -->
+                  <button
+                    v-if="member.rawOfficial"
+                    type="button"
+                    @click.stop="onCardEdit(member)"
+                    class="p-1.5 rounded-md hover:bg-blue-50 dark:hover:bg-blue-950/40 text-neutral-500 hover:text-blue-600 dark:hover:text-blue-400 transition cursor-pointer"
+                    title="Edit Official"
+                  >
+                    <Edit3 class="size-3.5" />
+                  </button>
+
+                  <!-- Delete Official -->
+                  <button
+                    v-if="member.rawOfficial"
+                    type="button"
+                    @click.stop="onCardDelete(member)"
+                    class="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-950/40 text-neutral-500 hover:text-[#dc2626] transition cursor-pointer"
+                    title="Delete Official"
+                  >
+                    <Trash2 class="size-3.5" />
+                  </button>
+                </div>
               </div>
             </template>
           </OrganizationChart>
@@ -358,7 +518,7 @@ function handleSelect(payload: OrganizationChartSelectPayload) {
 
 :deep(.org-node) {
   box-sizing: border-box !important;
-  margin: 0 10px !important;
+  margin: 0 12px !important;
   display: inline-block !important;
   position: relative !important;
 }
@@ -366,148 +526,53 @@ function handleSelect(payload: OrganizationChartSelectPayload) {
 :deep(.org-node .org-container) {
   display: flex !important;
   flex-direction: column !important;
-  width: 185px !important;
-  min-width: 185px !important;
-  max-width: 185px !important;
+  width: 195px !important;
+  min-width: 195px !important;
+  max-width: 195px !important;
   box-sizing: border-box !important;
   border: 1px solid #dfdfdf;
-  border-radius: 8px;
+  border-radius: 12px;
   background-color: #ffffff;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
   overflow: hidden;
-  transition: all 0.2s ease;
+  transition: all 0.2s ease-in-out;
 }
 
-.dark :deep(.org-node .org-container) {
+:deep(.dark .org-node .org-container) {
   border-color: #333333;
   background-color: #1c1c1c;
 }
 
 :deep(.org-node .org-container:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.12);
   border-color: #dc2626;
-  box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.1);
 }
 
-:deep(.org-title) {
-  order: 2 !important;
-  background-color: transparent !important;
-  border: none !important;
+:deep(.org-lines) {
+  position: relative;
+}
+
+:deep(.org-lines td) {
   padding: 0 !important;
-  white-space: normal !important;
-  word-break: break-word !important;
-  overflow-wrap: anywhere !important;
 }
 
-:deep(.org-content) {
-  order: 1 !important;
-  border: none !important;
-  margin-top: 0 !important;
-  padding: 0 !important;
-  background-color: transparent !important;
-  white-space: normal !important;
-  word-break: break-word !important;
-  overflow-wrap: anywhere !important;
-}
-
-/* Connector lines styling */
-:deep(.org-child-level:before),
-:deep(.org-child-level:after),
-:deep(.org-extend:after) {
-  border-color: #cbd5e1 !important;
-  border-width: 2px !important;
-}
-
-.dark :deep(.org-child-level:before),
-.dark :deep(.org-child-level:after),
-.dark :deep(.org-extend:after) {
-  border-color: #475569 !important;
-}
-
-:deep(.org-extend:after) {
+:deep(.org-line-down) {
+  background-color: #dc2626 !important;
+  width: 2px !important;
   height: 20px !important;
-  bottom: 10px !important;
+  margin: 0 auto !important;
 }
 
-/* Extend arrow button styling */
-:deep(.org-extend-arrow) {
-  box-sizing: border-box !important;
-  appearance: none !important;
-  cursor: pointer !important;
-  width: 24px !important;
-  height: 24px !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  position: absolute !important;
-  bottom: 12px !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  z-index: 10 !important;
-  background-color: #ffffff !important;
-  border: 2px solid #cbd5e1 !important;
-  border-radius: 9999px !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08) !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+:deep(.org-line-top) {
+  border-top: 2px solid #dc2626 !important;
 }
 
-.dark :deep(.org-extend-arrow) {
-  background-color: #1e293b !important;
-  border-color: #475569 !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+:deep(.org-line-left) {
+  border-right: 2px solid #dc2626 !important;
 }
 
-:deep(.org-extend-arrow:hover) {
-  transform: translateX(-50%) scale(1.2) !important;
-  border-color: #dc2626 !important;
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25) !important;
-}
-
-/* Arrowhead icon inside the circular button */
-:deep(.org-extend-arrow:before) {
-  content: "" !important;
-  box-sizing: border-box !important;
-  width: 7px !important;
-  height: 7px !important;
-  border-style: solid !important;
-  border-width: 2px 2px 0 0 !important;
-  border-color: #64748b !important;
-  margin: 0 !important;
-  display: block !important;
-  transform-origin: center !important;
-  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s ease !important;
-  transform: translateY(-1px) rotate(135deg) !important;
-}
-
-.dark :deep(.org-extend-arrow:before) {
-  border-color: #94a3b8 !important;
-}
-
-:deep(.org-extend-arrow:hover:before) {
-  border-color: #dc2626 !important;
-}
-
-/* Expanded state rotation animation */
-:deep(.org-extend .org-extend-arrow:before) {
-  transform: translateY(1px) rotate(-45deg) !important;
-}
-
-/* Smooth expansion and collapse animation transform for child nodes */
-:deep(.org-child-level) {
-  animation: org-node-expand 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  transform-origin: top center;
-  will-change: transform, opacity;
-}
-
-@keyframes org-node-expand {
-  0% {
-    opacity: 0;
-    transform: translateY(-12px) scale(0.96);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+:deep(.org-line-right) {
+  border-left: 2px solid #dc2626 !important;
 }
 </style>
