@@ -24,8 +24,6 @@ const mapMarkers = computed(() => [
 
 <template>
   <Card>
-  
-
     <CardContent>
       <div class="relative w-full h-56 md:h-64 rounded-lg overflow-hidden border border-[#dfdfdf] dark:border-[#333333] bg-neutral-100 dark:bg-neutral-900 group">
         <GoogleMap

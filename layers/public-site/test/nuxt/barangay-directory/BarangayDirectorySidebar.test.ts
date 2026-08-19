@@ -1,11 +1,51 @@
 import { describe, expect, it, beforeEach } from 'vitest'
-import { mountSuspended } from '@nuxt/test-utils/runtime'
+import { mountSuspended, registerEndpoint } from '@nuxt/test-utils/runtime'
 import BarangayDirectorySidebar from '../../../app/components/barangay-directory/BarangayDirectorySidebar.vue'
-import { useBarangayDirectory } from '../../../app/composables/useBarangayDirectory'
+import { useBarangayDirectory, type BarangayItem } from '../../../app/composables/useBarangayDirectory'
 
 describe('BarangayDirectorySidebar Component', () => {
+  const mockBarangays: BarangayItem[] = [
+    {
+      id: 'alegria',
+      name: 'Alegria',
+      classification: 'Rural',
+      postalCode: '8501',
+      population: 3420,
+      censusYear: '2024',
+      elevationASL: '75m ASL',
+      elevationMeters: 75,
+      coordinates: { lat: 8.5321, lng: 125.9621, display: '8°31\'55.6"N 125°57\'43.6"E' },
+      landAreaSqKm: 14.5,
+      hallAddress: 'Purok 1, Alegria',
+      contactPhone: '+63 912 001 0001',
+      contactEmail: 'brgy.alegria@sanfranz.gov.ph',
+      officials: []
+    },
+    {
+      id: 'bayugan-2',
+      name: 'Bayugan 2',
+      classification: 'Rural',
+      postalCode: '8501',
+      population: 5120,
+      censusYear: '2024',
+      elevationASL: '62m ASL',
+      elevationMeters: 62,
+      coordinates: { lat: 8.5412, lng: 125.9715, display: '8°32\'28.3"N 125°58\'17.4"E' },
+      landAreaSqKm: 18.2,
+      hallAddress: 'Purok Central, Bayugan 2',
+      contactPhone: '+63 912 001 0002',
+      contactEmail: 'brgy.bayugan2@sanfranz.gov.ph',
+      officials: []
+    }
+  ]
+
   beforeEach(() => {
-    const { setSearchQuery } = useBarangayDirectory()
+    registerEndpoint('/api/barangay-directory', () => mockBarangays)
+    registerEndpoint('/api/barangay-directory/alegria', () => mockBarangays[0])
+    registerEndpoint('/api/barangay-directory/bayugan-2', () => mockBarangays[1])
+
+    const { setSearchQuery, setDynamicBarangays } = useBarangayDirectory()
+    setDynamicBarangays(mockBarangays)
     setSearchQuery('')
   })
 
