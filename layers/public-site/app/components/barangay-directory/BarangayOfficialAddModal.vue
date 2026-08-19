@@ -228,7 +228,7 @@ async function handleSubmit() {
         <!-- Parent Node (Hierarchical Parent Selector) -->
         <div>
           <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-            Reports To (Parent Node)
+            Under Position
           </label>
           <select
             v-model="form.parentId"

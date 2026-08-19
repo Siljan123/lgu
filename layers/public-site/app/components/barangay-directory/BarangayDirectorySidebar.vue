@@ -114,10 +114,8 @@ const emit = defineEmits<{
             <div class="flex items-center space-x-2 text-[11px] text-[#707070] dark:text-[#a3a3a3]">
               <span class="inline-flex items-center space-x-1">
                 <Users class="size-3 shrink-0" />
-                <span>{{ brgy.population.toLocaleString() }} pop.</span>
+                <span>{{ brgy.population.toLocaleString() }} population</span>
               </span>
-              <span>•</span>
-              <span class="text-[10px] uppercase font-bold">{{ brgy.classification }}</span>
             </div>
           </div>
 

@@ -271,15 +271,7 @@ async function handleSubmit() {
                   <Trash2 class="size-3.5" />
                   <span>Remove</span>
                 </button>
-
-                <button
-                  type="button"
-                  @click="showUrlInput = !showUrlInput"
-                  class="inline-flex items-center space-x-1 px-2.5 py-1.5 text-xs text-neutral-500 hover:text-neutral-800 dark:hover:text-white transition cursor-pointer"
-                >
-                  <LinkIcon class="size-3.5" />
-                  <span>URL</span>
-                </button>
+              
               </div>
 
               <!-- Direct URL input -->
