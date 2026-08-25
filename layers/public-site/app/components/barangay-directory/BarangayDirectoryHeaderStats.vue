@@ -45,36 +45,6 @@ const emit = defineEmits<{
           </span>
         </div>
 
-        <!-- Add Official Button -->
-        <button
-          type="button"
-          @click="emit('add-official')"
-          class="inline-flex items-center space-x-1 px-3 py-1.5 text-xs font-semibold bg-[#dc2626] hover:bg-[#b91c1c] text-white rounded-lg shadow-xs transition cursor-pointer"
-        >
-          <UserPlus class="size-3.5" />
-          <span>Add Official</span>
-        </button>
-
-        <!-- Edit Barangay Button -->
-        <button
-          type="button"
-          @click="emit('edit-barangay')"
-          class="inline-flex items-center space-x-1 px-2.5 py-1.5 text-xs font-semibold bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700 rounded-lg shadow-xs transition cursor-pointer"
-          title="Edit Barangay Info"
-        >
-          <Edit3 class="size-3.5" />
-          <span>Edit</span>
-        </button>
-
-        <!-- Delete Barangay Button -->
-        <button
-          type="button"
-          @click="emit('delete-barangay')"
-          class="inline-flex items-center p-1.5 text-neutral-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition cursor-pointer"
-          title="Delete Barangay"
-        >
-          <Trash2 class="size-3.5" />
-        </button>
       </div>
     </div>
 

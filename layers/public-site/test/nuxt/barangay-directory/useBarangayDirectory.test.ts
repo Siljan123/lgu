@@ -107,8 +107,7 @@ describe('useBarangayDirectory Composable', () => {
         classification: 'Rural',
         population: 1500,
         postal_code: '8501',
-        officials: [],
-        landmarks: []
+        officials: []
       })
     })
 
@@ -143,8 +142,7 @@ describe('useBarangayDirectory Composable', () => {
       classification: 'Rural' as const,
       population: 1500,
       postal_code: '8501',
-      officials: [],
-      landmarks: []
+      officials: []
     }
 
     const created = await createBarangay(newBrgy)

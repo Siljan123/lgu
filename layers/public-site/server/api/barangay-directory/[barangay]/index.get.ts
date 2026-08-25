@@ -1,46 +1,55 @@
-import { useServerSupabase } from '../../utils/supabase'
+import { useServerSupabase } from '../../../utils/supabase'
+import { resolveTermId } from '../../../utils/barangayTerm'
 
 export default defineEventHandler(async (event) => {
   const client = useServerSupabase('barangay_directory')
-  const id = getRouterParam(event, 'slug')
+  const barangayName = getRouterParam(event, 'barangay')
 
-  if (!id) {
+  if (!barangayName) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'Barangay ID/slug is required.'
+      statusMessage: 'Barangay IDis required.'
     })
   }
+
+  // Resolve the term to show: explicit ?term= wins, else the current term.
+  const query = getQuery(event)
+  const requestedTerm = (query.term || query.term_id || query.termId) as string | undefined
+  const termId = await resolveTermId(client, requestedTerm)
 
   const fetchBarangayDetails = async (schemaName: string) => {
     const { data: barangay, error: bError } = await client
       .schema(schemaName)
       .from('barangay')
       .select('*')
-      .eq('id', id)
+      .eq('id', barangayName)
       .maybeSingle()
 
     if (bError) return { error: bError, data: null }
     if (!barangay) return { error: null, data: null }
 
-    const { data: officials } = await client
+    let officialsQuery = client
       .schema(schemaName)
       .from('v_elected_officials')
       .select('*')
-      .eq('barangay_id', id)
-      .order('order_index', { ascending: true })
+      .eq('barangay_id', barangayName)
 
-    const { data: landmarks } = await client
-      .schema(schemaName)
-      .from('barangay_landmark')
-      .select('*')
-      .eq('barangay_id', id)
+    // Term scoping only applies to the barangay_directory schema (the only one
+    // that carries term_id); fallback schemas are returned unfiltered.
+    if (schemaName === 'barangay_directory' && termId) {
+      officialsQuery = officialsQuery.eq('term_id', termId)
+    }
+
+    const { data: officials } = await officialsQuery
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true })
 
     return {
       error: null,
       data: {
         ...barangay,
         officials: officials || [],
-        landmarks: landmarks || []
+        term_id: termId
       }
     }
   }
@@ -62,7 +71,7 @@ export default defineEventHandler(async (event) => {
   }
 
   if (error) {
-    console.error(`Error fetching barangay '${id}' from Supabase:`, error)
+    console.error(`Error fetching barangay '${barangayName}' from Supabase:`, error)
     throw createError({
       statusCode: 500,
       statusMessage: `Failed to fetch barangay: ${error.message}`
@@ -72,7 +81,7 @@ export default defineEventHandler(async (event) => {
   if (!data) {
     throw createError({
       statusCode: 404,
-      statusMessage: `Barangay '${id}' not found.`
+      statusMessage: `Barangay '${barangayName}' not found.`
     })
   }
 

@@ -102,179 +102,229 @@ on conflict (id) do update set
   image_url = excluded.image_url;
 
 commit;
+-- barangay_directory seed
+TRUNCATE TABLE barangay_directory.elected_officials, barangay_directory.barangay, barangay_directory.term CASCADE;
 
--- barangay
--- ============================================================
--- CHANGE: barangay.id is now a random UUID (gen_random_uuid())
--- instead of a hardcoded slug (e.g. 'alegria', 'hubang').
---
--- Prerequisite: make sure these columns are typed UUID, not TEXT:
---   barangay_directory.barangay.id
---   barangay_directory.elected_officials.barangay_id
---   barangay_directory.barangay_landmark.barangay_id
--- If they're still TEXT, run this once first (safe here since we
--- TRUNCATE and reseed everything below anyway):
---
---   ALTER TABLE barangay_directory.elected_officials DROP CONSTRAINT IF EXISTS elected_officials_barangay_id_fkey;
---   ALTER TABLE barangay_directory.barangay_landmark  DROP CONSTRAINT IF EXISTS barangay_landmark_barangay_id_fkey;
---   ALTER TABLE barangay_directory.barangay            ALTER COLUMN id          TYPE uuid USING gen_random_uuid();
---   ALTER TABLE barangay_directory.elected_officials   ALTER COLUMN barangay_id TYPE uuid USING gen_random_uuid();
---   ALTER TABLE barangay_directory.barangay_landmark   ALTER COLUMN barangay_id TYPE uuid USING gen_random_uuid();
---   ALTER TABLE barangay_directory.elected_officials
---     ADD CONSTRAINT elected_officials_barangay_id_fkey FOREIGN KEY (barangay_id)
---     REFERENCES barangay_directory.barangay(id) ON DELETE CASCADE;
---   ALTER TABLE barangay_directory.barangay_landmark
---     ADD CONSTRAINT barangay_landmark_barangay_id_fkey FOREIGN KEY (barangay_id)
---     REFERENCES barangay_directory.barangay(id) ON DELETE CASCADE;
--- ============================================================
- 
+-- 0. Shared Terms (reused across every barangay). The migration seeds a default
+--    current term on a fresh reset; we truncate above and re-seed deterministically.
+INSERT INTO barangay_directory.term (id, label, start_date, end_date, is_current) VALUES
+  ('30000000-0000-0000-0000-000000000001', '2020-2023', '2020-06-30', '2023-06-30', FALSE),
+  ('30000000-0000-0000-0000-000000000002', '2023-2026', '2023-06-30', '2026-06-30', TRUE);
+
 -- 1. Standard Barangay Positions
-INSERT INTO barangay_directory.position (id, title, rank_order) VALUES
-  ('10000000-0000-0000-0000-000000000001', 'Punong Barangay (Captain)', 1),
-  ('10000000-0000-0000-0000-000000000002', 'Barangay Kagawad', 2),
-  ('10000000-0000-0000-0000-000000000003', 'SK Chairperson', 3)
+--    position_category is set directly here rather than relying on the
+--    title-matching backfill in the position_category migration, since
+--    these titles ('Barangay Captain', 'Kagawad') are shorter forms and
+--    won't match that migration's exact-title WHERE clauses.
+INSERT INTO barangay_directory.position (id, title, rank_order, position_category) VALUES
+  ('10000000-0000-0000-0000-000000000001', 'Barangay Captain', 1, 'captain'),
+  ('10000000-0000-0000-0000-000000000002', 'Kagawad', 2, 'kagawad'),
+  ('10000000-0000-0000-0000-000000000003', 'SK Chairperson', 3, 'sk_chairperson')
 ON CONFLICT (id) DO NOTHING;
- 
--- Barangay ids are now random on every run, so there's no stable slug left
--- to ON CONFLICT against. Wipe and reseed to keep this script re-runnable.
-TRUNCATE TABLE barangay_directory.barangay_landmark, barangay_directory.elected_officials, barangay_directory.barangay CASCADE;
- 
+
+-- 1b. Helper: generates a plausible Filipino "First Last" name for seed officials
+CREATE OR REPLACE FUNCTION barangay_directory.random_official_name()
+RETURNS TEXT AS $$
+DECLARE
+  first_names TEXT[] := ARRAY[
+    'Juan','Maria','Jose','Ana','Pedro','Rosario','Antonio','Carmen',
+    'Manuel','Luz','Ramon','Teresita','Ernesto','Corazon','Ricardo',
+    'Remedios','Eduardo','Josefina','Rodrigo','Leonora','Danilo','Perla',
+    'Roberto','Fe','Arturo','Estrella','Cesar','Gloria'
+  ];
+  last_names TEXT[] := ARRAY[
+    'Santos','Reyes','Cruz','Bautista','Ocampo','Garcia','Mendoza',
+    'Torres','Gonzales','Ramos','Aquino','Del Rosario','Villanueva',
+    'Castillo','Navarro','Domingo','Fernandez','Pascual','Rivera',
+    'Salazar','Lopez','Tolentino','Pineda','Ignacio','Aguilar',
+    'Marasigan','Serrano'
+  ];
+BEGIN
+  RETURN first_names[1 + floor(random() * array_length(first_names, 1))::int]
+      || ' ' ||
+      last_names[1 + floor(random() * array_length(last_names, 1))::int];
+END;
+$$ LANGUAGE plpgsql VOLATILE;
+
 -- 2. Insert All 27 Barangays of San Francisco, Agusan del Sur (Postal Code: 8501)
 INSERT INTO barangay_directory.barangay (
-  id, name, classification, postal_code, population, census_year,
+  id, name, classification, population, census_year,
   elevation_asl, elevation_meters, lat, lng, coordinates_display,
   land_area_sq_km, hall_address, contact_phone, contact_email,
-  map_embed_url, description
+  description
 ) VALUES
-(gen_random_uuid(), 'Alegria', 'Rural', '8501', 3420, '2024', '75m ASL', 75.0, 8.532100, 125.962100, '8°31''55.6"N 125°57''43.6"E', 14.50, 'Purok 1, Alegria', '+63 912 001 0001', 'brgy.alegria@sanfranz.gov.ph', null, 'An agricultural community in San Francisco.'),
-(gen_random_uuid(), 'Bayugan 2', 'Rural', '8501', 5120, '2024', '62m ASL', 62.0, 8.541200, 125.971500, '8°32''28.3"N 125°58''17.4"E', 18.20, 'Purok Central, Bayugan 2', '+63 912 001 0002', 'brgy.bayugan2@sanfranz.gov.ph', null, 'A bustling rural center along the secondary access road.'),
-(gen_random_uuid(), 'Bitan-agan', 'Rural', '8501', 2890, '2024', '85m ASL', 85.0, 8.512300, 125.951200, '8°30''44.3"N 125°57''04.3"E', 12.30, 'Purok 2, Bitan-agan', '+63 912 001 0003', 'brgy.bitanagan@sanfranz.gov.ph', null, 'Known for agro-forestry and crop production.'),
-(gen_random_uuid(), 'Borbon', 'Rural', '8501', 4150, '2024', '58m ASL', 58.0, 8.525400, 125.983200, '8°31''31.4"N 125°58''59.5"E', 16.80, 'Purok 3, Borbon', '+63 912 001 0004', 'brgy.borbon@sanfranz.gov.ph', null, 'Rich agricultural plains and farming households.'),
-(gen_random_uuid(), 'Buenasuerte', 'Rural', '8501', 2310, '2024', '92m ASL', 92.0, 8.501200, 125.941200, '8°30''04.3"N 125°56''28.3"E', 11.40, 'Purok 1, Buenasuerte', '+63 912 001 0005', 'brgy.buenasuerte@sanfranz.gov.ph', null, 'Upland farming area producing corn and root crops.'),
-(gen_random_uuid(), 'Caimpugan', 'Rural', '8501', 3780, '2024', '48m ASL', 48.0, 8.495000, 125.932000, '8°29''42.0"N 125°55''55.2"E', 21.50, 'Purok 2, Caimpugan', '+63 912 001 0006', 'brgy.caimpugan@sanfranz.gov.ph', null, 'Bordering the Agusan Marsh wildlife sanctuary.'),
-(gen_random_uuid(), 'Das-agan', 'Rural', '8501', 3100, '2024', '65m ASL', 65.0, 8.521000, 125.961000, '8°31''15.6"N 125°57''39.6"E', 13.10, 'Purok 1, Das-agan', '+63 912 001 0007', 'brgy.dasagan@sanfranz.gov.ph', null, 'Peaceful inland community with rubber plantations.'),
-(gen_random_uuid(), 'Ebro', 'Rural', '8501', 2650, '2024', '70m ASL', 70.0, 8.538000, 125.991000, '8°32''16.8"N 125°59''27.6"E', 15.00, 'Purok 2, Ebro', '+63 912 001 0008', 'brgy.ebro@sanfranz.gov.ph', null, 'Agricultural barangay cultivating rice and palm oil.'),
-(gen_random_uuid(), 'Hubang', 'Urban', '8501', 9450, '2024', '55m ASL', 55.0, 8.518000, 125.975000, '8°31''04.8"N 125°58''30.0"E', 10.80, 'National Highway, Hubang', '+63 912 001 0009', 'brgy.hubang@sanfranz.gov.ph', null, 'Major urban and transport hub along the Maharlika Highway.'),
-(gen_random_uuid(), 'Karaos', 'Urban', '8501', 8920, '2024', '52m ASL', 52.0, 8.511000, 125.981000, '8°30''39.6"N 125°58''51.6"E', 9.50, 'Purok 4, Karaos', '+63 912 001 0010', 'brgy.karaos@sanfranz.gov.ph', null, 'Commercial area host to educational institutions and trade.'),
-(gen_random_uuid(), 'Ladgadan', 'Rural', '8501', 2480, '2024', '80m ASL', 80.0, 8.545000, 125.952000, '8°32''42.0"N 125°57''07.2"E', 14.20, 'Purok 1, Ladgadan', '+63 912 001 0011', 'brgy.ladgadan@sanfranz.gov.ph', null, 'Highland community known for organic farming.'),
-(gen_random_uuid(), 'Lapinigan', 'Rural', '8501', 3920, '2024', '60m ASL', 60.0, 8.552000, 125.968000, '8°33''07.2"N 125°58''04.8"E', 17.60, 'Purok 3, Lapinigan', '+63 912 001 0012', 'brgy.lapinigan@sanfranz.gov.ph', null, 'Active farming cooperative community.'),
-(gen_random_uuid(), 'Lucac', 'Rural', '8501', 3150, '2024', '68m ASL', 68.0, 8.530000, 125.945000, '8°31''48.0"N 125°56''42.0"E', 13.70, 'Purok 2, Lucac', '+63 912 001 0013', 'brgy.lucac@sanfranz.gov.ph', null, 'Known for fresh produce and livestock raising.'),
-(gen_random_uuid(), 'Mate', 'Rural', '8501', 2740, '2024', '77m ASL', 77.0, 8.561000, 125.982000, '8°33''39.6"N 125°58''55.2"E', 16.10, 'Purok 1, Mate', '+63 912 001 0014', 'brgy.mate@sanfranz.gov.ph', null, 'Rural agrarian development zone.'),
-(gen_random_uuid(), 'New Visayas', 'Rural', '8501', 3600, '2024', '64m ASL', 64.0, 8.508000, 125.962000, '8°30''28.8"N 125°57''43.2"E', 12.90, 'Purok 2, New Visayas', '+63 912 001 0015', 'brgy.newvisayas@sanfranz.gov.ph', null, 'Close-knit agricultural community.'),
-(gen_random_uuid(), 'Ormaca', 'Rural', '8501', 2180, '2024', '88m ASL', 88.0, 8.568000, 125.961000, '8°34''04.8"N 125°57''39.6"E', 15.40, 'Purok 1, Ormaca', '+63 912 001 0016', 'brgy.ormaca@sanfranz.gov.ph', null, 'Upland barangay rich in agro-forestry resources.'),
-(gen_random_uuid(), 'Pasta', 'Rural', '8501', 2950, '2024', '72m ASL', 72.0, 8.542000, 125.938000, '8°32''31.2"N 125°56''16.8"E', 13.80, 'Purok 3, Pasta', '+63 912 001 0017', 'brgy.pasta@sanfranz.gov.ph', null, 'High-yield rice producing barangay.'),
-(gen_random_uuid(), 'Pisa-an', 'Rural', '8501', 3380, '2024', '69m ASL', 69.0, 8.529000, 125.929000, '8°31''44.4"N 125°55''44.4"E', 14.90, 'Purok 1, Pisa-an', '+63 912 001 0018', 'brgy.pisaan@sanfranz.gov.ph', null, 'Riverine agricultural area.'),
-(gen_random_uuid(), 'Rizal', 'Rural', '8501', 4050, '2024', '61m ASL', 61.0, 8.516000, 125.949000, '8°30''57.6"N 125°56''56.4"E', 15.30, 'Purok Central, Rizal', '+63 912 001 0019', 'brgy.rizal@sanfranz.gov.ph', null, 'Fertile valley producing grains and coconuts.'),
-(gen_random_uuid(), 'San Isidro', 'Rural', '8501', 3520, '2024', '63m ASL', 63.0, 8.548000, 125.979000, '8°32''52.8"N 125°58''44.4"E', 16.20, 'Purok 2, San Isidro', '+63 912 001 0020', 'brgy.sanisidro@sanfranz.gov.ph', null, 'Named after the patron saint of farmers.'),
-(gen_random_uuid(), 'Santa Ana', 'Rural', '8501', 2870, '2024', '79m ASL', 79.0, 8.559000, 125.949000, '8°33''32.4"N 125°56''56.4"E', 14.10, 'Purok 1, Santa Ana', '+63 912 001 0021', 'brgy.santaana@sanfranz.gov.ph', null, 'Highland area focused on vegetable crop production.'),
-(gen_random_uuid(), 'Tagapua', 'Rural', '8501', 2640, '2024', '82m ASL', 82.0, 8.535000, 125.918000, '8°32''06.0"N 125°55''04.8"E', 19.80, 'Purok 2, Tagapua', '+63 912 001 0022', 'brgy.tagapua@sanfranz.gov.ph', null, 'Timberland and diversified agro-farm district.'),
-(gen_random_uuid(), 'Barangay 1 (Poblacion)', 'Poblacion', '8501', 6200, '2024', '50m ASL', 50.0, 8.505000, 125.978000, '8°30''18.0"N 125°58''40.8"E', 4.20, 'Poblacion Plaza, Barangay 1', '+63 912 001 0023', 'brgy.1@sanfranz.gov.ph', null, 'Administrative and government civic center.'),
-(gen_random_uuid(), 'Barangay 2 (Poblacion)', 'Poblacion', '8501', 5890, '2024', '50m ASL', 50.0, 8.506500, 125.979500, '8°30''23.4"N 125°58''46.2"E', 3.80, 'Market Site, Barangay 2', '+63 912 001 0024', 'brgy.2@sanfranz.gov.ph', null, 'Central public market and commercial trading center.'),
-(gen_random_uuid(), 'Barangay 3 (Poblacion)', 'Poblacion', '8501', 5420, '2024', '51m ASL', 51.0, 8.508000, 125.981000, '8°30''28.8"N 125°58''51.6"E', 3.50, 'Mabini St., Barangay 3', '+63 912 001 0025', 'brgy.3@sanfranz.gov.ph', null, 'High-density residential and retail district.'),
-(gen_random_uuid(), 'Barangay 4 (Poblacion)', 'Poblacion', '8501', 6150, '2024', '49m ASL', 49.0, 8.503500, 125.976500, '8°30''12.6"N 125°58''35.4"E', 4.10, 'Rizal Avenue, Barangay 4', '+63 912 001 0026', 'brgy.4@sanfranz.gov.ph', null, 'Financial, banking, and business district.'),
-(gen_random_uuid(), 'Barangay 5 (Poblacion)', 'Poblacion', '8501', 5780, '2024', '50m ASL', 50.0, 8.502000, 125.975000, '8°30''07.2"N 125°58''30.0"E', 3.90, 'Quezon Boulevard, Barangay 5', '+63 912 001 0027', 'brgy.5@sanfranz.gov.ph', null, 'Institutional and education zone of the poblacion.');
- 
--- 3. Elected Officials Generator (5 per barangay: 1 Captain, 3 Kagawads, 1 SK Chair)
--- Each official row also gets its own gen_random_uuid() instead of the old
--- "<slug>-off-N" text id (which is no longer valid now that barangay.id is a UUID).
+(gen_random_uuid(), 'Alegria', 'Rural', 3420, '2024', '75m ASL', 75.0, 8.506308, 126.011568, '8°30''22.7"N 126°0''41.6"E', 14.50, 'Purok 1, Alegria', '+63 912 001 0001', 'brgy.alegria@sanfranz.gov.ph', 'An agricultural community in San Francisco.'),
+(gen_random_uuid(), 'Bayugan 2', 'Rural', 5120, '2024', '62m ASL', 62.0, 8.451524, 125.970044, '8°27''5.5"N 125°58''12.2"E', 18.20, 'Purok Central, Bayugan 2', '+63 912 001 0002', 'brgy.bayugan2@sanfranz.gov.ph', 'A bustling rural center along the secondary access road.'),
+(gen_random_uuid(), 'Bitan-agan', 'Rural', 2890, '2024', '85m ASL', 85.0, 8.534795, 125.983044, '8°32''5.3"N 125°58''59.0"E', 12.30, 'Purok 2, Bitan-agan', '+63 912 001 0003', 'brgy.bitanagan@sanfranz.gov.ph', 'Known for agro-forestry and crop production.'),
+(gen_random_uuid(), 'Borbon', 'Rural', 4150, '2024', '58m ASL', 58.0, 8.484800, 125.894664, '8°29''5.3"N 125°53''40.8"E', 16.80, 'Purok 3, Borbon', '+63 912 001 0004', 'brgy.borbon@sanfranz.gov.ph', 'Rich agricultural plains and farming households.'),
+(gen_random_uuid(), 'Buenasuerte', 'Rural', 2310, '2024', '92m ASL', 92.0, 8.410329, 125.938923, '8°24''37.2"N 125°56''20.1"E', 11.40, 'Purok 1, Buenasuerte', '+63 912 001 0005', 'brgy.buenasuerte@sanfranz.gov.ph', 'Upland farming area producing corn and root crops.'),
+(gen_random_uuid(), 'Caimpugan', 'Rural', 3780, '2024', '48m ASL', 48.0, 8.392942, 125.914905, '8°23''34.6"N 125°54''53.7"E', 21.50, 'Purok 2, Caimpugan', '+63 912 001 0006', 'brgy.caimpugan@sanfranz.gov.ph', 'Bordering the Agusan Marsh wildlife sanctuary.'),
+(gen_random_uuid(), 'Das-agan', 'Rural', 3100, '2024', '65m ASL', 65.0, 8.547734, 126.016072, '8°32''51.8"N 126°0''57.9"E', 13.10, 'Purok 1, Das-agan', '+63 912 001 0007', 'brgy.dasagan@sanfranz.gov.ph', 'Peaceful inland community with rubber plantations.'),
+(gen_random_uuid(), 'Ebro', 'Rural', 2650, '2024', '70m ASL', 70.0, 8.445569, 125.937229, '8°26''44.0"N 125°56''14.0"E', 15.00, 'Purok 2, Ebro', '+63 912 001 0008', 'brgy.ebro@sanfranz.gov.ph', 'Agricultural barangay cultivating rice and palm oil.'),
+(gen_random_uuid(), 'Hubang', 'Urban', 9450, '2024', '55m ASL', 55.0, 8.518260, 125.965741, '8°31''5.7"N 125°57''56.7"E', 10.80, 'National Highway, Hubang', '+63 912 001 0009', 'brgy.hubang@sanfranz.gov.ph', 'Major urban and transport hub along the Maharlika Highway.'),
+(gen_random_uuid(), 'Karaos', 'Urban', 8920, '2024', '52m ASL', 52.0, 8.490891, 125.974115, '8°29''27.2"N 125°58''26.8"E', 9.50, 'Purok 4, Karaos', '+63 912 001 0010', 'brgy.karaos@sanfranz.gov.ph', 'Commercial area host to educational institutions and trade.'),
+(gen_random_uuid(), 'Ladgadan', 'Rural', 2480, '2024', '80m ASL', 80.0, 8.488569, 125.933444, '8°29''18.8"N 125°56''0.4"E', 14.20, 'Purok 1, Ladgadan', '+63 912 001 0011', 'brgy.ladgadan@sanfranz.gov.ph', 'Highland community known for organic farming.'),
+(gen_random_uuid(), 'Lapinigan', 'Rural', 3920, '2024', '60m ASL', 60.0, 8.429989, 125.982586, '8°25''48.0"N 125°58''57.3"E', 17.60, 'Purok 3, Lapinigan', '+63 912 001 0012', 'brgy.lapinigan@sanfranz.gov.ph', 'Active farming cooperative community.'),
+(gen_random_uuid(), 'Lucac', 'Rural', 3150, '2024', '68m ASL', 68.0, 8.561306, 125.962097, '8°33''40.7"N 125°57''43.5"E', 13.70, 'Purok 2, Lucac', '+63 912 001 0013', 'brgy.lucac@sanfranz.gov.ph', 'Known for fresh produce and livestock raising.'),
+(gen_random_uuid(), 'Mate', 'Rural', 2740, '2024', '77m ASL', 77.0, 8.433908, 126.013992, '8°26''2.1"N 126°0''50.4"E', 16.10, 'Purok 1, Mate', '+63 912 001 0014', 'brgy.mate@sanfranz.gov.ph', 'Rural agrarian development zone.'),
+(gen_random_uuid(), 'New Visayas', 'Rural', 3600, '2024', '64m ASL', 64.0, 8.443308, 125.899445, '8°26''35.9"N 125°53''58.0"E', 12.90, 'Purok 2, New Visayas', '+63 912 001 0015', 'brgy.newvisayas@sanfranz.gov.ph', 'Close-knit agricultural community.'),
+(gen_random_uuid(), 'Ormaca', 'Rural', 2180, '2024', '88m ASL', 88.0, 8.449261, 125.996617, '8°26''57.3"N 125°59''47.8"E', 15.40, 'Purok 1, Ormaca', '+63 912 001 0016', 'brgy.ormaca@sanfranz.gov.ph', 'Upland barangay rich in agro-forestry resources.'),
+(gen_random_uuid(), 'Pasta', 'Rural', 2950, '2024', '72m ASL', 72.0, 8.413950, 125.981642, '8°24''50.2"N 125°58''53.9"E', 13.80, 'Purok 3, Pasta', '+63 912 001 0017', 'brgy.pasta@sanfranz.gov.ph', 'High-yield rice producing barangay.'),
+(gen_random_uuid(), 'Pisa-an', 'Rural', 3380, '2024', '69m ASL', 69.0, 8.531176, 125.953650, '8°31''52.2"N 125°57''13.1"E', 14.90, 'Purok 1, Pisa-an', '+63 912 001 0018', 'brgy.pisaan@sanfranz.gov.ph', 'Riverine agricultural area.'),
+(gen_random_uuid(), 'Rizal', 'Rural', 4050, '2024', '61m ASL', 61.0, 8.486666, 125.870527, '8°29''12.0"N 125°52''13.9"E', 15.30, 'Purok Central, Rizal', '+63 912 001 0019', 'brgy.rizal@sanfranz.gov.ph', 'Fertile valley producing grains and coconuts.'),
+(gen_random_uuid(), 'San Isidro', 'Rural', 3520, '2024', '63m ASL', 63.0, 8.480831, 125.967898, '8°28''51.0"N 125°58''4.4"E', 16.20, 'Purok 2, San Isidro', '+63 912 001 0020', 'brgy.sanisidro@sanfranz.gov.ph', 'Named after the patron saint of farmers.'),
+(gen_random_uuid(), 'Santa Ana', 'Rural', 2870, '2024', '79m ASL', 79.0, 8.500385, 125.961562, '8°30''1.4"N 125°57''41.6"E', 14.10, 'Purok 1, Santa Ana', '+63 912 001 0021', 'brgy.santaana@sanfranz.gov.ph', 'Highland area focused on vegetable crop production.'),
+(gen_random_uuid(), 'Tagapua', 'Rural', 2640, '2024', '82m ASL', 82.0, 8.513632, 125.907178, '8°30''49.1"N 125°54''25.8"E', 19.80, 'Purok 2, Tagapua', '+63 912 001 0022', 'brgy.tagapua@sanfranz.gov.ph', 'Timberland and diversified agro-farm district.'),
+(gen_random_uuid(), 'Barangay 1', 'Urban', 6200, '2024', '50m ASL', 50.0, 8.511985, 125.975286, '8°30''43.1"N 125°58''31.0"E', 4.20, 'Poblacion Plaza, Barangay 1', '+63 912 001 0023', 'brgy.1@sanfranz.gov.ph', 'Administrative and government civic center.'),
+(gen_random_uuid(), 'Barangay 2', 'Urban', 5890, '2024', '50m ASL', 50.0, 8.508618, 125.980844, '8°30''31.0"N 125°58''51.0"E', 3.80, 'Market Site, Barangay 2', '+63 912 001 0024', 'brgy.2@sanfranz.gov.ph', 'Central public market and commercial trading center.'),
+(gen_random_uuid(), 'Barangay 3', 'Urban', 5420, '2024', '51m ASL', 51.0, 8.507890, 125.973892, '8°30''28.4"N 125°58''26.0"E', 3.50, 'Mabini St., Barangay 3', '+63 912 001 0025', 'brgy.3@sanfranz.gov.ph', 'High-density residential and retail district.'),
+(gen_random_uuid(), 'Barangay 4', 'Urban', 6150, '2024', '49m ASL', 49.0, 8.505866, 125.979367, '8°30''21.1"N 125°58''45.7"E', 4.10, 'Rizal Avenue, Barangay 4', '+63 912 001 0026', 'brgy.4@sanfranz.gov.ph', 'Financial, banking, and business district.'),
+(gen_random_uuid(), 'Barangay 5', 'Urban', 5780, '2024', '50m ASL', 50.0, 8.503854, 125.978782, '8°30''13.9"N 125°58''43.6"E', 3.90, 'Quezon Boulevard, Barangay 5', '+63 912 001 0027', 'brgy.5@sanfranz.gov.ph', 'Institutional and education zone of the poblacion.');
+
+-- 3. Elected Officials Generator (per barangay)
+-- Every elected official is connected to a position LABEL (is_label = TRUE):
+--   Punong Barangay (Captain)  [label, root]
+--     -> Captain (person)
+--          |- Barangay Kagawad  [label]
+--          |    |- Kagawad 1 / 2 / 3 (persons)
+--          \- SK Chairperson    [label]
+--               \- SK Chair (person)
+-- Label rows carry the shared position header; the people beneath inherit it
+-- (their own title bar is hidden in the org chart) so positions aren't repeated.
+-- Every row (labels + people) gets its own gen_random_uuid(). Siblings render
+-- in sort_order (lowest first); name breaks ties. Drag-to-reorder edits sort_order.
 DO $$
 DECLARE
   b RECORD;
   captain_id UUID := '10000000-0000-0000-0000-000000000001';
   kagawad_id UUID := '10000000-0000-0000-0000-000000000002';
   sk_id      UUID := '10000000-0000-0000-0000-000000000003';
-  new_captain_id UUID;
+  current_term_id UUID := '30000000-0000-0000-0000-000000000002'; -- 2023-2026 (current)
+  past_term_id    UUID := '30000000-0000-0000-0000-000000000001'; -- 2020-2023 (previous)
+  captain_label_id UUID;
+  new_captain_id   UUID;
+  kagawad_label_id UUID;
+  sk_label_id      UUID;
+  past_capt_label_id UUID;
+  past_capt_id       UUID;
 BEGIN
   FOR b IN SELECT id, name FROM barangay_directory.barangay LOOP
-    new_captain_id := gen_random_uuid();
+    captain_label_id := gen_random_uuid();
+    new_captain_id   := gen_random_uuid();
+    kagawad_label_id := gen_random_uuid();
+    sk_label_id      := gen_random_uuid();
 
-    -- 1. Punong Barangay (Captain) - Root parent (parent_id is NULL)
+    -- =========================================================
+    -- CURRENT TERM (2023-2026): full organizational roster
+    -- =========================================================
+
+    -- LABEL: Punong Barangay (Captain) - root of this barangay's tree
     INSERT INTO barangay_directory.elected_officials (
-      id, barangay_id, parent_id, position_id, name, committee, avatar_url, contact, order_index
+      id, barangay_id, term_id, parent_id, position_id, name, committee, avatar_url, contact, is_label, sort_order
     ) VALUES (
-      new_captain_id,
-      b.id,
-      NULL,
-      captain_id,
-      'Hon. ' || b.name || ' Captain',
+      captain_label_id, b.id, current_term_id, NULL, captain_id,
+      'Barangay Captain', NULL, NULL, NULL, TRUE, 0
+    );
+
+    -- PERSON: the Captain, placed under the Captain label
+    INSERT INTO barangay_directory.elected_officials (
+      id, barangay_id, term_id, parent_id, position_id, name, committee, avatar_url, contact, is_label, sort_order
+    ) VALUES (
+      new_captain_id, b.id, current_term_id, captain_label_id, captain_id,
+      'Hon. ' || barangay_directory.random_official_name(),
       'Executive & Peace and Order',
       'https://api.dicebear.com/7.x/avataaars/svg?seed=' || b.id || 'Capt',
       '+63 917 ' || LPAD(FLOOR(RANDOM() * 900 + 100)::TEXT, 3, '0') || ' ' || LPAD(FLOOR(RANDOM() * 9000 + 1000)::TEXT, 4, '0'),
-      1
+      FALSE, 0
     );
- 
-    -- 2. Kagawad 1 (Finance) - Child of Captain
+
+    -- LABEL: Barangay Kagawad - under the Captain
     INSERT INTO barangay_directory.elected_officials (
-      id, barangay_id, parent_id, position_id, name, committee, avatar_url, contact, order_index
+      id, barangay_id, term_id, parent_id, position_id, name, committee, avatar_url, contact, is_label, sort_order
     ) VALUES (
-      gen_random_uuid(),
-      b.id,
-      new_captain_id,
-      kagawad_id,
-      'Hon. ' || b.name || ' Kagawad 1',
+      kagawad_label_id, b.id, current_term_id, new_captain_id, kagawad_id,
+      'Kagawad', NULL, NULL, NULL, TRUE, 0
+    );
+
+    -- PERSON: Kagawad 1 (Finance) - under the Kagawad label
+    INSERT INTO barangay_directory.elected_officials (
+      id, barangay_id, term_id, parent_id, position_id, name, committee, avatar_url, contact, is_label, sort_order
+    ) VALUES (
+      gen_random_uuid(), b.id, current_term_id, kagawad_label_id, kagawad_id,
+      'Hon. ' || barangay_directory.random_official_name(),
       'Committee on Finance & Appropriations',
       'https://api.dicebear.com/7.x/avataaars/svg?seed=' || b.id || 'Kag1',
       '+63 917 ' || LPAD(FLOOR(RANDOM() * 900 + 100)::TEXT, 3, '0') || ' ' || LPAD(FLOOR(RANDOM() * 9000 + 1000)::TEXT, 4, '0'),
-      2
+      FALSE, 0
     );
- 
-    -- 3. Kagawad 2 (Public Works) - Child of Captain
+
+    -- PERSON: Kagawad 2 (Public Works) - under the Kagawad label
     INSERT INTO barangay_directory.elected_officials (
-      id, barangay_id, parent_id, position_id, name, committee, avatar_url, contact, order_index
+      id, barangay_id, term_id, parent_id, position_id, name, committee, avatar_url, contact, is_label, sort_order
     ) VALUES (
-      gen_random_uuid(),
-      b.id,
-      new_captain_id,
-      kagawad_id,
-      'Hon. ' || b.name || ' Kagawad 2',
+      gen_random_uuid(), b.id, current_term_id, kagawad_label_id, kagawad_id,
+      'Hon. ' || barangay_directory.random_official_name(),
       'Committee on Public Works & Infrastructure',
       'https://api.dicebear.com/7.x/avataaars/svg?seed=' || b.id || 'Kag2',
       '+63 917 ' || LPAD(FLOOR(RANDOM() * 900 + 100)::TEXT, 3, '0') || ' ' || LPAD(FLOOR(RANDOM() * 9000 + 1000)::TEXT, 4, '0'),
-      3
+      FALSE, 1
     );
- 
-    -- 4. Kagawad 3 (Health & Sanitation) - Child of Captain
+
+    -- PERSON: Kagawad 3 (Health & Sanitation) - under the Kagawad label
     INSERT INTO barangay_directory.elected_officials (
-      id, barangay_id, parent_id, position_id, name, committee, avatar_url, contact, order_index
+      id, barangay_id, term_id, parent_id, position_id, name, committee, avatar_url, contact, is_label, sort_order
     ) VALUES (
-      gen_random_uuid(),
-      b.id,
-      new_captain_id,
-      kagawad_id,
-      'Hon. ' || b.name || ' Kagawad 3',
+      gen_random_uuid(), b.id, current_term_id, kagawad_label_id, kagawad_id,
+      'Hon. ' || barangay_directory.random_official_name(),
       'Committee on Health, Sanitation & Environment',
       'https://api.dicebear.com/7.x/avataaars/svg?seed=' || b.id || 'Kag3',
       '+63 917 ' || LPAD(FLOOR(RANDOM() * 900 + 100)::TEXT, 3, '0') || ' ' || LPAD(FLOOR(RANDOM() * 9000 + 1000)::TEXT, 4, '0'),
-      4
+      FALSE, 2
     );
- 
-    -- 5. SK Chairperson - Child of Captain
+
+    -- LABEL: SK Chairperson - under the Captain
     INSERT INTO barangay_directory.elected_officials (
-      id, barangay_id, parent_id, position_id, name, committee, avatar_url, contact, order_index
+      id, barangay_id, term_id, parent_id, position_id, name, committee, avatar_url, contact, is_label, sort_order
     ) VALUES (
-      gen_random_uuid(),
-      b.id,
-      new_captain_id,
-      sk_id,
-      'Hon. ' || b.name || ' SK Chair',
+      sk_label_id, b.id, current_term_id, new_captain_id, sk_id,
+      'SK Chairperson', NULL, NULL, NULL, TRUE, 1
+    );
+
+    -- PERSON: SK Chairperson - under the SK label
+    INSERT INTO barangay_directory.elected_officials (
+      id, barangay_id, term_id, parent_id, position_id, name, committee, avatar_url, contact, is_label, sort_order
+    ) VALUES (
+      gen_random_uuid(), b.id, current_term_id, sk_label_id, sk_id,
+      'Hon. ' || barangay_directory.random_official_name(),
       'Committee on Youth & Sports Development',
       'https://api.dicebear.com/7.x/avataaars/svg?seed=' || b.id || 'SK',
       '+63 917 ' || LPAD(FLOOR(RANDOM() * 900 + 100)::TEXT, 3, '0') || ' ' || LPAD(FLOOR(RANDOM() * 9000 + 1000)::TEXT, 4, '0'),
-      5
+      FALSE, 0
+    );
+
+    -- =========================================================
+    -- PAST TERM (2020-2023): compact roster (Captain only) so the
+    -- term switcher visibly differs between terms.
+    -- =========================================================
+    past_capt_label_id := gen_random_uuid();
+    past_capt_id       := gen_random_uuid();
+
+    INSERT INTO barangay_directory.elected_officials (
+      id, barangay_id, term_id, parent_id, position_id, name, committee, avatar_url, contact, is_label, sort_order
+    ) VALUES (
+      past_capt_label_id, b.id, past_term_id, NULL, captain_id,
+      'Barangay Captain', NULL, NULL, NULL, TRUE, 0
+    );
+
+    INSERT INTO barangay_directory.elected_officials (
+      id, barangay_id, term_id, parent_id, position_id, name, committee, avatar_url, contact, is_label, sort_order
+    ) VALUES (
+      past_capt_id, b.id, past_term_id, past_capt_label_id, captain_id,
+      'Hon. ' || barangay_directory.random_official_name(),
+      'Executive & Peace and Order (2020-2023)',
+      'https://api.dicebear.com/7.x/avataaars/svg?seed=' || b.id || 'CaptPrev',
+      '+63 917 ' || LPAD(FLOOR(RANDOM() * 900 + 100)::TEXT, 3, '0') || ' ' || LPAD(FLOOR(RANDOM() * 9000 + 1000)::TEXT, 4, '0'),
+      FALSE, 0
     );
   END LOOP;
 END $$;
- 
--- 4. Key Barangay Hall Landmarks
--- No more hardcoded slug FKs ('hubang', 'karaos', ...) — look up the generated
--- barangay.id by name instead, and give each landmark its own gen_random_uuid().
-INSERT INTO barangay_directory.barangay_landmark (id, barangay_id, name, category, lat, lng, address)
-SELECT gen_random_uuid(), b.id, v.landmark_name, v.category, v.lat, v.lng, v.address
-FROM (VALUES
-  ('Hubang',                  'Hubang Barangay Hall & Gym',     'Government', 8.518100, 125.975200, 'National Highway, Hubang, San Francisco'),
-  ('Karaos',                  'Karaos Barangay Complex',        'Government', 8.511200, 125.981300, 'Purok 4, Karaos, San Francisco'),
-  ('Barangay 1 (Poblacion)',  'Barangay 1 Hall (Poblacion)',    'Government', 8.505200, 125.978200, 'Poblacion Plaza, Barangay 1, San Francisco'),
-  ('Barangay 2 (Poblacion)',  'San Francisco Public Market',    'Commercial', 8.506600, 125.979700, 'Market Site, Barangay 2, San Francisco'),
-  ('Caimpugan',                'Caimpugan Marsh Eco-Deck',       'Tourism',    8.495200, 125.932300, 'Purok 2, Caimpugan, San Francisco')
-) AS v(barangay_name, landmark_name, category, lat, lng, address)
-JOIN barangay_directory.barangay b ON b.name = v.barangay_name;

@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import type { BarangayItem } from '../../composables/useBarangayDirectory'
 import GoogleMap from '../GoogleMap.vue'
-import { Navigation, Copy, Check, ExternalLink } from '@lucide/vue'
+import { Navigation } from '@lucide/vue'
 
 const props = defineProps<{
   barangay: BarangayItem

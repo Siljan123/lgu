@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 export interface BarangayPosition {
   id: string
@@ -6,23 +6,38 @@ export interface BarangayPosition {
   rank_order: number
 }
 
+export interface BarangayTerm {
+  id: string
+  label: string
+  start_date?: string | null
+  end_date?: string | null
+  is_current?: boolean
+}
+export type PositionCategory =
+  | 'captain' | 'secretary' | 'treasurer'
+  | 'sk_chairperson' | 'kagawad' | 'other'
+  
 export interface BarangayOfficial {
   id: string
   barangay_id?: string
+  term_id?: string | null
   parent_id?: string | null
   parentId?: string | null
+  is_label?: boolean
+  sort_order?: number
   name: string
+  position_category?: PositionCategory
   title: string
   committee?: string
   avatar?: string
   avatar_url?: string
   contact?: string
-  order_index?: number
   position_id?: string
-  position?: {
+   position?: {
     id?: string
     title: string
     rank_order?: number
+    position_category: PositionCategory
   }
 }
 
@@ -30,16 +45,6 @@ export interface BarangayCoordinates {
   lat: number
   lng: number
   display: string
-}
-
-export interface BarangayLandmark {
-  id: string
-  barangay_id?: string
-  name: string
-  category: string
-  lat: number
-  lng: number
-  address: string
 }
 
 export type BarangayClassification = 'All' | 'Urban' | 'Rural'
@@ -70,9 +75,7 @@ export interface BarangayItem {
   map_embed_url?: string
   description?: string
   officials: BarangayOfficial[]
-  landmarks?: BarangayLandmark[]
   elected_officials?: { count: number }[]
-  barangay_landmark?: { count: number }[]
 }
 
 function mapDbOfficial(o: any): BarangayOfficial {
@@ -81,33 +84,25 @@ function mapDbOfficial(o: any): BarangayOfficial {
   return {
     id: o.id,
     barangay_id: o.barangay_id,
+    term_id: o.term_id ?? null,
     parent_id: parentId,
     parentId: parentId,
+    is_label: o.is_label ?? false,
+    sort_order: typeof o.sort_order === 'number' ? o.sort_order : Number(o.sort_order ?? 0),
     name: o.name,
+    position_category:o.position_category,
     title: posTitle,
     committee: o.committee || undefined,
     avatar: o.avatar_url || o.avatar || undefined,
     avatar_url: o.avatar_url || o.avatar || undefined,
     contact: o.contact || undefined,
-    order_index: o.order_index ?? o.position?.rank_order ?? 10,
     position_id: o.position_id || o.position?.id || undefined,
     position: o.position ? {
       id: o.position.id,
       title: o.position.title,
+      position_category: o.position.position_category,
       rank_order: o.position.rank_order
     } : undefined
-  }
-}
-
-function mapDbLandmark(l: any): BarangayLandmark {
-  return {
-    id: l.id,
-    barangay_id: l.barangay_id,
-    name: l.name,
-    category: l.category || 'Landmark',
-    lat: Number(l.lat) || 0,
-    lng: Number(l.lng) || 0,
-    address: l.address || ''
   }
 }
 
@@ -122,10 +117,6 @@ function mapDbBarangayToItem(
   const officials = Array.isArray(db.officials)
     ? db.officials.map(mapDbOfficial)
     : existing?.officials || []
-
-  const landmarks = Array.isArray(db.landmarks)
-    ? db.landmarks.map(mapDbLandmark)
-    : existing?.landmarks || []
 
   const rawClassification = db.classification || existing?.classification || 'Rural'
   const classification = rawClassification === 'Poblacion' ? 'Urban' : rawClassification
@@ -156,9 +147,7 @@ function mapDbBarangayToItem(
     map_embed_url: db.map_embed_url || db.mapEmbedUrl || existing?.mapEmbedUrl,
     description: db.description || existing?.description || '',
     officials,
-    landmarks,
-    elected_officials: db.elected_officials,
-    barangay_landmark: db.barangay_landmark
+    elected_officials: db.elected_officials
   }
 }
 
@@ -217,6 +206,40 @@ export function useBarangayDirectory() {
 
   const positions = computed<BarangayPosition[]>(() => positionsData.value || [])
 
+  // Shared terms (e.g. 2020-2023, 2023-2026) reused across every barangay.
+  const selectedTermId = useState<string>('brgy-dir-selected-term', () => '')
+
+  const {
+    data: termsData,
+    refresh: refreshTerms
+  } = useAsyncData<BarangayTerm[]>(
+    'barangay-directory-terms',
+    () => $fetch<BarangayTerm[]>('/api/barangay-directory/terms'),
+    { default: () => [] }
+  )
+
+  const terms = computed<BarangayTerm[]>(() => termsData.value || [])
+
+  const currentTerm = computed<BarangayTerm | undefined>(
+    () => terms.value.find(t => t.is_current) || terms.value[0]
+  )
+
+  const selectedTerm = computed<BarangayTerm | undefined>(
+    () => terms.value.find(t => t.id === selectedTermId.value) || currentTerm.value
+  )
+
+  // Keep the selection valid: default to the current term whenever the current
+  // selection isn't present (first load, or after a term was deleted).
+  watch(
+    terms,
+    (list) => {
+      if (list.length && !list.some(t => t.id === selectedTermId.value)) {
+        selectedTermId.value = (list.find(t => t.is_current) || list[0])!.id
+      }
+    },
+    { immediate: true }
+  )
+
   // Auto-resolve active barangay ID
   const activeId = computed(() => {
     if (selectedBarangayId.value) return selectedBarangayId.value
@@ -264,7 +287,9 @@ export function useBarangayDirectory() {
     if (!id) return undefined
     isLoadingDetails.value = true
     try {
-      const data = await $fetch<any>(`/api/barangay-directory/${id}`)
+      const data = await $fetch<any>(`/api/barangay-directory/${id}`, {
+        query: selectedTermId.value ? { term: selectedTermId.value } : undefined
+      })
       if (data && data.id) {
         const item = mapDbBarangayToItem(data)
         barangaysMap.value[id] = item
@@ -315,7 +340,80 @@ export function useBarangayDirectory() {
     return positions.value
   }
 
-  // CRUD: Create Barangay
+  const fetchTerms = async () => {
+    await refreshTerms()
+    return terms.value
+  }
+
+  // Switch the active term. Officials are term-scoped, so cached barangay
+  // details are stale after a switch and must be refetched.
+  const selectTerm = async (termId: string) => {
+    if (!termId || termId === selectedTermId.value) return
+    selectedTermId.value = termId
+    barangaysMap.value = {}
+    if (activeId.value) {
+      await fetchBarangayById(activeId.value)
+    }
+  }
+
+  const createTerm = async (payload: Partial<BarangayTerm>): Promise<BarangayTerm> => {
+    isMutating.value = true
+    try {
+      const res = await $fetch<BarangayTerm>('/api/barangay-directory/terms', {
+        method: 'POST',
+        body: payload
+      })
+      await refreshTerms()
+      // Jump to the freshly created term so officials can be added into it.
+      if (res?.id) {
+        selectedTermId.value = res.id
+        barangaysMap.value = {}
+        if (activeId.value) await fetchBarangayById(activeId.value)
+      }
+      return res
+    } catch (err) {
+      console.error('Failed to create term:', err)
+      throw err
+    } finally {
+      isMutating.value = false
+    }
+  }
+
+  const updateTerm = async (id: string, payload: Partial<BarangayTerm>): Promise<BarangayTerm> => {
+    isMutating.value = true
+    try {
+      const res = await $fetch<BarangayTerm>(`/api/barangay-directory/terms/${id}`, {
+        method: 'PUT',
+        body: payload
+      })
+      await refreshTerms()
+      return res
+    } catch (err) {
+      console.error(`Failed to update term '${id}':`, err)
+      throw err
+    } finally {
+      isMutating.value = false
+    }
+  }
+
+  const deleteTerm = async (id: string): Promise<boolean> => {
+    isMutating.value = true
+    try {
+      await $fetch(`/api/barangay-directory/terms/${id}`, { method: 'DELETE' })
+      await refreshTerms()
+      // If the deleted term was active, the watcher resets the selection; make
+      // sure the officials for the new selection are loaded.
+      barangaysMap.value = {}
+      if (activeId.value) await fetchBarangayById(activeId.value)
+      return true
+    } catch (err) {
+      console.error(`Failed to delete term '${id}':`, err)
+      throw err
+    } finally {
+      isMutating.value = false
+    }
+  }
+
   const createBarangay = async (payload: Partial<BarangayItem>): Promise<BarangayItem> => {
     isMutating.value = true
     try {
@@ -329,9 +427,9 @@ export function useBarangayDirectory() {
       const currentList = Array.isArray(barangaysData.value) ? [...barangaysData.value] : [...barangaysList.value]
       const existingIdx = currentList.findIndex(b => b.id === newItem.id)
       if (existingIdx !== -1) {
-        currentList[existingIdx] = res
+        currentList[existingIdx] = newItem
       } else {
-        currentList.push(res)
+        currentList.push(newItem)
       }
       barangaysData.value = currentList
       barangaysList.value = currentList
@@ -344,7 +442,6 @@ export function useBarangayDirectory() {
       isMutating.value = false
     }
   }
-
   // CRUD: Update Barangay
   const updateBarangay = async (id: string, payload: Partial<BarangayItem>): Promise<BarangayItem> => {
     isMutating.value = true
@@ -372,7 +469,6 @@ export function useBarangayDirectory() {
     }
   }
 
-  // CRUD: Delete Barangay
   const deleteBarangay = async (id: string): Promise<boolean> => {
     isMutating.value = true
     try {
@@ -398,13 +494,14 @@ export function useBarangayDirectory() {
     }
   }
 
-  // CRUD: Add Official
+  //Add Official
   const addOfficial = async (barangayId: string, payload: Partial<BarangayOfficial>): Promise<BarangayOfficial> => {
     isMutating.value = true
     try {
+      // Officials are created within whichever term is currently selected.
       const res = await $fetch<any>(`/api/barangay-directory/${barangayId}/officials`, {
         method: 'POST',
-        body: payload
+        body: { ...payload, term_id: payload.term_id || selectedTermId.value || undefined }
       })
       const newOfficial = mapDbOfficial(res)
       await fetchBarangayById(barangayId)
@@ -438,11 +535,10 @@ export function useBarangayDirectory() {
     }
   }
 
-  // CRUD: Delete Official
-  const deleteOfficial = async (officialId: string, barangayId?: string): Promise<boolean> => {
+  const deleteOfficial = async (id: string, barangayId?: string): Promise<boolean> => {
     isMutating.value = true
     try {
-      await $fetch(`/api/barangay-directory/officials/${officialId}`, {
+      await $fetch<any>(`/api/barangay-directory/officials/${id}`, {
         method: 'DELETE'
       })
       if (barangayId || selectedBarangayId.value) {
@@ -450,7 +546,28 @@ export function useBarangayDirectory() {
       }
       return true
     } catch (err) {
-      console.error(`Failed to delete official '${officialId}':`, err)
+      console.error(`Failed to delete official '${id}':`, err)
+      throw err
+    } finally {
+      isMutating.value = false
+    }
+  }
+
+  // CRUD: Reorder Officials (persist sibling display order)
+  // orderedIds is the sibling ids in their new top-to-bottom order.
+  const reorderOfficials = async (barangayId: string, orderedIds: string[]): Promise<boolean> => {
+    if (!barangayId || !Array.isArray(orderedIds) || orderedIds.length === 0) return false
+    isMutating.value = true
+    try {
+      const items = orderedIds.map((id, index) => ({ id, sort_order: index }))
+      await $fetch('/api/barangay-directory/officials/reorder', {
+        method: 'PUT',
+        body: { barangayId, items }
+      })
+      await fetchBarangayById(barangayId)
+      return true
+    } catch (err) {
+      console.error('Failed to reorder officials:', err)
       throw err
     } finally {
       isMutating.value = false
@@ -458,43 +575,6 @@ export function useBarangayDirectory() {
   }
 
   // CRUD: Add Landmark
-  const addLandmark = async (barangayId: string, payload: Partial<BarangayLandmark>): Promise<BarangayLandmark> => {
-    isMutating.value = true
-    try {
-      const res = await $fetch<any>(`/api/barangay-directory/${barangayId}/landmarks`, {
-        method: 'POST',
-        body: payload
-      })
-      const newLandmark = mapDbLandmark(res)
-      await fetchBarangayById(barangayId)
-      return newLandmark
-    } catch (err) {
-      console.error(`Failed to add landmark to barangay '${barangayId}':`, err)
-      throw err
-    } finally {
-      isMutating.value = false
-    }
-  }
-
-  // CRUD: Delete Landmark
-  const deleteLandmark = async (landmarkId: string, barangayId?: string): Promise<boolean> => {
-    isMutating.value = true
-    try {
-      await $fetch(`/api/barangay-directory/landmarks/${landmarkId}`, {
-        method: 'DELETE'
-      })
-      if (barangayId || selectedBarangayId.value) {
-        await fetchBarangayById(barangayId || selectedBarangayId.value)
-      }
-      return true
-    } catch (err) {
-      console.error(`Failed to delete landmark '${landmarkId}':`, err)
-      throw err
-    } finally {
-      isMutating.value = false
-    }
-  }
-
   // CRUD: Upload Avatar
   const uploadAvatar = async (file: File): Promise<string> => {
     isMutating.value = true
@@ -533,6 +613,10 @@ export function useBarangayDirectory() {
     error,
     barangays,
     positions,
+    terms,
+    selectedTerm,
+    selectedTermId,
+    currentTerm,
     selectedBarangay,
     filteredBarangays,
     totalPopulation,
@@ -544,6 +628,11 @@ export function useBarangayDirectory() {
     fetchBarangays,
     fetchBarangayById,
     fetchPositions,
+    fetchTerms,
+    selectTerm,
+    createTerm,
+    updateTerm,
+    deleteTerm,
     refresh,
     createBarangay,
     updateBarangay,
@@ -551,8 +640,7 @@ export function useBarangayDirectory() {
     addOfficial,
     updateOfficial,
     deleteOfficial,
-    addLandmark,
-    deleteLandmark,
+    reorderOfficials,
     uploadAvatar
   }
 }
