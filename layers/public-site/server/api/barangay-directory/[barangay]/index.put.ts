@@ -1,11 +1,11 @@
-import { useServerSupabase } from '../../utils/supabase'
+import { useServerSupabase } from '../../../utils/supabase'
 
 export default defineEventHandler(async (event) => {
   const client = useServerSupabase('barangay_directory')
-  const slug = getRouterParam(event, 'slug')
+  const id = getRouterParam(event, 'barangay')
   const body = await readBody(event)
 
-  if (!slug) {
+  if (!id) {
     throw createError({
       statusCode: 400,
       statusMessage: 'Barangay slug/ID is required.'
@@ -65,7 +65,7 @@ export default defineEventHandler(async (event) => {
     .schema('barangay_directory')
     .from('barangay')
     .update(payload)
-    .eq('id', slug)
+    .eq('id', id)
     .select('*')
     .single()
 

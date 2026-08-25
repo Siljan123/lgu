@@ -4,7 +4,7 @@ export default defineEventHandler(async (event) => {
   const client = useServerSupabase('barangay_directory')
   const body = await readBody(event)
 
-  if (!body.name || !body.id) {
+  if (!body.name) {
     throw createError({
       statusCode: 400,
       statusMessage: 'Barangay name and ID/slug are required.'
@@ -14,22 +14,24 @@ export default defineEventHandler(async (event) => {
   const rawClassification = body.classification || 'Rural'
   const classification = rawClassification === 'Poblacion' ? 'Urban' : rawClassification
 
+  const lat = Number(body.lat ?? body.coordinates?.lat ?? 0)
+  const lng = Number(body.lng ?? body.coordinates?.lng ?? 0)
+
   const payload = {
-    id: String(body.id).toLowerCase().trim(),
     name: String(body.name).trim(),
     classification,
-    postal_code: String(body.postal_code || body.postalCode || '8500').trim(),
+    postal_code: String(body.postal_code || body.postalCode || '8501').trim(),
     population: Number(body.population) || 0,
-    census_year: String(body.census_year || body.censusYear || '2025 Official Census').trim(),
+    census_year: String(body.census_year || body.censusYear || '2024').trim(),
     elevation_asl: String(body.elevation_asl || body.elevationASL || '0m ASL').trim(),
     elevation_meters: Number(body.elevation_meters || body.elevationMeters) || 0,
-    lat: Number(body.lat ?? body.coordinates?.lat ?? 0),
-    lng: Number(body.lng ?? body.coordinates?.lng ?? 0),
+    lat,
+    lng,
     coordinates_display: String(
       body.coordinates_display || 
       body.coordinates?.display || 
-      `${Number(body.lat ?? body.coordinates?.lat ?? 0).toFixed(4)}° N, ${Number(body.lng ?? body.coordinates?.lng ?? 0).toFixed(4)}° E`
-    ),
+      `${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E`
+    ).trim(),
     land_area_sq_km: Number(body.land_area_sq_km || body.landAreaSqKm) || 0,
     hall_address: String(body.hall_address || body.hallAddress || '').trim(),
     contact_phone: String(body.contact_phone || body.contactPhone || '').trim(),

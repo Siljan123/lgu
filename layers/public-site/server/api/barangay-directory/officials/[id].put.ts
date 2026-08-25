@@ -20,20 +20,25 @@ export default defineEventHandler(async (event) => {
   const payload: Record<string, any> = {}
 
   if (body.name !== undefined) payload.name = String(body.name).trim()
+  if (body.is_label !== undefined || body.isLabel !== undefined) {
+    const raw = body.is_label ?? body.isLabel
+    payload.is_label = raw === true || raw === 'true' || raw === 1 || raw === '1'
+  }
   if (body.committee !== undefined) payload.committee = body.committee ? String(body.committee).trim() : null
   if (body.avatar_url !== undefined || body.avatar !== undefined || body.avatarUrl !== undefined) {
     payload.avatar_url = body.avatar_url ?? body.avatar ?? body.avatarUrl ?? null
   }
   if (body.contact !== undefined) payload.contact = body.contact ? String(body.contact).trim() : null
-  if (body.order_index !== undefined || body.orderIndex !== undefined) {
-    payload.order_index = Number(body.order_index ?? body.orderIndex)
-  }
   if (body.barangay_id !== undefined || body.barangayId !== undefined) {
     payload.barangay_id = String(body.barangay_id || body.barangayId).trim()
   }
   if (body.parent_id !== undefined || body.parentId !== undefined) {
     const pId = body.parent_id || body.parentId
     payload.parent_id = isUUID(pId) ? pId : null
+  }
+  if (body.sort_order !== undefined) {
+    const n = Number(body.sort_order)
+    if (Number.isFinite(n)) payload.sort_order = n
   }
 
   if (body.position_id !== undefined) {
@@ -55,7 +60,7 @@ export default defineEventHandler(async (event) => {
         .from('position')
         .insert({
           title: posTitle,
-          rank_order: Number(body.order_index ?? 10)
+          rank_order: 10
         })
         .select('id')
         .single()
@@ -75,11 +80,12 @@ export default defineEventHandler(async (event) => {
       id,
       barangay_id,
       parent_id,
+      is_label,
+      sort_order,
       name,
       committee,
       avatar_url,
       contact,
-      order_index,
       position:position (
         id,
         title,

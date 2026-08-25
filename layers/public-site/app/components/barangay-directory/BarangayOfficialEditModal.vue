@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   Edit3,
   X,
@@ -9,7 +9,7 @@ import {
   Trash2,
   Link as LinkIcon
 } from '@lucide/vue'
-import type { BarangayOfficial } from '../../composables/useBarangayDirectory'
+import { useBarangayDirectory, type BarangayOfficial } from '../../composables/useBarangayDirectory'
 
 const props = withDefaults(
   defineProps<{
@@ -36,32 +36,25 @@ const selectedImageFile = ref<File | null>(null)
 const base64DataUrl = ref<string | null>(null)
 const showUrlInput = ref(false)
 
-const standardPositions = [
-  'Punong Barangay (Captain)',
-  'Barangay Kagawad',
-  'SK Chairperson',
-  'Barangay Secretary',
-  'Barangay Treasurer',
-  'Barangay Tanod Executive Officer',
-  'Lupong Tagapamayapa Member'
-]
+const { positions, fetchPositions } = useBarangayDirectory()
+await fetchPositions()
+const standardPositions = computed(() => positions.value?.map(p => p.title) ?? [])
 
 const form = ref({
   name: '',
   parentId: '',
-  position: 'Barangay Kagawad',
+  position: positions.value[0]?.title || '',
   committee: '',
   contact: '',
-  avatarUrl: '',
-  orderIndex: 4
+  avatarUrl: ''
 })
 
 watch(
   () => props.official,
   (off) => {
     if (off) {
-      const currentTitle = off.title || off.position?.title || 'Barangay Kagawad'
-      const matched = standardPositions.find(p => p.toLowerCase() === currentTitle.toLowerCase())
+      const currentTitle = off.title || off.position?.title || (positions.value[0]?.title || '')
+      const matched = standardPositions.value.find(p => p.toLowerCase() === currentTitle.toLowerCase())
 
       if (matched) {
         form.value.position = matched
@@ -78,7 +71,6 @@ watch(
       form.value.committee = off.committee || ''
       form.value.contact = off.contact || ''
       form.value.avatarUrl = off.avatar_url || off.avatar || ''
-      form.value.orderIndex = off.order_index ?? 10
       imagePreview.value = off.avatar_url || off.avatar || null
       selectedImageFile.value = null
       base64DataUrl.value = null
@@ -165,8 +157,7 @@ async function handleSubmit() {
     parentId: form.value.parentId || null,
     committee: form.value.committee.trim() || undefined,
     contact: form.value.contact.trim() || undefined,
-    avatar_url: finalAvatarUrl || undefined,
-    order_index: Number(form.value.orderIndex) || 10
+    avatar_url: finalAvatarUrl || undefined
   })
 }
 </script>
@@ -354,20 +345,6 @@ async function handleSubmit() {
             v-model="form.contact"
             type="text"
             placeholder="e.g. +63 917 123 4567"
-            class="w-full px-3.5 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
-          />
-        </div>
-
-        <!-- Rank / Order Index -->
-        <div>
-          <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-            Display Order Index
-          </label>
-          <input
-            v-model.number="form.orderIndex"
-            type="number"
-            min="1"
-            max="99"
             class="w-full px-3.5 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
           />
         </div>

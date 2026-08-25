@@ -1,0 +1,121 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import { CalendarRange, Plus, Pencil, Trash2, Star } from '@lucide/vue'
+import type { BarangayTerm } from '../../composables/useBarangayDirectory'
+
+const props = withDefaults(
+  defineProps<{
+    terms?: BarangayTerm[]
+    selectedTermId?: string
+  }>(),
+  {
+    terms: () => [],
+    selectedTermId: ''
+  }
+)
+
+const emit = defineEmits<{
+  (e: 'select', termId: string): void
+  (e: 'add'): void
+  (e: 'edit', term: BarangayTerm): void
+  (e: 'delete', term: BarangayTerm): void
+}>()
+
+const selectedTerm = computed<BarangayTerm | undefined>(
+  () => props.terms.find(t => t.id === props.selectedTermId) || props.terms[0]
+)
+
+const dateRange = computed(() => {
+  const t = selectedTerm.value
+  if (!t) return ''
+  const fmt = (d?: string | null) => {
+    if (!d) return null
+    const dt = new Date(d)
+    return Number.isNaN(dt.getTime())
+      ? null
+      : dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  }
+  const start = fmt(t.start_date)
+  const end = fmt(t.end_date)
+  if (start && end) return `${start} – ${end}`
+  return start || end || ''
+})
+
+const canDelete = computed(() => props.terms.length > 1)
+
+function onSelect(e: Event) {
+  const value = (e.target as HTMLSelectElement).value
+  if (value) emit('select', value)
+}
+</script>
+
+<template>
+  <div
+    class="bg-white dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#333333] rounded-2xl px-4 py-3 sm:px-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4"
+  >
+    <!-- Term selector -->
+    <div class="flex items-center gap-3 min-w-0 flex-1">
+      <div class="size-9 shrink-0 rounded-xl bg-[#dc2626]/10 text-[#dc2626] dark:text-[#f87171] flex items-center justify-center">
+        <CalendarRange class="size-4" />
+      </div>
+      <div class="min-w-0 flex-1">
+        <label class="block text-[10px] font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400 mb-0.5">
+          Term of Office
+        </label>
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="relative min-w-0">
+            <select
+              :value="selectedTerm?.id || ''"
+              @change="onSelect"
+              class="max-w-full appearance-none pl-3 pr-8 py-1.5 text-sm font-bold bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg text-neutral-900 dark:text-white focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition cursor-pointer"
+            >
+              <option v-for="t in terms" :key="t.id" :value="t.id">
+                {{ t.label }}{{ t.is_current ? ' (Current)' : '' }}
+              </option>
+            </select>
+            <svg
+              class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-neutral-400"
+              viewBox="0 0 20 20" fill="currentColor"
+            >
+              <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+            </svg>
+          </div>
+         
+        </div>
+        <p v-if="dateRange" class="text-[11px] text-neutral-500 dark:text-neutral-400 mt-1">
+          {{ dateRange }}
+        </p>
+      </div>
+    </div>
+
+    <!-- Manage actions -->
+    <div class="flex items-center gap-2 shrink-0 border-t sm:border-t-0 border-neutral-200 dark:border-neutral-800 pt-3 sm:pt-0">
+      <button
+        type="button"
+        @click="emit('add')"
+        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-[#dc2626] hover:bg-[#b91c1c] text-white rounded-sm shadow-xs transition cursor-pointer"
+      >
+        <Plus class="size-3.5" />
+        <span>Add Term</span>
+      </button>
+      <button
+        v-if="selectedTerm"
+        type="button"
+        @click="emit('edit', selectedTerm)"
+        title="Edit this term"
+        class="inline-flex items-center justify-center size-8 text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition cursor-pointer"
+      >
+        <Pencil class="size-3.5" />
+      </button>
+      <button
+        v-if="selectedTerm && canDelete"
+        type="button"
+        @click="emit('delete', selectedTerm)"
+        title="Delete this term"
+        class="inline-flex items-center justify-center size-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition cursor-pointer"
+      >
+        <Trash2 class="size-3.5" />
+      </button>
+    </div>
+  </div>
+</template>

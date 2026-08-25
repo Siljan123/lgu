@@ -32,7 +32,7 @@ const emit = defineEmits<{
         </h3>
 
         <p class="text-xs text-neutral-600 dark:text-neutral-400 mt-2">
-          Are you sure you want to permanently delete <strong class="text-neutral-900 dark:text-white">Brgy. {{ barangay?.name }}</strong> and all its associated officials and landmarks? This action is irreversible.
+          Are you sure you want to permanently delete <strong class="text-neutral-900 dark:text-white">Brgy. {{ barangay?.name }}</strong> and all its associated officials? This action is irreversible.
         </p>
 
         <div class="mt-6 flex items-center justify-center space-x-3">

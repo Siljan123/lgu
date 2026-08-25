@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { Edit3, X, Building, MapPin, Globe, Phone } from '@lucide/vue'
+import { Edit3, X, Building, MapPin, Globe, Phone, Compass, Mountain, Users, Mail } from '@lucide/vue'
 import type { BarangayItem } from '../../composables/useBarangayDirectory'
 
 const props = defineProps<{
@@ -13,18 +13,37 @@ const emit = defineEmits<{
   (e: 'submit', id: string, payload: Partial<BarangayItem>): void
 }>()
 
+function toDms(deg: number, isLat: boolean): string {
+  const absolute = Math.abs(deg)
+  const degrees = Math.floor(absolute)
+  const minutesNotTruncated = (absolute - degrees) * 60
+  const minutes = Math.floor(minutesNotTruncated)
+  const seconds = ((minutesNotTruncated - minutes) * 60).toFixed(1)
+  const direction = isLat ? (deg >= 0 ? 'N' : 'S') : (deg >= 0 ? 'E' : 'W')
+  return `${degrees}°${minutes}'${seconds}"${direction}`
+}
+
+function calculateDms(lat: number, lng: number): string {
+  if (isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) return ''
+  return `${toDms(lat, true)} ${toDms(lng, false)}`
+}
+
 const form = ref({
   name: '',
   classification: 'Rural' as 'Urban' | 'Rural',
   postalCode: '8501',
   population: 0,
   censusYear: '2024',
-  elevationASL: '60m ASL',
   elevationMeters: 60,
+  elevationASL: '60m ASL',
   landAreaSqKm: 12.5,
+  lat: 8.506308,
+  lng: 126.011568,
+  coordinatesDisplay: '',
   hallAddress: '',
   contactPhone: '',
   contactEmail: '',
+  mapEmbedUrl: '',
   description: ''
 })
 
@@ -32,18 +51,26 @@ watch(
   () => props.barangay,
   (b) => {
     if (b) {
+      const lat = Number(b.coordinates?.lat ?? b.lat ?? 0)
+      const lng = Number(b.coordinates?.lng ?? b.lng ?? 0)
+      const display = b.coordinates?.display || b.coordinates_display || calculateDms(lat, lng)
+
       form.value = {
         name: b.name || '',
         classification: (b.classification === 'Urban' ? 'Urban' : 'Rural'),
         postalCode: b.postal_code || b.postalCode || '8501',
         population: b.population || 0,
         censusYear: b.census_year || b.censusYear || '2024',
+        elevationMeters: b.elevation_meters ?? b.elevationMeters ?? 60,
         elevationASL: b.elevation_asl || b.elevationASL || '60m ASL',
-        elevationMeters: b.elevation_meters || b.elevationMeters || 60,
-        landAreaSqKm: b.land_area_sq_km || b.landAreaSqKm || 0,
+        landAreaSqKm: b.land_area_sq_km ?? b.landAreaSqKm ?? 0,
+        lat,
+        lng,
+        coordinatesDisplay: display,
         hallAddress: b.hall_address || b.hallAddress || '',
         contactPhone: b.contact_phone || b.contactPhone || '',
         contactEmail: b.contact_email || b.contactEmail || '',
+        mapEmbedUrl: b.map_embed_url || b.mapEmbedUrl || '',
         description: b.description || ''
       }
     }
@@ -51,8 +78,33 @@ watch(
   { immediate: true }
 )
 
+watch(
+  () => [form.value.lat, form.value.lng],
+  ([newLat, newLng]) => {
+    const latNum = Number(newLat)
+    const lngNum = Number(newLng)
+    if (!isNaN(latNum) && !isNaN(lngNum) && (latNum !== 0 || lngNum !== 0)) {
+      form.value.coordinatesDisplay = calculateDms(latNum, lngNum)
+    }
+  }
+)
+
+watch(
+  () => form.value.elevationMeters,
+  (newElev) => {
+    const elevNum = Number(newElev)
+    if (!isNaN(elevNum)) {
+      form.value.elevationASL = `${elevNum}m ASL`
+    }
+  }
+)
+
 function handleSubmit() {
   if (!props.barangay?.id || !form.value.name.trim()) return
+
+  const lat = Number(form.value.lat) || 0
+  const lng = Number(form.value.lng) || 0
+  const display = form.value.coordinatesDisplay.trim() || calculateDms(lat, lng) || `${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E`
 
   emit('submit', props.barangay.id, {
     name: form.value.name.trim(),
@@ -68,12 +120,19 @@ function handleSubmit() {
     elevationMeters: Number(form.value.elevationMeters) || 0,
     land_area_sq_km: Number(form.value.landAreaSqKm) || 0,
     landAreaSqKm: Number(form.value.landAreaSqKm) || 0,
+    coordinates: {
+      lat,
+      lng,
+      display
+    },
     hall_address: form.value.hallAddress.trim(),
     hallAddress: form.value.hallAddress.trim(),
     contact_phone: form.value.contactPhone.trim(),
     contactPhone: form.value.contactPhone.trim(),
     contact_email: form.value.contactEmail.trim(),
     contactEmail: form.value.contactEmail.trim(),
+    map_embed_url: form.value.mapEmbedUrl.trim() || undefined,
+    mapEmbedUrl: form.value.mapEmbedUrl.trim() || undefined,
     description: form.value.description.trim() || undefined
   })
 }
@@ -86,10 +145,10 @@ function handleSubmit() {
     @click.self="emit('close')"
   >
     <div
-      class="bg-white dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#333333] rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+      class="bg-white dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#333333] rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]"
     >
       <!-- Header -->
-      <div class="px-6 py-4 border-b border-[#dfdfdf] dark:border-[#333333] flex items-center justify-between">
+      <div class="px-6 py-4 border-b border-[#dfdfdf] dark:border-[#333333] flex items-center justify-between shrink-0">
         <div class="flex items-center space-x-2.5">
           <div class="size-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
             <Edit3 class="size-4" />
@@ -113,134 +172,246 @@ function handleSubmit() {
       </div>
 
       <!-- Form Body -->
-      <form @submit.prevent="handleSubmit" class="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <!-- Barangay Name -->
-          <div>
-            <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-              Barangay Name <span class="text-red-500">*</span>
-            </label>
-            <input
-              v-model="form.name"
-              type="text"
-              required
-              class="w-full px-3.5 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
-            />
-          </div>
+      <form @submit.prevent="handleSubmit" class="p-6 space-y-5 overflow-y-auto flex-1">
+        <!-- Section 1: General Info -->
+        <div>
+          <h4 class="text-[11px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-2.5 flex items-center gap-1.5">
+            <Building class="size-3.5 text-[#dc2626]" />
+            General Information
+          </h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            <!-- Barangay Name -->
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                Barangay Name <span class="text-red-500">*</span>
+              </label>
+              <input
+                v-model="form.name"
+                type="text"
+                required
+                class="w-full px-3 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
+              />
+            </div>
 
-          <!-- Classification -->
-          <div>
-            <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-              Classification <span class="text-red-500">*</span>
-            </label>
-            <select
-              v-model="form.classification"
-              class="w-full px-3 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
-            >
-              <option value="Rural">Rural</option>
-              <option value="Urban">Urban</option>
-            </select>
-          </div>
+            <!-- Classification -->
+            <div>
+              <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                Classification <span class="text-red-500">*</span>
+              </label>
+              <select
+                v-model="form.classification"
+                class="w-full px-3 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
+              >
+                <option value="Rural">Rural</option>
+                <option value="Urban">Urban</option>
+              </select>
+            </div>
 
-          <!-- Postal Code -->
-          <div>
-            <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-              Postal Code
-            </label>
-            <input
-              v-model="form.postalCode"
-              type="text"
-              class="w-full px-3.5 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
-            />
+            <!-- Postal Code -->
+            <div>
+              <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                Postal Code
+              </label>
+              <input
+                v-model="form.postalCode"
+                type="text"
+                class="w-full px-3 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
+              />
+            </div>
           </div>
+        </div>
 
-          <!-- Population -->
-          <div>
-            <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-              Population
-            </label>
-            <input
-              v-model.number="form.population"
-              type="number"
-              min="0"
-              class="w-full px-3.5 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
-            />
-          </div>
+        <!-- Section 2: Demographics & Topography -->
+        <div>
+          <h4 class="text-[11px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-2.5 flex items-center gap-1.5">
+            <Users class="size-3.5 text-[#dc2626]" />
+            Demographics & Topography
+          </h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            <!-- Population -->
+            <div>
+              <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                Population
+              </label>
+              <input
+                v-model.number="form.population"
+                type="number"
+                min="0"
+                class="w-full px-3 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
+              />
+            </div>
 
-          <!-- Land Area -->
-          <div>
-            <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-              Land Area (sq km)
-            </label>
-            <input
-              v-model.number="form.landAreaSqKm"
-              type="number"
-              step="0.1"
-              min="0"
-              class="w-full px-3.5 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
-            />
-          </div>
+            <!-- Census Year -->
+            <div>
+              <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                Census Year / Period
+              </label>
+              <input
+                v-model="form.censusYear"
+                type="text"
+                class="w-full px-3 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
+              />
+            </div>
 
-          <!-- Elevation -->
-          <div>
-            <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-              Elevation (ASL)
-            </label>
-            <input
-              v-model="form.elevationASL"
-              type="text"
-              placeholder="e.g. 65m ASL"
-              class="w-full px-3.5 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
-            />
-          </div>
+            <!-- Land Area -->
+            <div>
+              <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                Land Area (sq km)
+              </label>
+              <input
+                v-model.number="form.landAreaSqKm"
+                type="number"
+                step="0.01"
+                min="0"
+                class="w-full px-3 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
+              />
+            </div>
 
-          <!-- Hall Address -->
-          <div class="sm:col-span-2">
-            <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-              Barangay Hall Address
-            </label>
-            <input
-              v-model="form.hallAddress"
-              type="text"
-              class="w-full px-3.5 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
-            />
-          </div>
+            <!-- Elevation Meters -->
+            <div>
+              <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                Elevation (Meters)
+              </label>
+              <input
+                v-model.number="form.elevationMeters"
+                type="number"
+                step="1"
+                class="w-full px-3 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
+              />
+            </div>
 
-          <!-- Contact Phone -->
-          <div>
-            <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-              Contact Phone
-            </label>
-            <input
-              v-model="form.contactPhone"
-              type="text"
-              class="w-full px-3.5 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
-            />
+            <!-- Elevation ASL -->
+            <div class="sm:col-span-2 md:col-span-4">
+              <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                Elevation Display (ASL)
+              </label>
+              <input
+                v-model="form.elevationASL"
+                type="text"
+                placeholder="65m ASL"
+                class="w-full px-3 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
+              />
+            </div>
           </div>
+        </div>
 
-          <!-- Contact Email -->
-          <div>
-            <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-              Contact Email
-            </label>
-            <input
-              v-model="form.contactEmail"
-              type="email"
-              class="w-full px-3.5 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
-            />
-          </div>
+        <!-- Section 3: Geographic Coordinates & Map -->
+        <div>
+          <h4 class="text-[11px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-2.5 flex items-center gap-1.5">
+            <Compass class="size-3.5 text-[#dc2626]" />
+            Geographic Coordinates & GPS Location
+          </h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <!-- Latitude -->
+            <div>
+              <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                Latitude (° N) <span class="text-red-500">*</span>
+              </label>
+              <input
+                v-model.number="form.lat"
+                type="number"
+                step="0.000001"
+                required
+                class="w-full px-3 py-2 text-xs font-mono bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
+              />
+            </div>
 
-          <!-- Description -->
-          <div class="sm:col-span-2">
-            <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-              Description / Overview
-            </label>
-            <textarea
-              v-model="form.description"
-              rows="3"
-              class="w-full px-3.5 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition resize-none"
-            ></textarea>
+            <!-- Longitude -->
+            <div>
+              <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                Longitude (° E) <span class="text-red-500">*</span>
+              </label>
+              <input
+                v-model.number="form.lng"
+                type="number"
+                step="0.000001"
+                required
+                class="w-full px-3 py-2 text-xs font-mono bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
+              />
+            </div>
+
+            <!-- Coordinates Display (DMS) -->
+            <div>
+              <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                DMS Coordinates Display
+              </label>
+              <input
+                v-model="form.coordinatesDisplay"
+                type="text"
+                class="w-full px-3 py-2 text-xs font-mono bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
+              />
+            </div>
+
+            <!-- Map Embed URL -->
+            <div class="sm:col-span-2 md:col-span-3">
+              <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                Map Embed URL (optional)
+              </label>
+              <input
+                v-model="form.mapEmbedUrl"
+                type="url"
+                placeholder="https://maps.google.com/..."
+                class="w-full px-3 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
+              />
+            </div>
           </div>
+        </div>
+
+        <!-- Section 4: Contact & Location Info -->
+        <div>
+          <h4 class="text-[11px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-2.5 flex items-center gap-1.5">
+            <MapPin class="size-3.5 text-[#dc2626]" />
+            Barangay Hall & Contact Details
+          </h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <!-- Hall Address -->
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                Barangay Hall Address
+              </label>
+              <input
+                v-model="form.hallAddress"
+                type="text"
+                class="w-full px-3 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
+              />
+            </div>
+
+            <!-- Contact Phone -->
+            <div>
+              <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                Contact Phone
+              </label>
+              <input
+                v-model="form.contactPhone"
+                type="text"
+                class="w-full px-3 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
+              />
+            </div>
+
+            <!-- Contact Email -->
+            <div>
+              <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                Contact Email
+              </label>
+              <input
+                v-model="form.contactEmail"
+                type="email"
+                class="w-full px-3 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 5: Overview & Description -->
+        <div>
+          <label class="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+            Description / Overview
+          </label>
+          <textarea
+            v-model="form.description"
+            rows="3"
+            class="w-full px-3 py-2 text-xs bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition resize-none"
+          ></textarea>
         </div>
 
         <!-- Actions -->
