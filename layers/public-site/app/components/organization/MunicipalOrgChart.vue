@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import OrganizationChart from 'organization-chart-vue3'
 import 'organization-chart-vue3/style.css'
 import { getInitials } from '../../../utils/string'
@@ -9,12 +9,15 @@ import type {
 } from 'organization-chart-vue3'
 import type {
   MunicipalDepartmentNode,
+  MunicipalDepartmentMember,
   AddNodePayload,
   EditNodePayload,
+  OrgLabelOptions,
 } from '../../../types/organization'
 import {
   Building2,
   Plus,
+  Tag,
   Trash2,
   Edit3,
   ZoomIn,
@@ -26,12 +29,14 @@ import {
   Phone,
   AlertCircle,
   Info,
+  Map as MapIcon,
 } from '@lucide/vue'
 
 const props = withDefaults(
   defineProps<{
     treeRoot: MunicipalDepartmentNode | null
     positions?: string[]
+    labelOptions?: OrgLabelOptions
     selectedOfficeId?: string
     viewMode?: 'all' | 'focused'
     pending?: boolean
@@ -39,6 +44,7 @@ const props = withDefaults(
   }>(),
   {
     positions: () => [],
+    labelOptions: () => ({ labels: [], positions: [] }),
     selectedOfficeId: 'mayor-root',
     viewMode: 'all',
     pending: false,
@@ -63,6 +69,13 @@ const startX = ref(0)
 const startY = ref(0)
 const isFullscreen = ref(false)
 
+// Template refs — the minimap needs the real geometry of these two boxes.
+const containerRef = ref<HTMLElement | null>(null)
+/** The fixed-size viewport (what the user can actually see). */
+const chartCanvasRef = ref<HTMLElement | null>(null)
+/** The CSS-transformed chart layer living inside the viewport. */
+const chartContentRef = ref<HTMLElement | null>(null)
+
 const highlightedNodeId = ref<string | null>(null)
 // Modal states
 const isAddModalOpen = ref(false)
@@ -86,13 +99,15 @@ const treeList = computed<MunicipalDepartmentNode[]>(() => {
 
 const allNodesList = computed(() => {
   if (treeList.value.length === 0) return []
-  const list: { id: string; title: string; acronym?: string; depth: number }[] = []
+  const list: { id: string; title: string; acronym?: string; depth: number; isLabel?: boolean }[] = []
   function traverse(node: MunicipalDepartmentNode, depth = 0) {
+    const memberObj = node.member?.[0] as MunicipalDepartmentMember | undefined
     list.push({
       id: node.id,
       title: node.title,
       acronym: node.acronym,
       depth,
+      isLabel: !!memberObj?.is_label
     })
     if (node.children) {
       for (const child of node.children) {
@@ -181,6 +196,12 @@ onUnmounted(() => {
   window.removeEventListener('mouseup', handleMouseUp)
   window.removeEventListener('touchmove', handleTouchMove)
   window.removeEventListener('touchend', handleTouchEnd)
+  window.removeEventListener('resize', scheduleMeasure)
+  if (measureFrame !== null && typeof cancelAnimationFrame !== 'undefined') {
+    cancelAnimationFrame(measureFrame)
+  }
+  canvasObserver?.disconnect()
+  canvasObserver = null
 })
 
 function openAddChildModal(parentNode: MunicipalDepartmentNode) {
@@ -242,6 +263,238 @@ watch(
   },
   { immediate: true }
 )
+
+// Black & White Schema Mirror Minimap logic
+const showMinimap = ref(true)
+
+interface MiniMapNode {
+  id: string
+  title?: string
+  acronym?: string
+  isLabel?: boolean
+  /** Top-left corner and size, already expressed in minimap coordinates (180 x 120). */
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+/**
+ * Schematic layout used until (or unless) the real chart can be measured — e.g. during
+ * SSR, while data is pending, or if the DOM query finds nothing. Purely by depth/index.
+ */
+const fallbackMiniMapNodes = computed<MiniMapNode[]>(() => {
+  if (!treeList.value || treeList.value.length === 0) return []
+
+  const result: MiniMapNode[] = []
+  let maxDepth = 0
+  const widthMap = new Map<string, number>()
+
+  function calculateWidthAndDepth(node: MunicipalDepartmentNode, depth = 0): number {
+    if (depth > maxDepth) maxDepth = depth
+    if (!node.children || node.children.length === 0) {
+      widthMap.set(node.id, 1)
+      return 1
+    }
+    let w = 0
+    node.children.forEach(c => { w += calculateWidthAndDepth(c, depth + 1) })
+    widthMap.set(node.id, w)
+    return w
+  }
+
+  let totalRootWidth = 0
+  treeList.value.forEach(t => {
+    totalRootWidth += calculateWidthAndDepth(t, 0)
+  })
+
+  const maxAllowedGapX = 32
+  const maxAllowedGapY = 32
+  
+  const gapX = Math.min(maxAllowedGapX, 144 / (totalRootWidth || 1))
+  const totalTreePixelWidth = totalRootWidth * gapX
+  const startX = (180 - totalTreePixelWidth) / 2
+
+  const gapY = Math.min(maxAllowedGapY, 84 / (maxDepth || 1))
+  const totalTreeHeight = maxDepth * gapY
+  const startY = (120 - totalTreeHeight) / 2
+
+  function traverse(node: MunicipalDepartmentNode, depth = 0, currentLeftX = 0, parentPos?: { x: number; y: number }) {
+    const nodeWidth = widthMap.get(node.id) || 1
+    const segmentPixelWidth = nodeWidth * gapX
+    const x = currentLeftX + segmentPixelWidth / 2
+    const y = startY + depth * gapY
+
+    const memberObj = node.member?.[0] as MunicipalDepartmentMember | undefined
+    const isLabel = !!memberObj?.is_label
+
+    const item: MiniMapNode = {
+      id: node.id,
+      title: node.title,
+      acronym: node.acronym,
+      isLabel,
+      // This schematic layout thinks in centre points; store the top-left corner so
+      // measured and fallback nodes can share a single rendering path.
+      x: x - 9,
+      y: y - 7,
+      w: 18,
+      h: 14
+    }
+    result.push(item)
+
+    if (node.children && node.children.length > 0) {
+      let childLeftX = currentLeftX
+      node.children.forEach(c => {
+        traverse(c, depth + 1, childLeftX, { x, y })
+        childLeftX += (widthMap.get(c.id) || 1) * gapX
+      })
+    }
+  }
+
+  let currentRootLeftX = startX
+  treeList.value.forEach(t => {
+    traverse(t, 0, currentRootLeftX)
+    currentRootLeftX += (widthMap.get(t.id) || 1) * gapX
+  })
+  return result
+})
+
+// ---------------------------------------------------------------------------
+// Minimap geometry
+//
+// The minimap is a fixed 180x120 SVG that maps the *whole* chart. The mini
+// blocks stay put; the red viewfinder slides and resizes to show which slice of
+// the chart is currently on screen. Everything below is derived from measured
+// DOM geometry, so it stays correct at any zoom level or content size.
+// ---------------------------------------------------------------------------
+const miniW = 180
+const miniH = 120
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
+}
+
+/** Size of the visible window (the un-transformed canvas box). */
+const viewportSize = ref({ w: 0, h: 0 })
+/** Layout size of the chart layer. offsetWidth/Height ignore the CSS transform. */
+const contentSize = ref({ w: 0, h: 0 })
+/** Real card geometry, mirrored from the DOM. Null until it can be measured. */
+const measuredMiniNodes = ref<MiniMapNode[] | null>(null)
+
+const isCanvasMeasured = computed(() =>
+  viewportSize.value.w > 0 && viewportSize.value.h > 0
+  && contentSize.value.w > 0 && contentSize.value.h > 0
+)
+
+const visibleContentRect = computed(() => {
+  const cw = Math.max(1, contentSize.value.w)
+  const ch = Math.max(1, contentSize.value.h)
+  const s = scale.value || 1
+  return {
+    cw,
+    ch,
+    x: cw / 2 - (cw / 2 + panX.value) / s,
+    y: -panY.value / s,
+    w: viewportSize.value.w / s,
+    h: viewportSize.value.h / s,
+  }
+})
+
+/** Measured geometry when available, schematic layout otherwise. */
+const miniMapNodes = computed<MiniMapNode[]>(
+  () => measuredMiniNodes.value ?? fallbackMiniMapNodes.value
+)
+
+function measureCanvasBoxes() {
+  const viewport = chartCanvasRef.value
+  if (viewport) {
+    viewportSize.value = { w: viewport.clientWidth, h: viewport.clientHeight }
+  }
+  const content = chartContentRef.value
+  if (content) {
+    // offsetWidth/Height are layout sizes: unaffected by the CSS transform.
+    contentSize.value = { w: content.offsetWidth, h: content.offsetHeight }
+  }
+}
+
+function measureMiniMapNodes() {
+  const content = chartContentRef.value
+  if (!content || !isCanvasMeasured.value) {
+    measuredMiniNodes.value = null
+    return
+  }
+
+  const cards = content.querySelectorAll<HTMLElement>('[data-mini-node-id]')
+  if (cards.length === 0) {
+    measuredMiniNodes.value = null
+    return
+  }
+
+  // getBoundingClientRect() IS affected by the transform, so divide the deltas
+  // by the current scale to get back to untransformed content pixels.
+  const s = scale.value || 1
+  const contentBox = content.getBoundingClientRect()
+  const cw = Math.max(1, contentSize.value.w)
+  const ch = Math.max(1, contentSize.value.h)
+
+  const list: MiniMapNode[] = []
+  cards.forEach((el) => {
+    const box = el.getBoundingClientRect()
+    list.push({
+      id: el.dataset.miniNodeId || '',
+      isLabel: el.dataset.miniNodeLabel === 'true',
+      x: ((box.left - contentBox.left) / s / cw) * miniW,
+      y: ((box.top - contentBox.top) / s / ch) * miniH,
+      w: Math.max(3, (box.width / s / cw) * miniW),
+      h: Math.max(2.5, (box.height / s / ch) * miniH),
+    })
+  })
+  measuredMiniNodes.value = list
+}
+
+let measureFrame: number | null = null
+let canvasObserver: ResizeObserver | null = null
+
+/** rAF-throttled: measuring twice in one frame is wasted layout work. */
+function scheduleMeasure() {
+  if (typeof requestAnimationFrame === 'undefined') {
+    measureCanvasBoxes()
+    measureMiniMapNodes()
+    return
+  }
+  if (measureFrame !== null) cancelAnimationFrame(measureFrame)
+  measureFrame = requestAnimationFrame(() => {
+    measureFrame = null
+    measureCanvasBoxes()
+    measureMiniMapNodes()
+  })
+}
+
+function observeCanvas() {
+  if (!canvasObserver) return
+  canvasObserver.disconnect()
+  if (chartCanvasRef.value) canvasObserver.observe(chartCanvasRef.value)
+  if (chartContentRef.value) canvasObserver.observe(chartContentRef.value)
+}
+
+onMounted(() => {
+  if (typeof ResizeObserver !== 'undefined') {
+    canvasObserver = new ResizeObserver(() => scheduleMeasure())
+  }
+  observeCanvas()
+  scheduleMeasure()
+  window.addEventListener('resize', scheduleMeasure)
+})
+
+// The canvas lives behind a v-if, so the refs arrive after pending/error resolve.
+watch([chartCanvasRef, chartContentRef], () => {
+  observeCanvas()
+  scheduleMeasure()
+})
+
+watch([treeList, isFullscreen], async () => {
+  await nextTick()
+  scheduleMeasure()
+})
 </script>
 
 <template>
@@ -256,8 +509,51 @@ watch(
   >
     <div class="mb-3 flex flex-wrap items-center justify-between gap-2.5 bg-white dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#333333] rounded-xl px-3 py-2 shadow-xs">
       <div class="flex items-center space-x-2 text-xs font-semibold text-neutral-800 dark:text-neutral-200">
-        <Building2 class="size-4 text-[#dc2626]" />
-        <span>Hierarchy View</span>
+        <div class="flex items-center space-x-1.5 text-neutral-500 dark:text-neutral-400 mr-2 border-r border-neutral-200 dark:border-neutral-700 pr-2">
+          <Move class="size-3.5 text-[#dc2626]" />
+          <span class="text-[11px] select-none font-medium hidden sm:inline">Drag • Scroll</span>
+        </div>
+        <button
+          type="button"
+          @click="zoomOut"
+          class="interactive-btn p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-200 transition-colors"
+          title="Zoom Out (-)"
+        >
+          <ZoomOut class="size-4" />
+        </button>
+        <span class="text-xs font-mono font-bold text-neutral-800 dark:text-neutral-100 min-w-10 text-center select-none">
+          {{ Math.round(scale * 100) }}%
+        </span>
+        <button
+          type="button"
+          @click="zoomIn"
+          class="interactive-btn p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-200 transition-colors"
+          title="Zoom In (+)"
+        >
+          <ZoomIn class="size-4" />
+        </button>
+        <div class="h-3.5 w-px bg-neutral-200 dark:bg-neutral-700 mx-1"></div>
+        <button
+          type="button"
+          @click="resetZoom"
+          class="interactive-btn p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-200 transition-colors flex items-center space-x-1"
+          title="Reset Zoom & Pan"
+        >
+          <RotateCcw class="size-3.5" />
+          <span class="text-[11px] font-medium hidden md:inline">Reset</span>
+        </button>
+        <div class="h-3.5 w-px bg-neutral-200 dark:bg-neutral-700 mx-1"></div>
+        <button
+          type="button"
+          @click="showMinimap = !showMinimap"
+          class="interactive-btn p-1.5 rounded-md transition-colors"
+          :class="showMinimap
+            ? 'bg-[#dc2626]/10 text-[#dc2626] dark:bg-[#dc2626]/20 dark:text-[#f87171]'
+            : 'hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-200'"
+          :title="showMinimap ? 'Hide minimap navigator' : 'Show minimap navigator'"
+        >
+          <MapIcon class="size-4" />
+        </button>
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
@@ -277,46 +573,22 @@ watch(
       class="relative w-full border border-[#dfdfdf] dark:border-[#333333] rounded-xl bg-[#fafafa]/60 dark:bg-[#141414]/60 overflow-hidden shadow-sm flex-1 flex flex-col"
       :class="[isFullscreen ? 'min-h-0' : 'min-h-[72vh] h-[75vh]']"
     >
-      <div class="absolute bottom-4 right-4 z-20 flex items-center space-x-1.5 bg-white/90 dark:bg-[#1c1c1c]/90 backdrop-blur-xs border border-[#dfdfdf] dark:border-[#333333] rounded-xl px-3 py-1.5 shadow-md text-xs">
-        <div class="flex items-center space-x-1.5 text-neutral-500 dark:text-neutral-400 mr-2 border-r border-neutral-200 dark:border-neutral-700 pr-2">
-          <Move class="size-3.5 text-[#dc2626]" />
-          <span class="text-[11px] select-none font-medium hidden sm:inline">Drag • Scroll</span>
-        </div>
-
-        <button
-          type="button"
-          @click="zoomOut"
-          class="interactive-btn p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-200 transition-colors"
-          title="Zoom Out (-)"
-        >
-          <ZoomOut class="size-4" />
-        </button>
-
-        <span class="text-xs font-mono font-bold text-neutral-800 dark:text-neutral-100 min-w-10 text-center select-none">
-          {{ Math.round(scale * 100) }}%
-        </span>
-
-        <button
-          type="button"
-          @click="zoomIn"
-          class="interactive-btn p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-200 transition-colors"
-          title="Zoom In (+)"
-        >
-          <ZoomIn class="size-4" />
-        </button>
-
-        <div class="h-3.5 w-px bg-neutral-200 dark:bg-neutral-700 mx-1"></div>
-
-        <button
-          type="button"
-          @click="resetZoom"
-          class="interactive-btn p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-200 transition-colors flex items-center space-x-1"
-          title="Reset Zoom & Pan"
-        >
-          <RotateCcw class="size-3.5" />
-          <span class="text-[11px] font-medium hidden md:inline">Reset</span>
-        </button>
-      </div>
+      
+      <!-- Visualizer Minimap Navigator  -->
+      <OrganizationOrgChartMinimap
+        v-if="treeRoot && showMinimap"
+        :show="showMinimap"
+        :nodes="miniMapNodes"
+        :is-canvas-measured="isCanvasMeasured"
+        :visible-content-rect="visibleContentRect"
+        :scale="scale"
+        :pan-x="panX"
+        :pan-y="panY"
+        :highlighted-node-id="highlightedNodeId"
+        :is-main-dragging="isDragging"
+        @update:panX="panX = $event"
+        @update:panY="panY = $event"
+      />
 
       <div v-if="pending" class="w-full h-full flex flex-col items-center justify-center py-24 text-center text-neutral-500">
         <div class="size-8 border-3 border-[#dc2626] border-t-transparent rounded-full animate-spin mb-3"></div>
@@ -345,6 +617,7 @@ watch(
         @dragstart.prevent
       >
         <div
+          ref="chartContentRef"
           class="w-full min-w-max flex flex-wrap items-start justify-center gap-12 sm:gap-16 py-12 px-8 transition-transform duration-75 ease-out origin-top"
           :style="{
             transform: `translate3d(${panX}px, ${panY}px, 0) scale(${scale})`,
@@ -362,34 +635,84 @@ watch(
               class="sfads-municipal-org-chart mx-auto"
             >
               <template #node-title="{ node }">
-                <div class="flex items-center justify-between px-2 py-1 gap-1.5 overflow-hidden">
-                  <span
-                    v-if="(node as MunicipalDepartmentNode).acronym"
-                    class="shrink-0 whitespace-nowrap px-2 py-0.5 bg-[#dc2626] text-white rounded text-[10px] font-mono font-extrabold"
+                <div v-if="!(node as MunicipalDepartmentNode).hideTitle">
+                  <div class="flex items-center justify-between px-2 py-1 gap-1.5 overflow-hidden">
+                    <span
+                      v-if="(node as MunicipalDepartmentNode).acronym"
+                      class="shrink-0 whitespace-nowrap px-2 py-0.5 bg-[#dc2626] text-white rounded text-[10px] font-mono font-extrabold"
+                    >
+                      {{ (node as MunicipalDepartmentNode).acronym  }}
+                    </span>
+                    <span
+                      v-else
+                      class="shrink-0 whitespace-nowrap px-2 py-0.5 text-neutral-500 font-mono font-extrabold"
+                    >
+                    N/A
+                    </span>
+                  </div>
+                  <div
+                    class="px-3 font-bold text-xs items-start transition-colors border-b"
                   >
-                    {{ (node as MunicipalDepartmentNode).acronym }}
-                  </span>
-                  <span
-                    v-if="node.children && node.children.length > 0"
-                    class="shrink-0 ml-auto text-[10px] px-2 py-0.5 rounded-full font-mono bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300"
-                    title="Sub-nodes count"
-                  >
-                    {{ node.children.length }}
-                  </span>
-                </div>
-                <div
-                  class="px-3 font-bold text-xs items-start transition-colors border-b"
-                >
-                   <span class="block w-full  font-bold text-xs sm:text-[13px] text-neutral-900 dark:text-white wrap-break-words line-clamp-2 text-left">
-                      {{ node?.title }}
-                    </span> 
-                 
+                     <span class="block w-full  font-bold text-xs sm:text-[13px] text-neutral-900 dark:text-white wrap-break-words line-clamp-2 text-left">
+                        {{ node?.title }}
+                      </span>
+
+                  </div>
                 </div>
               </template>
 
               <template #member="{ member, node }">
-                
+
+                <!-- Section LABEL card: header only, no personnel details -->
                 <div
+                  v-if="(member as MunicipalDepartmentMember)?.is_label"
+                  data-testid="org-section-label"
+                  :data-mini-node-id="node?.id"
+                  data-mini-node-label="true"
+                  class="p-2.5 w-full bg-neutral-50 dark:bg-[#181818] text-neutral-900 dark:text-neutral-100 flex flex-col gap-2 group transition-all"
+                >
+                  <div class="flex items-center justify-center gap-1.5 text-[#dc2626] dark:text-[#f87171]">
+                    <Tag class="size-3.5 shrink-0" />
+                    <span class="text-[10px] font-bold uppercase tracking-wider">
+                      Section Label
+                    </span>
+                  </div>
+
+                  <div class="flex items-center justify-center gap-1.5 opacity-90 group-hover:opacity-100 transition-opacity">
+                    <button
+                      type="button"
+                      @click.stop="openAddChildModal(node as MunicipalDepartmentNode)"
+                      class="interactive-btn p-1.5 rounded-md bg-[#dc2626]/10 hover:bg-[#dc2626] text-[#dc2626] hover:text-white dark:bg-[#dc2626]/20 dark:text-[#f87171] dark:hover:text-white transition-colors cursor-pointer"
+                      title="Add Child / Sub-Unit under this label"
+                    >
+                      <Plus class="size-3.5" />
+                    </button>
+
+                    <button
+                      type="button"
+                      @click.stop="openEditModal(node as MunicipalDepartmentNode)"
+                      class="interactive-btn p-1.5 rounded-md bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 transition-colors cursor-pointer"
+                      title="Edit section label"
+                    >
+                      <Edit3 class="size-3.5" />
+                    </button>
+
+                    <button
+                      v-if="node?.id !== 'mayor-root' && node?.id !== '305451c6-aa72-4bf9-9480-5509c8263c23' && node?.id !== '00000000-0000-4000-8000-000000000001'"
+                      type="button"
+                      @click.stop="openDeleteModal(node as MunicipalDepartmentNode)"
+                      class="interactive-btn p-1.5 rounded-md bg-destructive/10 hover:bg-destructive text-destructive hover:text-white transition-colors cursor-pointer"
+                      title="Delete section label"
+                    >
+                      <Trash2 class="size-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  v-else
+                  :data-mini-node-id="node?.id"
+                  data-mini-node-label="false"
                   class="p-3 w-full bg-white dark:bg-[#1c1c1c] text-neutral-900 dark:text-neutral-100 flex flex-col justify-between group transition-all"
                   :class="[
                     highlightedNodeId === node?.id ? 'shadow-sm' : ''
@@ -435,8 +758,8 @@ watch(
                     </div>
                      <span class="flex  mt-1"> 
                       <Phone :size="15"/>
-                      <p class="text-xs ml-4 font-semibold text-neutral-800 dark:text-neutral-200 truncate">
-                        {{ member?.contact }}
+                      <p class="text-xs ml-4 font-semibold text-neutral-600 truncate">
+                        {{ member?.contact || 'None'}}
                       </p>
                     </span>
                   </div>
@@ -497,6 +820,7 @@ watch(
       :selected-parent-id="selectedParentId"
       :all-nodes="allNodesList"
       :positions="positions"
+      :label-options="labelOptions"
       @close="isAddModalOpen = false"
       @submit="handleAddNode"
     />
@@ -505,6 +829,7 @@ watch(
       :open="isEditModalOpen"
       :node="selectedTargetNode"
       :positions="positions"
+      :label-options="labelOptions"
       @close="isEditModalOpen = false"
       @submit="handleEditNode"
     />
@@ -586,6 +911,14 @@ watch(
   white-space: normal !important;
   word-break: break-word !important;
   overflow-wrap: anywhere !important;
+}
+
+:deep(.org-title.muni-title-hidden) {
+  display: none !important;
+}
+
+:deep(.org-title:empty) {
+  display: none !important;
 }
 
 :deep(.org-content) {
@@ -718,13 +1051,6 @@ watch(
   background-color: #1c1c1c !important;
   border-color: #475569 !important;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3) !important;
-}
-
-:deep(.org-extend-arrow:hover) {
-  transform: translateX(-50%) scale(1.2) !important;
-  border-color: #dc2626 !important;
-  background-color: #fef2f2 !important;
-  box-shadow: 0 4px 10px rgba(220, 38, 38, 0.25) !important;
 }
 
 .dark :deep(.org-extend-arrow:hover) {

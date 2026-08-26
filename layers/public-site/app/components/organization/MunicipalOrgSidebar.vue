@@ -83,7 +83,7 @@ const filteredOffices = computed(() => {
         type="text"
         v-model="searchQuery"
         placeholder="search...."
-        class="w-full pl-8 pr-7 py-2 text-xs rounded-lg border border-[#dfdfdf] dark:border-[#333333] bg-[#fafafa] dark:bg-[#141414] text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] transition-colors"
+        class="w-full pl-8 pr-7 py-2 text-xs rounded-md border border-[#dfdfdf] dark:border-[#333333] bg-[#fafafa] dark:bg-[#141414] text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-hidden focus:border-[#dc2626] transition-colors"
       />
       <button
         v-if="searchQuery"
@@ -107,7 +107,7 @@ const filteredOffices = computed(() => {
         :key="dept.id"
         type="button"
         @click="emit('select-office', dept.id)"
-        class="w-full text-left p-2.5 rounded-xl border transition-all relative flex flex-col gap-1 group cursor-pointer"
+        class="w-full text-left p-2.5 rounded-md border transition-all relative flex flex-col gap-1 group cursor-pointer"
         :class="[
           selectedOfficeId === dept.id
             ? 'bg-neutral-50 dark:bg-[#222222] border-[#dc2626] shadow-xs'
@@ -147,7 +147,7 @@ const filteredOffices = computed(() => {
           {{ dept.title }}
         </p>
 
-        <p class="text-[11px] text-neutral-500 dark:text-neutral-400 truncate">
+        <p class="text-[10px] text-neutral-500 dark:text-neutral-400 w-full truncate">
           {{ dept.headName || 'Office In-Charge' }}
         </p>
       </button>

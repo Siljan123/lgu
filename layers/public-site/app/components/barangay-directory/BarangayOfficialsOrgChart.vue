@@ -361,6 +361,92 @@ function moveChild(node: any, dir: 'left' | 'right') {
   ids[j] = tmp
   emit('reorder', ids)
 }
+
+// MiniMap Navigator Visualizer
+
+const chartCanvasRef = ref<HTMLElement | null>(null)
+const chartContentRef = ref<HTMLElement | null>(null)
+// Calculate the visible rectangle for the viewfinder
+const visibleContentRect = computed(() => {
+  const cw = Math.max(1, chartContentRef.value?.offsetWidth || 1)
+  const ch = Math.max(1, chartContentRef.value?.offsetHeight || 1)
+  const vw = chartCanvasRef.value?.clientWidth || 800
+  const vh = chartCanvasRef.value?.clientHeight || 600
+  const s = scale.value
+  
+  return {
+    cw, ch,
+    x: cw / 2 - (cw / 2 + panX.value) / s,
+    y: -panY.value / s,
+    w: vw / s,
+    h: vh / s,
+  }
+})
+const measuredMiniNodes = ref<any[]>([])
+
+function measureMiniMapNodes() {
+  const content = chartContentRef.value
+  if (!content) return
+
+  const cards = content.querySelectorAll('[data-mini-node-id]')
+  if (cards.length === 0) return
+
+  const s = scale.value || 1
+  const contentBox = content.getBoundingClientRect()
+  const cw = Math.max(1, content.offsetWidth)
+  const ch = Math.max(1, content.offsetHeight)
+
+  const list: any[] = []
+  cards.forEach((el) => {
+    const box = el.getBoundingClientRect()
+    list.push({
+      id: (el as HTMLElement).dataset.miniNodeId || '',
+      isLabel: (el as HTMLElement).dataset.miniNodeLabel === 'true',
+      x: ((box.left - contentBox.left) / s / cw) * 180,
+      y: ((box.top - contentBox.top) / s / ch) * 120,
+      w: Math.max(3, (box.width / s / cw) * 180),
+      h: Math.max(2.5, (box.height / s / ch) * 120),
+    })
+  })
+  measuredMiniNodes.value = list
+}
+
+const miniMapNodes = computed(() => measuredMiniNodes.value)
+
+let measureFrame: number | null = null
+let canvasObserver: ResizeObserver | null = null
+
+function scheduleMeasure() {
+  if (typeof requestAnimationFrame === 'undefined') {
+    measureMiniMapNodes()
+    return
+  }
+  if (measureFrame !== null) cancelAnimationFrame(measureFrame)
+  measureFrame = requestAnimationFrame(() => {
+    measureFrame = null
+    measureMiniMapNodes()
+  })
+}
+
+function observeCanvas() {
+  if (!canvasObserver) return
+  canvasObserver.disconnect()
+  if (chartCanvasRef.value) canvasObserver.observe(chartCanvasRef.value)
+  if (chartContentRef.value) canvasObserver.observe(chartContentRef.value)
+}
+
+onMounted(() => {
+  if (typeof ResizeObserver !== 'undefined') {
+    canvasObserver = new ResizeObserver(() => scheduleMeasure())
+  }
+  observeCanvas()
+  scheduleMeasure()
+  window.addEventListener('resize', scheduleMeasure)
+})
+
+watch([() => props.officials, scale, isFullscreen], async () => {
+  setTimeout(scheduleMeasure, 100)
+}, { deep: true })
 </script>
 
 <template>
@@ -368,7 +454,7 @@ function moveChild(node: any, dir: 'left' | 'right') {
     <div
       :class="[
         isFullscreen
-          ? 'fixed inset-0 z-[9999] bg-white dark:bg-[#121212] p-4 md:p-6 flex flex-col w-screen h-screen overflow-hidden'
+          ? 'fixed inset-0 z-9999 bg-white dark:bg-[#121212] p-4 md:p-6 flex flex-col w-screen h-screen overflow-hidden'
           : 'relative w-full'
       ]"
     >
@@ -390,7 +476,7 @@ function moveChild(node: any, dir: 'left' | 'right') {
                     Barangay Officials
                   </h2>
                   <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300">
-                    {{ officials.length }} Members
+                    {{ officials.filter(o => !o.is_label).length }} Members
                   </span>
                 </div>
               </div>
@@ -466,6 +552,7 @@ function moveChild(node: any, dir: 'left' | 'right') {
               @touchstart.passive="handleTouchStart"
               @wheel.prevent="handleWheel"
               @dragstart.prevent
+              ref="chartCanvasRef"
             >
               <div
                 class="w-full flex justify-center py-8 transition-transform duration-75 ease-out"
@@ -473,6 +560,7 @@ function moveChild(node: any, dir: 'left' | 'right') {
                   transform: `translate3d(${panX}px, ${panY}px, 0) scale(${scale})`,
                   transformOrigin: 'top center'
                 }"
+                ref="chartContentRef"
               >
                 <OrganizationChart
                   :data="treeRoot"
@@ -493,6 +581,8 @@ function moveChild(node: any, dir: 'left' | 'right') {
                   <template #member="{ member, node }">
                     <div
                       v-if="member.is_label"
+                      :data-mini-node-id="member.id"
+                      data-mini-node-label="true"
                       class="text-center w-full bg-neutral-50 dark:bg-[#181818] text-[#171717] dark:text-[#ffffff] transition-all p-2.5 space-y-1.5"
                     >
                       <div class="flex items-center justify-center space-x-1 text-xs text-neutral-500 dark:text-neutral-400">
@@ -522,8 +612,10 @@ function moveChild(node: any, dir: 'left' | 'right') {
                       </div>
                     </div>
 
-                    <!-- Official (person) node or Organizational Chart -->
-                    <div v-else class="group/card relative p-3 text-center w-full bg-white dark:bg-[#1c1c1c] text-[#171717] dark:text-[#ffffff] transition-all">
+                    <div v-else
+                      :data-mini-node-id="member.id"
+                      data-mini-node-label="false"
+                      class="group/card relative p-3 text-center w-full bg-white dark:bg-[#1c1c1c] text-[#171717] dark:text-[#ffffff] transition-all">
                       <!-- Order sequence among siblings (first child = 1) -->
                       <span
                         v-if="node.sequence && member.title ==='Kagawad' || member.title==='Barangay Kagawad'"
@@ -628,8 +720,22 @@ function moveChild(node: any, dir: 'left' | 'right') {
                     </div>
                   </template>
                 </OrganizationChart>
+                
               </div>
             </div>
+
+            <OrganizationOrgChartMinimap
+              :show="true"
+              :nodes="miniMapNodes"
+              :is-canvas-measured="!!chartContentRef"
+              :visible-content-rect="visibleContentRect"
+              :scale="scale"
+              :pan-x="panX"
+              :pan-y="panY"
+              :is-main-dragging="isDragging"
+              @update:panX="panX = $event"
+              @update:panY="panY = $event"
+            />
           </template>
 
           <template v-else>
