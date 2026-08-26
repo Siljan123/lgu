@@ -6,16 +6,26 @@ CREATE SCHEMA IF NOT EXISTS governance;
 GRANT USAGE ON SCHEMA governance TO anon, authenticated, service_role;
 
 -- 1. Departments Table
+-- A department row is one NODE of the organizational chart.
+-- is_label = FALSE (default) -> a real office / department (person card rendered from governance.employees)
+-- is_label = TRUE            -> a position / section LABEL only (e.g. "Division Chief"), grouping the
+--                               offices beneath it. Label nodes carry no employee row; the children
+--                               placed directly under them inherit the label's title.
 CREATE TABLE IF NOT EXISTS governance.departments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     acronym VARCHAR(50),
     description TEXT NULL,
     parent_id UUID REFERENCES governance.departments(id) ON DELETE CASCADE,
+    is_label BOOLEAN DEFAULT FALSE NOT NULL,
     order_index INT DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Ensure is_label exists even if departments was created by an earlier migration run
+ALTER TABLE governance.departments
+ADD COLUMN IF NOT EXISTS is_label BOOLEAN DEFAULT FALSE NOT NULL;
 
 -- 2. Positions Table
 CREATE TABLE IF NOT EXISTS governance.positions (
@@ -26,6 +36,8 @@ CREATE TABLE IF NOT EXISTS governance.positions (
 );
 
 -- 3. Employees Table
+-- NOTE: node kind (label vs office) lives on governance.departments.is_label — NOT here.
+-- Employees are only the card contents of a non-label department node.
 CREATE TABLE IF NOT EXISTS governance.employees (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     first_name VARCHAR(255) NOT NULL,
@@ -39,8 +51,14 @@ CREATE TABLE IF NOT EXISTS governance.employees (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Drop the short-lived employees.is_label column: node kind is a property of the
+-- department node, so keeping a copy here would create two sources of truth.
+ALTER TABLE governance.employees
+DROP COLUMN IF EXISTS is_label;
+
 -- Foreign Key Performance Indexes (Query Optimization)
 CREATE INDEX IF NOT EXISTS idx_departments_parent_id ON governance.departments(parent_id);
+CREATE INDEX IF NOT EXISTS idx_departments_is_label ON governance.departments(is_label);
 CREATE INDEX IF NOT EXISTS idx_employees_department_id ON governance.employees(department_id);
 CREATE INDEX IF NOT EXISTS idx_employees_position_id ON governance.employees(position_id);
 

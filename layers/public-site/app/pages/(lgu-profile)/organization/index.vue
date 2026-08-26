@@ -23,6 +23,7 @@ definePageMeta({
 const {
   activeTreeData,
   positions,
+  labelOptions,
   selectedOfficeId,
   selectedOffice,
   isRootSelected,
@@ -128,6 +129,7 @@ function handleAddSubNodeFromSidebar(officeId: string) {
             <OrganizationMunicipalOrgChart
               :tree-root="activeTreeData"
               :positions="positions"
+              :label-options="labelOptions"
               :selected-office-id="selectedOfficeId"
               :view-mode="viewMode"
               :pending="pending"

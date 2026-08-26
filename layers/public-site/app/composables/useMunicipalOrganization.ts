@@ -3,6 +3,7 @@ import type {
   MunicipalDepartmentNode,
   AddNodePayload,
   EditNodePayload,
+  OrgLabelOptions,
 } from '../../types/organization'
 
 function findNodeRecursive(
@@ -94,6 +95,17 @@ export function useMunicipalOrganization() {
     { default: () => [] }
   )
 
+  // Label title choices, read from the database (existing labels + position titles).
+  const {
+    data: labelOptions,
+    pending: labelOptionsPending,
+    refresh: refreshLabelOptions,
+  } = useAsyncData<OrgLabelOptions>(
+    'municipal-org-label-options',
+    () => $fetch<OrgLabelOptions>('/api/organization/labels'),
+    { default: () => ({ labels: [], positions: [] }) }
+  )
+
   const treeRoots = computed<MunicipalDepartmentNode[]>(() => {
     const customRoots = (treeRoot.value as any)?.roots as MunicipalDepartmentNode[] | undefined
     if (customRoots && customRoots.length > 0) return customRoots
@@ -164,7 +176,7 @@ export function useMunicipalOrganization() {
         method: 'POST',
         body: payload,
       })
-      await Promise.all([refresh(), refreshPositions()])
+      await Promise.all([refresh(), refreshPositions(), refreshLabelOptions()])
       return Boolean(res?.success)
     } catch (err) {
       console.error('Failed to add organization node to Supabase:', err)
@@ -181,7 +193,7 @@ export function useMunicipalOrganization() {
         method: 'PUT',
         body: payload,
       })
-      await Promise.all([refresh(), refreshPositions()])
+      await Promise.all([refresh(), refreshPositions(), refreshLabelOptions()])
       return true
     } catch (err) {
       console.error('Failed to update organization node in Supabase:', err)
@@ -201,7 +213,7 @@ export function useMunicipalOrganization() {
         selectedOfficeId.value = 'mayor-root'
         viewMode.value = 'all'
       }
-      await refresh()
+      await Promise.all([refresh(), refreshLabelOptions()])
       return true
     } catch (err) {
       console.error('Failed to delete organization node from Supabase:', err)
@@ -307,6 +319,9 @@ export function useMunicipalOrganization() {
     positions,
     positionsPending,
     refreshPositions,
+    labelOptions,
+    labelOptionsPending,
+    refreshLabelOptions,
     selectedOfficeId,
     selectedOffice,
     isRootSelected,

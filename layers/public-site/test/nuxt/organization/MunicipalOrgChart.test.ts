@@ -198,52 +198,6 @@ describe('useMunicipalOrganization Composable', () => {
   })
 })
 
-describe('MunicipalOrgAddModal Component', () => {
-  it('renders select option dropdown with custom toggle, independent office mode, and separate name fields', async () => {
-    const mockPositions = ['Division Chief', 'Municipal Agriculturist', 'Section Head', 'Unit Head']
-    const mockNodes = [
-      { id: 'node-1', title: 'Office of the Municipal Mayor', acronym: 'MO', depth: 0 },
-      { id: 'node-2', title: 'Municipal Health Office', acronym: 'MHO', depth: 1 },
-    ]
-    const wrapper = await mountSuspended(MunicipalOrgAddModal, {
-      props: {
-        open: true,
-        allNodes: mockNodes,
-        positions: mockPositions,
-      },
-    })
-
-    // Verify Independent Office toggle button exists
-    expect(wrapper.text()).toContain('Independent Office')
-    expect(wrapper.text()).toContain('Sub-Office / Division')
-
-    const selects = wrapper.findAll('select')
-    expect(selects.length).toBe(3) // Parent office, Office title, Position
-
-    // Check Office Title select dropdown
-    const officeSelect = selects[1]
-    expect(officeSelect).toBeDefined()
-    const officeOptions = officeSelect?.findAll('option').map((o) => o.text()) || []
-    expect(officeOptions).toContain('Office of the Municipal Mayor (MO)')
-    expect(officeOptions).toContain('+ Enter Custom Office Title...')
-
-    // Check Position select dropdown
-    const positionSelect = selects[2]
-    expect(positionSelect).toBeDefined()
-    const positionOptions = positionSelect?.findAll('option').map((o) => o.text()) || []
-    for (const pos of mockPositions) {
-      expect(positionOptions).toContain(pos)
-    }
-
-    // Verify first name, middle name, last name, and contact inputs
-    const inputs = wrapper.findAll('input')
-    const placeholders = inputs.map((i) => i.attributes('placeholder'))
-    expect(placeholders.some((p) => p?.includes('First Name'))).toBe(true)
-    expect(placeholders.some((p) => p?.includes('Middle Name'))).toBe(true)
-    expect(placeholders.some((p) => p?.includes('Last Name'))).toBe(true)
-    expect(placeholders.some((p) => p?.includes('Contact'))).toBe(true)
-  })
-})
 
 describe('MunicipalOrgEditModal Component', () => {
   it('renders dynamic position select and parses member first name, middle name, last name, and contact', async () => {

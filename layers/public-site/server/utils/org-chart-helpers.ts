@@ -6,6 +6,7 @@ export interface DepartmentRow {
   acronym: string | null
   description: string | null
   parent_id: string | null
+  is_label?: boolean | null
   order_index: number | null
 }
 
@@ -71,6 +72,34 @@ export function toValidUUID(str: string): string {
   return `00000000-0000-4000-8000-${hex.slice(0, 12)}`
 }
 
+/**
+ * Class applied to the library's always-rendered `.org-title` wrapper so it can be
+ * collapsed via scoped CSS. See MunicipalOrgChart.vue for the matching rule.
+ */
+export const ORG_TITLE_HIDDEN_CLASS = 'muni-title-hidden'
+
+/**
+ * Stamps presentation flags for label nodes: an office placed DIRECTLY under a label
+ * inherits that label's title, so its own title bar is suppressed. A label nested
+ * under another label KEEPS its title — a label card body renders only the static
+ * "SECTION LABEL" marker, so the title bar is the only place its text appears.
+ */
+function stampLabelInheritance(
+  nodes: MunicipalDepartmentNode[],
+  parent: MunicipalDepartmentNode | null = null
+): void {
+  for (const node of nodes) {
+    const hideTitle = Boolean(parent?.is_label) && !node.is_label
+    node.hideTitle = hideTitle
+    if (hideTitle) {
+      node.titleClass = ORG_TITLE_HIDDEN_CLASS
+    }
+    if (node.children && node.children.length > 0) {
+      stampLabelInheritance(node.children, node)
+    }
+  }
+}
+
 export function buildAllOrgChartTrees(
   departments: DepartmentRow[],
   positions: PositionRow[],
@@ -106,6 +135,7 @@ export function buildAllOrgChartTrees(
       add: posTitle,
       image_url: emp.image_url || undefined,
       contact: emp.contact || undefined,
+      is_label: false,
     })
     employeesByDept.set(emp.department_id, list)
   }
@@ -113,21 +143,37 @@ export function buildAllOrgChartTrees(
   // Create node map
   const nodeMap = new Map<string, MunicipalDepartmentNode>()
   for (const dept of departments) {
-    const members = employeesByDept.get(dept.id) || [
-      {
-        id: `head-${dept.id}`,
-        name: dept.name,
-        role: 'Department Head',
-        position: 'Head of Office',
-        add: dept.name,
-      },
-    ]
+    const isLabel = Boolean(dept.is_label)
+
+    // A label node carries no personnel. It still needs exactly one member entry,
+    // because the chart library renders cards from the member array — that single
+    // entry is flagged is_label so the #member slot draws a slim section header.
+    const members: MunicipalDepartmentMember[] = isLabel
+      ? [
+          {
+            id: `label-${dept.id}`,
+            name: dept.name,
+            department_id: dept.id,
+            is_label: true,
+          },
+        ]
+      : employeesByDept.get(dept.id) || [
+          {
+            id: `head-${dept.id}`,
+            name: dept.name,
+            role: 'Department Head',
+            position: 'Head of Office',
+            add: dept.name,
+            is_label: false,
+          },
+        ]
 
     nodeMap.set(dept.id, {
       id: dept.id,
       title: dept.name,
       acronym: dept.acronym || undefined,
       description: dept.description || undefined,
+      is_label: isLabel,
       member: members,
       children: [],
     })
@@ -148,6 +194,9 @@ export function buildAllOrgChartTrees(
       }
     }
   }
+
+  // Roots have no parent, so nothing above them can suppress their title.
+  stampLabelInheritance(rootNodes, null)
 
   return rootNodes
 }
@@ -187,11 +236,13 @@ export async function seedDefaultOrgDataToSupabase() {
       acronym: node.acronym || null,
       description: node.description || null,
       parent_id: parentUUID,
+      is_label: Boolean(node.is_label),
       order_index: index,
     })
     deptByDepth.set(depth, list)
 
-    if (node.member && node.member.length > 0) {
+    // Label nodes have no personnel, so skip position/employee inserts entirely.
+    if (!node.is_label && node.member && node.member.length > 0) {
       for (const m of node.member) {
         const empUUID = toValidUUID(m.id)
         const posUUID = toValidUUID(`pos-${m.id}`)
@@ -224,6 +275,20 @@ export async function seedDefaultOrgDataToSupabase() {
         traverse(child, node.id, childIdx, depth + 1)
       })
     }
+  }
+
+  // SAFETY GUARD (pre-existing bug): `traverse` above is never invoked, so
+  // deptByDepth/posInserts/empInserts are all empty here. Without this guard the
+  // three deletes below wipe the entire org chart and insert nothing in its place
+  // (`Math.max(...[])` is -Infinity, so the insert loop never runs). index.post.ts
+  // calls this helper whenever a parent id is missing from the DB, which made an
+  // ordinary "add node" able to erase everything. Bail out instead of deleting.
+  if (deptByDepth.size === 0) {
+    console.warn(
+      'seedDefaultOrgDataToSupabase(): no default rows were collected — skipping the destructive reset. ' +
+        'The default-tree traversal is not wired up; existing org data has been left untouched.'
+    )
+    return
   }
 
   // Clear existing records

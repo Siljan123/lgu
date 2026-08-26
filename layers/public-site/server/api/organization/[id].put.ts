@@ -1,8 +1,15 @@
 import type { EditNodePayload } from '../../../types/organization'
 
+/** Accepts isLabel / is_label from either casing, and string booleans from form posts. */
+function toBool(value: unknown): boolean {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'string') return value === 'true' || value === '1'
+  return false
+}
+
 export default defineEventHandler(async (event) => {
   const paramId = getRouterParam(event, 'id')
-  const body = await readBody<EditNodePayload>(event)
+  const body = await readBody<EditNodePayload & { is_label?: boolean }>(event)
 
   if (!paramId) {
     throw createError({
@@ -21,9 +28,26 @@ export default defineEventHandler(async (event) => {
   const supabase = useServerSupabase('governance')
   const deptUUID = toValidUUID(paramId)
 
-  // Update department (matching schema: name, acronym, description, updated_at)
+  // Resolve the node kind. When the client omits it entirely, keep whatever is on the row
+  // so callers that only patch a title can't silently flip a label back into an office.
+  const rawKind = body.isLabel ?? body.is_label
+  let isLabel: boolean
+  if (rawKind === undefined || rawKind === null) {
+    const { data: existingDept } = await supabase
+      .schema('governance')
+      .from('departments')
+      .select('is_label')
+      .eq('id', deptUUID)
+      .maybeSingle()
+    isLabel = toBool(existingDept?.is_label)
+  } else {
+    isLabel = toBool(rawKind)
+  }
+
+  // Update department (matching schema: name, acronym, description, is_label, updated_at)
   const updatePayload: Record<string, any> = {
     name: body.title.trim(),
+    is_label: isLabel,
     updated_at: new Date().toISOString(),
   }
 
@@ -45,6 +69,16 @@ export default defineEventHandler(async (event) => {
       statusCode: 500,
       statusMessage: `Failed to update department: ${deptErr.message}`,
     })
+  }
+
+  // A label node has no personnel card, so skip the employee/position upsert entirely.
+  // Any pre-existing employee rows are intentionally LEFT IN PLACE rather than deleted:
+  // converting the node back to a real office then restores its personnel untouched.
+  if (isLabel) {
+    return {
+      success: true,
+      message: 'Section label updated successfully',
+    }
   }
 
   // Update employee head and position if provided
@@ -106,6 +140,50 @@ export default defineEventHandler(async (event) => {
         position_id: posId,
         contact: body.contact?.trim() || null,
       })
+    }
+
+    if (body.isOfficial && nameSplit) {
+      // Find if this position already exists in officials
+      const { data: existingOfficials } = await supabase
+        .schema('governance')
+        .from('officials')
+        .select('id, position_id')
+        .eq('first_name', nameSplit.first_name)
+        .eq('last_name', nameSplit.last_name)
+        .limit(1)
+
+      if (existingOfficials && existingOfficials.length > 0) {
+        const off = existingOfficials[0]!
+        const offUpdate: Record<string, any> = {
+          updated_at: new Date().toISOString(),
+          first_name: nameSplit.first_name,
+          middle_name: nameSplit.middle_name,
+          last_name: nameSplit.last_name,
+        }
+        if (body.contact !== undefined) {
+          offUpdate.contact = body.contact.trim() || null
+        }
+        await supabase.schema('governance').from('officials').update(offUpdate).eq('id', off.id)
+      } else {
+        const offId = crypto.randomUUID()
+        const posIdForOff = crypto.randomUUID()
+        
+        // We need a position in governance.positions
+        await supabase.schema('governance').from('positions').insert({
+          id: posIdForOff,
+          title: positionTitle || 'Office Head',
+        })
+        
+        await supabase.schema('governance').from('officials').insert({
+          id: offId,
+          first_name: nameSplit.first_name,
+          middle_name: nameSplit.middle_name,
+          last_name: nameSplit.last_name,
+          contact: body.contact?.trim() || null,
+          position_id: posIdForOff,
+          parent_id: null,
+        })
+      }
     }
   }
 

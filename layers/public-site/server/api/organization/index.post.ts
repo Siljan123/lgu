@@ -1,8 +1,15 @@
 import type { AddNodePayload, MunicipalDepartmentNode } from '../../../types/organization'
 
+/** Accepts isLabel / is_label from either casing, and string booleans from form posts. */
+function toBool(value: unknown): boolean {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'string') return value === 'true' || value === '1'
+  return false
+}
+
 export default defineEventHandler(async (event) => {
-  
-  const body = await readBody<AddNodePayload>(event)
+
+  const body = await readBody<AddNodePayload & { is_label?: boolean }>(event)
 
   if (!body || !body.title?.trim()) {
     throw createError({
@@ -12,6 +19,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const supabase = useServerSupabase('governance')
+  const isLabel = toBool(body.isLabel ?? body.is_label)
   const isRootNode = !body.parentId || body.parentId === '__root__' || body.parentId === 'null' || body.parentId === 'undefined'
   const parentUUID = isRootNode ? null : toValidUUID(body.parentId!)
 
@@ -43,7 +51,7 @@ export default defineEventHandler(async (event) => {
 
   const formattedName = formatFullName(nameSplit.first_name, nameSplit.middle_name, nameSplit.last_name)
 
-  // Insert department (matching schema: id, name, acronym, description, parent_id, order_index)
+  // Insert department (matching schema: id, name, acronym, description, parent_id, is_label, order_index)
   const { error: deptErr } = await supabase
     .schema('governance')
     .from('departments')
@@ -53,6 +61,7 @@ export default defineEventHandler(async (event) => {
       acronym: body.acronym?.trim() || '',
       description: body.description?.trim() || '',
       parent_id: parentUUID,
+      is_label: isLabel,
       order_index: 99,
     })
 
@@ -62,6 +71,32 @@ export default defineEventHandler(async (event) => {
       statusCode: 500,
       statusMessage: `Failed to insert department node: ${deptErr.message}`,
     })
+  }
+
+  // A LABEL node is a grouping header only: no position and no employee rows are written.
+  // The chart synthesizes its single section-label member from the department row itself.
+  if (isLabel) {
+    const labelNode: MunicipalDepartmentNode = {
+      id: nodeId,
+      title: body.title.trim(),
+      acronym: body.acronym?.trim() || undefined,
+      description: body.description?.trim() || undefined,
+      is_label: true,
+      member: [
+        {
+          id: `label-${nodeId}`,
+          name: body.title.trim(),
+          department_id: nodeId,
+          is_label: true,
+        },
+      ],
+      children: [],
+    }
+
+    return {
+      success: true,
+      node: labelNode,
+    }
   }
 
   // Insert position (matching schema: id, title)
@@ -87,11 +122,28 @@ export default defineEventHandler(async (event) => {
       contact: body.contact?.trim() || null,
     })
 
+  if (body.isOfficial) {
+    const offId = crypto.randomUUID()
+    await supabase
+      .schema('governance')
+      .from('officials')
+      .insert({
+        id: offId,
+        first_name: nameSplit.first_name,
+        middle_name: nameSplit.middle_name,
+        last_name: nameSplit.last_name,
+        contact: body.contact?.trim() || null,
+        position_id: posId,
+        parent_id: null, // Admin can arrange it in Elected Officials page
+      })
+  }
+
   const newNode: MunicipalDepartmentNode = {
     id: nodeId,
     title: body.title.trim(),
     acronym: body.acronym?.trim() || undefined,
     description: body.description?.trim() || undefined,
+    is_label: false,
     member: [
       {
         id: empId,
@@ -105,6 +157,7 @@ export default defineEventHandler(async (event) => {
         department_id: nodeId,
         add: body.title.trim(),
         contact: body.contact?.trim() || undefined,
+        is_label: false,
       },
     ],
     children: [],
