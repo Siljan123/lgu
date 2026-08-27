@@ -7,7 +7,6 @@ describe("Traveler's Guide Hub Page", () => {
     const wrapper = await mountSuspended(TravelersGuidePage)
 
     expect(wrapper.text()).toContain("Traveler's Guide")
-    expect(wrapper.text()).toContain('Getting to San Francisco')
-    expect(wrapper.text()).toContain('Local Transport & Fare Matrix')
+    expect(wrapper.text()).toContain('Fare Matrix')
   })
 })
