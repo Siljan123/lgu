@@ -18,7 +18,7 @@ export interface OfficialRow {
   first_name: string
   middle_name?: string | null
   last_name: string
-  image_url?: string | null
+  avatar_url?: string | null
   contact?: string | null
   position_id?: string | null
   parent_id?: string | null
@@ -37,7 +37,7 @@ export interface Official {
   id: string
   name: string
   position: string
-  photo_url: string | null
+  avatar_url: string | null
   bio: string | null
   parent_id: string | null
   sort_order: number

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {
   Search,
-  AlertCircle,
   HelpCircle,
   ChevronLeft,
   ChevronRight
@@ -53,7 +52,6 @@ const goToPage = (page: number) => {
   }
 }
 
-// Reset page to 1 whenever filters change
 watch([searchQuery, selectedOrigin, selectedMode, itemsPerPage], () => {
   currentPage.value = 1
 })
@@ -61,10 +59,9 @@ watch([searchQuery, selectedOrigin, selectedMode, itemsPerPage], () => {
 
 <template>
   <section id="local-fares" class="space-y-8">
-    <!-- Header -->
     <div class="space-y-2">
       <h2 class="text-2xl md:text-3xl font-semibold tracking-tight text-[#171717] dark:text-[#ffffff]">
-        Local Transport & Fare Matrix
+      Fare Matrix
       </h2>
       <p class="text-base text-[#707070] dark:text-[#a3a3a3] max-w-3xl">
         Official regulated passenger fares, vehicle options, and estimated transit times across San Francisco, Agusan del Sur, including key routes connecting Poblacion, New Terminal Hubang, and eco-tourism sites.
@@ -137,11 +134,9 @@ watch([searchQuery, selectedOrigin, selectedMode, itemsPerPage], () => {
                 Origin
               </th>
               <th class="py-3.5 px-4 font-semibold whitespace-nowrap">Destination</th>
-              <th class="py-3.5 px-4 font-semibold whitespace-nowrap">Vehicle Mode</th>
+              <th class="py-3.5 px-4 font-semibold whitespace-nowrap">Vehicle</th>
               <th class="py-3.5 px-4 font-semibold whitespace-nowrap">Est. Time</th>
               <th class="py-3.5 px-4 font-semibold whitespace-nowrap">Regular Fare</th>
-              <th class="py-3.5 px-4 font-semibold whitespace-nowrap">Student / Senior</th>
-              <th class="py-3.5 px-4 font-semibold min-w-50">Route Notes</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-[#dfdfdf] dark:divide-[#2e2e2e]">
@@ -168,12 +163,7 @@ watch([searchQuery, selectedOrigin, selectedMode, itemsPerPage], () => {
               <td class="py-3.5 px-4 font-bold text-[#85181a] dark:text-[#ef4444] whitespace-nowrap">
                 {{ f.fare }}
               </td>
-              <td class="py-3.5 px-4 text-xs font-semibold text-[#171717] dark:text-[#d4d4d4] whitespace-nowrap">
-                {{ f.discountedFare || 'N/A' }}
-              </td>
-              <td class="py-3.5 px-4 text-xs text-[#707070] dark:text-[#a3a3a3] max-w-xs leading-normal">
-                {{ f.notes || '-' }}
-              </td>
+              
             </tr>
           </tbody>
         </table>
@@ -198,7 +188,7 @@ watch([searchQuery, selectedOrigin, selectedMode, itemsPerPage], () => {
               <option :value="4">4 routes</option>
               <option :value="8">8 routes</option>
               <option :value="12">12 routes</option>
-              <option :value="50">All routes</option>
+              <option :value="1000">All routes</option>
             </select>
           </div>
         </div>
@@ -243,6 +233,5 @@ watch([searchQuery, selectedOrigin, selectedMode, itemsPerPage], () => {
         </div>
       </div>
     </div>
-
   </section>
 </template>

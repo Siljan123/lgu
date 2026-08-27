@@ -46,7 +46,7 @@ export const officials: Official[] = [
     id: 'councilor-3',
     name: 'Hon. Ramon Cruz',
     position: 'Sangguniang Bayan Member',
-    photo_url: null,
+    avatar_url: null,
     bio: null,
     parent_id: 'vice-mayor',
     sort_order: 2,

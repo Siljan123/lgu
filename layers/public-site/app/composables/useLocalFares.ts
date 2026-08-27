@@ -6,11 +6,12 @@ export interface LocalFare {
   fare: string
   discountedFare?: string
   estimatedTime?: string
-  category?: string
-  notes?: string
+  route_path: string
 }
 
-const STATIC_LOCAL_FARES: LocalFare[] = [
+type BaseFare = Omit<LocalFare, 'route_path'>
+
+const RAW_FARES: BaseFare[] = [
   {
     id: '1',
     from: 'Poblacion',
@@ -19,8 +20,6 @@ const STATIC_LOCAL_FARES: LocalFare[] = [
     fare: '₱15',
     discountedFare: '₱12',
     estimatedTime: '10-15 mins',
-    category: 'Town Proper & Terminals',
-    notes: 'Official LGU regulated regular fare route via National Highway.'
   },
   {
     id: '2',
@@ -30,8 +29,6 @@ const STATIC_LOCAL_FARES: LocalFare[] = [
     fare: '₱15',
     discountedFare: '₱12',
     estimatedTime: '10 mins',
-    category: 'Town Proper & Terminals',
-    notes: 'Direct terminal TODA bay service.'
   },
   {
     id: '3',
@@ -40,9 +37,6 @@ const STATIC_LOCAL_FARES: LocalFare[] = [
     mode: 'Habal-habal',
     fare: '₱60',
     discountedFare: '₱50',
-    estimatedTime: '20-25 mins',
-    category: 'Ecological Destinations',
-    notes: 'Standard fare to Mt. Magdiwata eco-park registration area.'
   },
   {
     id: '4',
@@ -51,9 +45,7 @@ const STATIC_LOCAL_FARES: LocalFare[] = [
     mode: 'Multicab',
     fare: '₱80',
     discountedFare: '₱65',
-    estimatedTime: '45-60 mins',
-    category: 'Ecological Destinations',
-    notes: 'Morning scheduled transport connecting to riverboat dock.'
+    estimatedTime: '45-60 mins'
   },
   {
     id: '5',
@@ -62,9 +54,7 @@ const STATIC_LOCAL_FARES: LocalFare[] = [
     mode: 'Tricycle / Multicab',
     fare: '₱35',
     discountedFare: '₱28',
-    estimatedTime: '20 mins',
-    category: 'Barangay Connections',
-    notes: 'Via AH26 northern route; multicabs available at Public Market.'
+    estimatedTime: '20 mins'
   },
   {
     id: '6',
@@ -73,9 +63,7 @@ const STATIC_LOCAL_FARES: LocalFare[] = [
     mode: 'Tricycle',
     fare: '₱20',
     discountedFare: '₱16',
-    estimatedTime: '15 mins',
-    category: 'Barangay Connections',
-    notes: 'Local TODA fare standard for residential area.'
+    estimatedTime: '15 mins'
   },
   {
     id: '7',
@@ -84,9 +72,7 @@ const STATIC_LOCAL_FARES: LocalFare[] = [
     mode: 'Multicab',
     fare: '₱25',
     discountedFare: '₱20',
-    estimatedTime: '15-20 mins',
-    category: 'Barangay Connections',
-    notes: 'Departures from San Francisco Central Terminal.'
+    estimatedTime: '15-20 mins'
   },
   {
     id: '8',
@@ -95,9 +81,7 @@ const STATIC_LOCAL_FARES: LocalFare[] = [
     mode: 'Tricycle',
     fare: '₱25',
     discountedFare: '₱20',
-    estimatedTime: '15 mins',
-    category: 'Barangay Connections',
-    notes: 'Covers San Francisco commercial & agriculture zone.'
+    estimatedTime: '15 mins'
   },
   {
     id: '9',
@@ -106,11 +90,19 @@ const STATIC_LOCAL_FARES: LocalFare[] = [
     mode: 'UV Express Van',
     fare: '₱120',
     discountedFare: '₱100',
-    estimatedTime: '40 mins',
-    category: 'Inter-Municipal Routes',
-    notes: 'Air-conditioned passenger vans at Bay B.'
+    estimatedTime: '40 mins'
   }
 ]
+
+const STATIC_LOCAL_FARES: LocalFare[] = RAW_FARES.map(fare => {
+  const locationSuffix = ', San Francisco, Agusan del Sur, Philippines'
+  const origin = encodeURIComponent(`${fare.from}${locationSuffix}`)
+  const destination = encodeURIComponent(`${fare.to}${locationSuffix}`)
+  return {
+    ...fare,
+    route_path: `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}`
+  }
+})
 
 export function useLocalFares() {
   const { data: fares, pending, error, refresh } = useAsyncData<LocalFare[]>(
@@ -150,8 +142,8 @@ export function useLocalFares() {
         !query ||
         f.from.toLowerCase().includes(query) ||
         f.to.toLowerCase().includes(query) ||
-        f.mode.toLowerCase().includes(query) ||
-        (f.notes && f.notes.toLowerCase().includes(query))
+        f.mode.toLowerCase().includes(query)
+ 
 
       return matchesOrigin && matchesMode && matchesQuery
     })
