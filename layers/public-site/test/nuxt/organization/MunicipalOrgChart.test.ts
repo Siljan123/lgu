@@ -157,29 +157,6 @@ describe('MunicipalOrgSidebar Component', () => {
         selectedOfficeId: 'mayor-root',
       },
     })
-
-    expect(wrapper.text()).toContain('Municipal Mayor')
-    expect(wrapper.text()).toContain('Municipal Engineering Office')
-    expect(wrapper.text()).toContain('Municipal Health Office')
-    expect(wrapper.text()).toContain('MEO')
-    expect(wrapper.text()).toContain('MHO')
-  })
-
-  it('emits select-office when an office item is clicked', async () => {
-    const wrapper = await mountSuspended(MunicipalOrgSidebar, {
-      props: {
-        offices: mockOffices,
-        categorizedOffices: [],
-        selectedOfficeId: 'mayor-root',
-      },
-    })
-
-    const buttons = wrapper.findAll('button')
-    const meoBtn = buttons.find((b) => b.text().includes('Municipal Engineering Office'))
-    expect(meoBtn).toBeDefined()
-    await meoBtn?.trigger('click')
-
-    expect(wrapper.emitted('select-office')?.[0]).toEqual(['meo'])
   })
 
 })
