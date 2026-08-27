@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS governance.officials (
     first_name VARCHAR(255) NOT NULL,
     middle_name VARCHAR(255) DEFAULT '',
     last_name VARCHAR(255) NOT NULL,
-    image_url TEXT,
+    avatar_url TEXT,
     contact VARCHAR(255),
     position_id UUID REFERENCES governance.positions(id) ON DELETE SET NULL,
     parent_id UUID REFERENCES governance.officials(id) ON DELETE SET NULL,
@@ -93,7 +93,7 @@ SELECT
       o.last_name
     ) AS name,
     p.title AS title,
-    o.image_url,
+    o.avatar_url,
     o.contact,
     COALESCE(p.rank_order, 999) AS rank_order
 FROM governance.officials o
@@ -105,7 +105,7 @@ GRANT ALL ON TABLE governance.positions TO anon, authenticated, service_role;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA governance TO anon, authenticated, service_role;
 GRANT SELECT ON governance.v_orgchart_officials TO anon, authenticated, service_role;
 
--- Create a public bucket for officials' image profiles or avatar
+-- Create a public bucket for officials' image profiles or avatar_url
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('officials', 'officials', true)
 ON CONFLICT (id) DO NOTHING;

@@ -30,7 +30,7 @@ export interface EmployeeRow {
   first_name: string
   middle_name: string
   last_name: string
-  image_url: string | null
+  avatar_url: string | null
   contact: string | null
   position_id: string | null
   department_id: string
@@ -50,7 +50,7 @@ export interface MunicipalDepartmentMember extends OrganizationChartMember {
   department_id?: string
   add?: string
   avatar?: string
-  image_url?: string
+  avatar_url?: string
   email?: string
   contact?: string
   /** Mirrors the owning node's kind so the #member slot can render a section-label card. */
@@ -83,7 +83,6 @@ export interface AddNodePayload {
   parentId?: string | null
   title: string
   acronym?: string
-  /** TRUE = create a position/section LABEL node (no position/employee rows written). */
   isLabel?: boolean
   isOfficial?: boolean
   headName?: string
@@ -93,13 +92,13 @@ export interface AddNodePayload {
   position?: string
   contact?: string
   description?: string
+  avatar_url?: string | null
 }
 
 export interface EditNodePayload {
   nodeId: string
   title: string
   acronym?: string
-  /** Toggles the node between a LABEL and a real office. */
   isLabel?: boolean
   isOfficial?: boolean
   headName?: string
@@ -109,6 +108,7 @@ export interface EditNodePayload {
   position?: string
   contact?: string
   description?: string
+  avatar_url?: string | null
 }
 
 /** Response shape of GET /api/organization/labels — all options are read live from the DB. */

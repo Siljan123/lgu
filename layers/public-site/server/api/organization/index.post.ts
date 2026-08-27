@@ -108,7 +108,7 @@ export default defineEventHandler(async (event) => {
       title: positionTitle,
     })
 
-  // Insert employee (matching schema: id, first_name, middle_name, last_name, position_id, department_id, contact)
+  // Insert employee (matching schema: id, first_name, middle_name, last_name, position_id, department_id, contact, avatar_url)
   await supabase
     .schema('governance')
     .from('employees')
@@ -120,6 +120,7 @@ export default defineEventHandler(async (event) => {
       department_id: nodeId,
       position_id: posId,
       contact: body.contact?.trim() || null,
+      avatar_url: body.avatar_url || null,
     })
 
   if (body.isOfficial) {
@@ -134,6 +135,7 @@ export default defineEventHandler(async (event) => {
         last_name: nameSplit.last_name,
         contact: body.contact?.trim() || null,
         position_id: posId,
+        avatar_url: body.avatar_url || null,
         parent_id: null, // Admin can arrange it in Elected Officials page
       })
   }
@@ -157,6 +159,7 @@ export default defineEventHandler(async (event) => {
         department_id: nodeId,
         add: body.title.trim(),
         contact: body.contact?.trim() || undefined,
+        avatar_url: body.avatar_url || undefined,
         is_label: false,
       },
     ],

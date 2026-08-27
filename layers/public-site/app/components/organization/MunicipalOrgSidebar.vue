@@ -21,8 +21,8 @@ const props = defineProps<{
     isCustom?: boolean
     childrenCount: number
     description?: string
+    isLabel?: boolean
   }[]
-  categorizedOffices: [string, any[]][]
   selectedOfficeId: string
 }>()
 
@@ -32,15 +32,13 @@ const emit = defineEmits<{
 }>()
 
 const searchQuery = ref('')
-const filterType = ref<'all' | 'offices' | 'divisions'>('all')
+const filterType = ref<'all' | 'labels'>('labels')
 
 const filteredOffices = computed(() => {
   let list = props.offices
 
-  if (filterType.value === 'offices') {
-    list = list.filter((o) => o.depth <= 1)
-  } else if (filterType.value === 'divisions') {
-    list = list.filter((o) => o.depth > 1)
+  if (filterType.value === 'labels') {
+    list = list.filter((o) => o.isLabel)
   }
 
   // Filter by search query
@@ -67,11 +65,9 @@ const filteredOffices = computed(() => {
         </div>
         <div>
           <h3 class="text-xs font-bold uppercase tracking-wider text-neutral-900 dark:text-white">
-            Municipal Hierarchy
+            Municipal Offices
           </h3>
-          <p class="text-[11px] text-neutral-500 dark:text-neutral-400">
-            Select office or division
-          </p>
+          
         </div>
       </div>
     </div>
@@ -100,7 +96,7 @@ const filteredOffices = computed(() => {
         v-if="filteredOffices.length === 0"
         class="py-8 text-center text-xs text-neutral-400"
       >
-        No {{ filterType === 'offices' ? 'offices' : filterType === 'divisions' ? 'divisions' : 'items' }} match your search.
+        No {{ filterType === 'labels' ? 'labels' : 'items' }} match your search.
       </div>
       <button
         v-for="dept in filteredOffices"

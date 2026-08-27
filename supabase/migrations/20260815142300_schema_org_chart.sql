@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS governance.employees (
     first_name VARCHAR(255) NOT NULL,
     middle_name VARCHAR(255) DEFAULT '',
     last_name VARCHAR(255) NOT NULL,
-    image_url TEXT,
+    avatar_url TEXT,
     contact VARCHAR(255),
     position_id UUID REFERENCES governance.positions(id) ON DELETE SET NULL,
     department_id UUID REFERENCES governance.departments(id) ON DELETE CASCADE,

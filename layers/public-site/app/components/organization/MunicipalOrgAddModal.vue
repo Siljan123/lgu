@@ -1,7 +1,7 @@
 <!-- components/organization/MunicipalOrgAddModal.vue -->
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { FolderPlus, X, Network, Sparkles, PlusCircle, RotateCcw, Tag, User } from '@lucide/vue'
+import { FolderPlus, X, Network, Sparkles, PlusCircle, RotateCcw, Tag, User, Upload, Image as ImageIcon, Loader2 } from '@lucide/vue'
 import type { AddNodePayload, OrgLabelOptions } from '../../../types/organization'
 import { formatContactInput } from '../../../utils/contact'
 
@@ -50,6 +50,10 @@ const isCustomLabelTitle = ref(false)
 const customLabelTitle = ref('')
 const labelTitle = ref('')
 
+const isUploadingImage = ref(false)
+const imagePreview = ref<string | null>(null)
+const selectedImageFile = ref<File | null>(null)
+
 const form = ref<{
   parentId: string
   title: string
@@ -61,6 +65,7 @@ const form = ref<{
   contact: string
   description: string
   isOfficial: boolean
+  imageUrl: string
 }>({
   parentId: '',
   title: '',
@@ -72,6 +77,7 @@ const form = ref<{
   contact: '',
   description: '',
   isOfficial: false,
+  imageUrl: '',
 })
 function onContactInput(e: Event) {
   const target = e.target as HTMLInputElement
@@ -181,6 +187,10 @@ watch(
       form.value.contact = ''
       form.value.description = ''
       form.value.isOfficial = false
+      form.value.imageUrl = ''
+      imagePreview.value = null
+      selectedImageFile.value = null
+      isUploadingImage.value = false
     }
   },
   { immediate: true }
@@ -240,7 +250,32 @@ function setNodeType(type: 'office' | 'label') {
   }
 }
 
-function handleSubmit() {
+function handleFileChange(e: Event) {
+  const target = e.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml']
+  if (!allowed.includes(file.type)) {
+    alert('Please upload a valid image file (JPEG, PNG, WEBP, or SVG).')
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    alert('Image file size must not exceed 5MB.')
+    return
+  }
+
+  selectedImageFile.value = file
+  imagePreview.value = URL.createObjectURL(file)
+}
+
+function removeAvatar() {
+  selectedImageFile.value = null
+  imagePreview.value = null
+  form.value.imageUrl = ''
+}
+
+async function handleSubmit() {
   if (isLabel.value) {
     const finalLabelTitle = isCustomLabelTitle.value ? customLabelTitle.value.trim() : labelTitle.value.trim()
     if (!finalLabelTitle || finalLabelTitle === '__custom__') return
@@ -266,6 +301,28 @@ function handleSubmit() {
     .filter(Boolean)
     .join(' ')
 
+  let uploadedUrl: string | null = form.value.imageUrl || null
+
+  if (selectedImageFile.value) {
+    isUploadingImage.value = true
+    try {
+      const formData = new FormData()
+      formData.append('file', selectedImageFile.value)
+      const res = await $fetch<{ success: boolean; publicUrl: string }>('/api/organization/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      if (res?.publicUrl) {
+        uploadedUrl = res.publicUrl
+      }
+    } catch (err) {
+      console.error('Failed to upload avatar image:', err)
+      alert('Failed to upload photo. Official will be created without avatar.')
+    } finally {
+      isUploadingImage.value = false
+    }
+  }
+
   emit('submit', {
     parentId: form.value.parentId || undefined,
     title: finalTitle,
@@ -279,6 +336,7 @@ function handleSubmit() {
     contact: form.value.contact.trim() || undefined,
     description: form.value.description.trim() || '',
     isOfficial: form.value.isOfficial,
+    avatar_url: uploadedUrl,
   })
 }
 </script>
@@ -620,9 +678,47 @@ function handleSubmit() {
           </label>
         </div>
 
+        <div v-if="!isLabel" class="space-y-1.5">
+          <label class="block text-xs sm:text-sm font-semibold text-neutral-800 dark:text-neutral-200">
+            4. Official Photo / Avatar
+          </label>
+          <div class="flex items-center space-x-3">
+            <div class="relative size-12 rounded-full overflow-hidden bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center shrink-0">
+              <img
+                v-if="imagePreview"
+                :src="imagePreview"
+                alt="Preview"
+                class="size-full object-cover"
+              />
+              <ImageIcon v-else class="size-5 text-neutral-400" />
+            </div>
+
+            <div class="flex-1 space-y-1">
+              <label class="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 rounded-lg cursor-pointer transition">
+                <Upload class="size-3.5" />
+                <span>Choose Photo</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/svg+xml"
+                  class="hidden"
+                  @change="handleFileChange"
+                />
+              </label>
+              <button
+                v-if="imagePreview"
+                type="button"
+                @click="removeAvatar"
+                class="block text-[11px] text-[#dc2626] hover:underline cursor-pointer"
+              >
+                Remove photo
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div class="space-y-1.5">
           <label class="block text-xs sm:text-sm font-semibold text-neutral-800 dark:text-neutral-200">
-            4. Description / Scope of Responsibilities (Optional)
+            5. Description / Scope of Responsibilities (Optional)
           </label>
           <textarea
             v-model="form.description"
@@ -643,9 +739,11 @@ function handleSubmit() {
           </button>
           <button
             type="submit"
-            class="w-full sm:w-auto px-5 py-2.5 text-xs sm:text-sm font-medium bg-[#dc2626] hover:bg-[#b91c1c] text-white rounded-sm transition-colors shadow-xs cursor-pointer text-center"
+            :disabled="isUploadingImage"
+            class="w-full sm:w-auto px-5 py-2.5 text-xs sm:text-sm font-medium bg-[#dc2626] hover:bg-[#b91c1c] text-white rounded-sm transition-colors shadow-xs cursor-pointer text-center flex items-center justify-center space-x-1.5 disabled:opacity-50"
           >
-            Save 
+            <Loader2 v-if="isUploadingImage" class="size-4 animate-spin" />
+            <span>Save</span>
           </button>
         </div>
       </form>

@@ -30,6 +30,7 @@ import {
   AlertCircle,
   Info,
   Map as MapIcon,
+  Filter,
 } from '@lucide/vue'
 
 const props = withDefaults(
@@ -69,15 +70,10 @@ const startX = ref(0)
 const startY = ref(0)
 const isFullscreen = ref(false)
 
-// Template refs — the minimap needs the real geometry of these two boxes.
-const containerRef = ref<HTMLElement | null>(null)
-/** The fixed-size viewport (what the user can actually see). */
 const chartCanvasRef = ref<HTMLElement | null>(null)
-/** The CSS-transformed chart layer living inside the viewport. */
 const chartContentRef = ref<HTMLElement | null>(null)
 
 const highlightedNodeId = ref<string | null>(null)
-// Modal states
 const isAddModalOpen = ref(false)
 const isEditModalOpen = ref(false)
 const isDeleteConfirmOpen = ref(false)
@@ -97,6 +93,69 @@ const treeList = computed<MunicipalDepartmentNode[]>(() => {
   return [props.treeRoot]
 })
 
+const allNodesList = computed(() => {
+  if (treeList.value.length === 0) return []
+  const list: { id: string; title: string; acronym?: string; depth: number; isLabel?: boolean }[] = []
+  function traverse(node: MunicipalDepartmentNode, depth = 0) {
+    const memberObj = node.member?.[0] as MunicipalDepartmentMember | undefined
+    list.push({
+      id: node.id,
+      title: node.title,
+      acronym: node.acronym,
+      depth,
+      isLabel: !!memberObj?.is_label
+    })
+    if (node.children) {
+      for (const child of node.children) {
+        traverse(child, depth + 1)
+      }
+    }
+  }
+  for (const tree of treeList.value) {
+    traverse(tree, 0)
+  }
+  return list
+})
+
+const selectedLabelFilter = ref<string>('all')
+
+const labelNodes = computed(() => {
+  const list: { id: string; title: string }[] = []
+  function traverse(node: MunicipalDepartmentNode) {
+    const memberObj = node.member?.[0] as MunicipalDepartmentMember | undefined
+    if (memberObj?.is_label) {
+      list.push({ id: node.id, title: node.title })
+    }
+    if (node.children) {
+      for (const child of node.children) {
+        traverse(child)
+      }
+    }
+  }
+  for (const tree of treeList.value) {
+    traverse(tree)
+  }
+  return list
+})
+
+const displayedTreeList = computed<MunicipalDepartmentNode[]>(() => {
+  if (selectedLabelFilter.value === 'all') return treeList.value
+  let foundNode: MunicipalDepartmentNode | null = null
+  function findNode(nodes: MunicipalDepartmentNode[]) {
+    for (const node of nodes) {
+      if (node.id === selectedLabelFilter.value) {
+        foundNode = node
+        return true
+      }
+      if (node.children) {
+        if (findNode(node.children)) return true
+      }
+    }
+    return false
+  }
+  findNode(treeList.value)
+  return foundNode ? [foundNode] : treeList.value
+})
 function zoomIn() {
   scale.value = Math.min(2.5, Number((scale.value + 0.15).toFixed(2)))
 }
@@ -257,7 +316,7 @@ interface MiniMapNode {
  * Schematic layout used until (or unless) the real chart can be measured — e.g. during
  */
 const fallbackMiniMapNodes = computed<MiniMapNode[]>(() => {
-  if (!treeList.value || treeList.value.length === 0) return []
+  if (!displayedTreeList.value || displayedTreeList.value.length === 0) return []
 
   const result: MiniMapNode[] = []
   let maxDepth = 0
@@ -276,7 +335,7 @@ const fallbackMiniMapNodes = computed<MiniMapNode[]>(() => {
   }
 
   let totalRootWidth = 0
-  treeList.value.forEach(t => {
+  displayedTreeList.value.forEach(t => {
     totalRootWidth += calculateWidthAndDepth(t, 0)
   })
 
@@ -323,7 +382,7 @@ const fallbackMiniMapNodes = computed<MiniMapNode[]>(() => {
   }
 
   let currentRootLeftX = startX
-  treeList.value.forEach(t => {
+  displayedTreeList.value.forEach(t => {
     traverse(t, 0, currentRootLeftX)
     currentRootLeftX += (widthMap.get(t.id) || 1) * gapX
   })
@@ -416,7 +475,6 @@ function measureMiniMapNodes() {
 let measureFrame: number | null = null
 let canvasObserver: ResizeObserver | null = null
 
-/** rAF-throttled: measuring twice in one frame is wasted layout work. */
 function scheduleMeasure() {
   if (typeof requestAnimationFrame === 'undefined') {
     measureCanvasBoxes()
@@ -453,7 +511,7 @@ watch([chartCanvasRef, chartContentRef], () => {
   scheduleMeasure()
 })
 
-watch([treeList, isFullscreen], async () => {
+watch([displayedTreeList, isFullscreen], async () => {
   await nextTick()
   scheduleMeasure()
 })
@@ -471,6 +529,20 @@ watch([treeList, isFullscreen], async () => {
   >
     <div class="mb-3 flex flex-wrap items-center justify-between gap-2.5 bg-white dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#333333] rounded-xl px-3 py-2 shadow-xs">
       <div class="flex items-center space-x-2 text-xs font-semibold text-neutral-800 dark:text-neutral-200">
+       
+        <div v-if="labelNodes.length > 0" class="flex items-center space-x-1.5 mr-2 border-r border-neutral-200 dark:border-neutral-700 pr-2">
+          <Filter class="size-3.5 text-neutral-500" />
+          <select
+            v-model="selectedLabelFilter"
+            class="bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 rounded-md px-2 py-1 text-[11px] outline-none focus:ring-1 focus:ring-[#dc2626]"
+          >
+            <option value="all">All</option>
+            <option v-for="label in labelNodes" :key="label.id" :value="label.id">
+              {{ label.title }}
+            </option>
+          </select>
+        </div>
+
         <div class="flex items-center space-x-1.5 text-neutral-500 dark:text-neutral-400 mr-2 border-r border-neutral-200 dark:border-neutral-700 pr-2">
           <Move class="size-3.5 text-[#dc2626]" />
           <span class="text-[11px] select-none font-medium hidden sm:inline">Drag • Scroll</span>
@@ -572,7 +644,7 @@ watch([treeList, isFullscreen], async () => {
       <div
         v-else
         ref="chartCanvasRef"
-        class="relative w-full h-full cursor-grab active:cursor-grabbing select-none overflow-hidden flex-1"
+        class="relative w-full h-full cursor-grab active:cursor-grabbing select-none overflow-hidden"
         @mousedown="handleMouseDown"
         @touchstart.passive="handleTouchStart"
         @wheel.prevent="handleWheel"
@@ -587,7 +659,7 @@ watch([treeList, isFullscreen], async () => {
           }"
         >
           <div
-            v-for="tree in treeList"
+            v-for="tree in displayedTreeList"
             :key="tree.id"
             class="flex flex-col items-center"
           >
@@ -597,41 +669,81 @@ watch([treeList, isFullscreen], async () => {
               class="sfads-municipal-org-chart mx-auto"
             >
               <template #node-title="{ node }">
-                <div v-if="!(node as MunicipalDepartmentNode).hideTitle" class="w-full flex flex-col items-center justify-center text-center">
-                  <div class="flex justify-end w-full px-2 border-b border-gray-500 py-1 gap-1.5 bg-gray-700 dark:bg-gray-900 overflow-hidden">
+                <div v-if="!(node as MunicipalDepartmentNode).hideTitle" class="w-full flex flex-col items-center text-center">
+                  
+                  <div class="flex justify-end w-full px-2 bg-gray-700 py-1 gap-1.5 overflow-hidden">
+                    <div class="flex justify-start w-full px-2 bg-gray-700 py-1 gap-1.5 overflow-hidden">
                     <span
                       v-if="(node as MunicipalDepartmentNode).acronym"
-                      class="shrink-0 whitespace-nowrap px-2  bg-[#dc2626] text-white rounded text-[10px] font-mono font-extrabold "
+                      class="shrink-0 whitespace-nowrap px-2  bg-[#dc2626] text-white text-[10px] font-mono font-extrabold "
                     >
-                      {{ (node as MunicipalDepartmentNode).acronym }}
+                      {{ (node as MunicipalDepartmentNode).acronym  }}
                     </span>
                     <span
                       v-else
-                      class="shrink-0 whitespace-nowrap px-2 py-0.5 text-neutral-500 font-mono font-extrabold"
+                      class="shrink-0 whitespace-nowrap px-2 py-0.5 text-neutral-500 font-mono font-extrabold text-center mx-auto"
                     >
-                      N/A
+                    N/A
                     </span>
                   </div>
+                    <div class="flex items-center justify-center gap-1.5 opacity-90 group-hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        @click.stop="openAddChildModal(node as MunicipalDepartmentNode)"
+                        class="interactive-btn p-1.5 rounded-md bg-[#dc2626]/10 hover:bg-[#dc2626] text-[#dc2626] hover:text-white dark:bg-[#dc2626]/20 dark:text-[#f87171] dark:hover:text-white transition-colors cursor-pointer"
+                        title="Add Child / Sub-Unit under this label"
+                      >
+                        <Plus class="size-3.5" />
+                      </button>
 
-                  <span class="block w-full font-bold text-xs sm:text-[13px] text-neutral-900 dark:text-white wrap-break-words line-clamp-2 text-center">
-                    {{ node?.title }}
-                  </span>
+                      <button
+                        type="button"
+                        @click.stop="openEditModal(node as MunicipalDepartmentNode)"
+                        class="interactive-btn p-1.5 rounded-md bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 transition-colors cursor-pointer"
+                        title="Edit section label"
+                      >
+                        <Edit3 class="size-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        @click.stop="openDeleteModal(node as MunicipalDepartmentNode)"
+                        class="interactive-btn p-1.5 rounded-md bg-destructive/10 hover:bg-destructive text-destructive hover:text-white transition-colors cursor-pointer"
+                        title="Delete section label"
+                      >
+                        <Trash2 class="size-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div class="px-3 pt-3 font-bold text-xs w-full flex items-center justify-center text-center transition-colors">
+                    <span class="block w-full font-bold text-xs sm:text-[13px] text-neutral-900 dark:text-white wrap-break-words line-clamp-2 text-center">
+                      {{ node?.title }}
+                    </span>
+                  </div>
+                  
                 </div>
               </template>
+
               <template #member="{ member, node }">
+
+                <!-- Section LABEL card: header only, no personnel details -->
                 <div
                   v-if="(member as MunicipalDepartmentMember)?.is_label"
                   data-testid="org-section-label"
                   :data-mini-node-id="node?.id"
                   data-mini-node-label="true"
+                  class=" gap-1 group transition-all"
                 >
+
+                
                 </div>
 
                 <div
                   v-else
                   :data-mini-node-id="node?.id"
                   data-mini-node-label="false"
-                  class="w-full text-neutral-900 dark:text-neutral-100 flex flex-col justify-between group transition-all"
+                  class="p-3 w-full dark:bg-[#1c1c1c] text-neutral-900 dark:text-neutral-100 flex flex-col justify-between group transition-all"
                   :class="[
                     highlightedNodeId === node?.id ? 'shadow-sm' : ''
                   ]"
@@ -649,6 +761,7 @@ watch([treeList, isFullscreen], async () => {
                         />
                       </div>
 
+                      <!-- fallback: initials avatar -->
                       <div
                         v-else
                         class="size-12 sm:size-14 rounded-full mx-auto flex items-center justify-center bg-[#dc2626]/10 text-[#dc2626] font-bold text-sm sm:text-base select-none"
@@ -673,13 +786,55 @@ watch([treeList, isFullscreen], async () => {
                       </p>
                     
                     </div>
-                   
+                     <span class="flex  mt-1"> 
+                      <Phone :size="15"/>
+                      <p class="text-xs ml-4 font-semibold text-neutral-600 truncate">
+                        {{ member?.contact || 'None'}}
+                      </p>
+                    </span>
+                  </div>
+
+                  <!-- Hover Quick Actions Bar -->
+                  <div class="mt-3 pt-2 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-center gap-1.5 opacity-90 group-hover:opacity-100 transition-opacity">
+                    <!-- Add Sub-Node Button -->
+                    <button
+                      type="button"
+                      @click.stop="openAddChildModal(node as MunicipalDepartmentNode)"
+                      class="interactive-btn p-1.5 rounded-md bg-[#dc2626]/10 hover:bg-[#dc2626] text-[#dc2626] hover:text-white dark:bg-[#dc2626]/20 dark:text-[#f87171] dark:hover:text-white transition-colors cursor-pointer"
+                      title="Add Child / Sub-Unit under this office"
+                    >
+                      <Plus class="size-3.5" />
+                    </button>
+
+                    <!-- View Details Button -->
                     <button
                       type="button"
                       @click.stop="openDetailsModal(node as MunicipalDepartmentNode)"
-                      class="mt-3 w-full py-1.5 text-[11px] font-semibold text-neutral-600 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-sm transition-colors cursor-pointer"
+                      class="interactive-btn p-1.5 rounded-md bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 transition-colors cursor-pointer"
+                      title="View office details"
                     >
-                      View Details
+                      <Info class="size-3.5" />
+                    </button>
+
+                    <!-- Edit Button -->
+                    <button
+                      type="button"
+                      @click.stop="openEditModal(node as MunicipalDepartmentNode)"
+                      class="interactive-btn p-1.5 rounded-md bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 transition-colors cursor-pointer"
+                      title="Edit office / unit"
+                    >
+                      <Edit3 class="size-3.5" />
+                    </button>
+
+                    <!-- Delete Button (Available for any node except Mayor root) -->
+                    <button
+                      v-if="node?.id !== 'mayor-root' && node?.id !== '305451c6-aa72-4bf9-9480-5509c8263c23' && node?.id !== '00000000-0000-4000-8000-000000000001'"
+                      type="button"
+                      @click.stop="openDeleteModal(node as MunicipalDepartmentNode)"
+                      class="interactive-btn p-1.5 rounded-md bg-destructive/10 hover:bg-destructive text-destructive hover:text-white transition-colors cursor-pointer"
+                      title="Delete office / unit"
+                    >
+                      <Trash2 class="size-3.5" />
                     </button>
                   </div>
                 </div>
@@ -690,23 +845,46 @@ watch([treeList, isFullscreen], async () => {
       </div>
     </div>
 
-    <OrganizationMunicipalOrgDetailsModal
+    <OrganizationMunicipalOrgAddModal
+      :open="isAddModalOpen"
+      :selected-parent-id="selectedParentId"
+      :all-nodes="allNodesList"
+      :positions="positions"
+      :label-options="labelOptions"
+      @close="isAddModalOpen = false"
+      @submit="handleAddNode"
+    />
+
+    <OrganizationMunicipalOrgEditModal
+      :open="isEditModalOpen"
+      :node="selectedTargetNode"
+      :positions="positions"
+      :label-options="labelOptions"
+      @close="isEditModalOpen = false"
+      @submit="handleEditNode"
+    />
+     <OrganizationMunicipalOrgDetailsModal
       :open="isDetailsModalOpen"
       :node="selectedTargetNode"
       @close="isDetailsModalOpen = false"
+    />
+
+    <OrganizationMunicipalOrgDeleteModal
+      :open="isDeleteConfirmOpen"
+      :node="selectedTargetNode"
+      @close="isDeleteConfirmOpen = false"
+      @confirm="handleDeleteNode"
+    />
+
+    <OrganizationMunicipalOrgResetModal
+      :open="isResetConfirmOpen"
+      @close="isResetConfirmOpen = false"
+      @confirm="handleResetDefaults"
     />
   </div>
 </template>
 
 <style scoped>
-:deep(.org-title),
-:deep(.org-node-title) {
-  text-align: center !important;
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
-  width: 100% !important;
-}
 
 :deep(.org-table) {
   border-collapse: separate !important;
@@ -734,8 +912,9 @@ watch([treeList, isFullscreen], async () => {
   min-width: 215px !important;
   max-width: 215px !important;
   box-sizing: border-box !important;
-  border: .5px solid #c4baba;
+  border: .5px solid #dfdfdf;
   border-radius: 5px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
   overflow: hidden;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -758,6 +937,7 @@ watch([treeList, isFullscreen], async () => {
   padding: 0 !important;
   white-space: normal !important;
   word-break: break-word !important;
+  overflow-wrap: anywhere !important;
 }
 
 :deep(.org-title.muni-title-hidden) {
@@ -786,6 +966,7 @@ watch([treeList, isFullscreen], async () => {
   height: 15px !important;
   position: absolute !important;
   bottom: 100% !important;
+  left: 50% !important;
   transform: translate(-1px) !important;
 }
 
@@ -883,8 +1064,7 @@ watch([treeList, isFullscreen], async () => {
   left: 50% !important;
   transform: translateX(-50%) !important;
   z-index: 10 !important;
-  background-color: #ffffff !important;
-  border: 1px solid #cbd5e1 !important;
+  border: 2px solid #cbd5e1 !important;
   border-radius: 9999px !important;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1) !important;
   display: flex !important;

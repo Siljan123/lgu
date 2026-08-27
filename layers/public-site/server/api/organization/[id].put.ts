@@ -82,7 +82,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Update employee head and position if provided
-  if (body.headName || body.firstName || body.middleName || body.lastName || body.position || body.contact !== undefined) {
+  if (body.headName || body.firstName || body.middleName || body.lastName || body.position || body.contact !== undefined || body.avatar_url !== undefined) {
     const positionTitle = body.position?.trim()
 
     const firstName = body.firstName?.trim() || ''
@@ -114,6 +114,9 @@ export default defineEventHandler(async (event) => {
       if (body.contact !== undefined) {
         empUpdate.contact = body.contact.trim() || null
       }
+      if (body.avatar_url !== undefined) {
+        empUpdate.avatar_url = body.avatar_url || null
+      }
 
       await supabase.schema('governance').from('employees').update(empUpdate).eq('id', emp.id)
 
@@ -139,6 +142,7 @@ export default defineEventHandler(async (event) => {
         department_id: deptUUID,
         position_id: posId,
         contact: body.contact?.trim() || null,
+        avatar_url: body.avatar_url || null,
       })
     }
 
@@ -163,6 +167,9 @@ export default defineEventHandler(async (event) => {
         if (body.contact !== undefined) {
           offUpdate.contact = body.contact.trim() || null
         }
+        if (body.avatar_url !== undefined) {
+          offUpdate.avatar_url = body.avatar_url || null
+        }
         await supabase.schema('governance').from('officials').update(offUpdate).eq('id', off.id)
       } else {
         const offId = crypto.randomUUID()
@@ -181,6 +188,7 @@ export default defineEventHandler(async (event) => {
           last_name: nameSplit.last_name,
           contact: body.contact?.trim() || null,
           position_id: posIdForOff,
+          avatar_url: body.avatar_url || null,
           parent_id: null,
         })
       }
