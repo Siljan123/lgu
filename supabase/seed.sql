@@ -103,7 +103,7 @@ on conflict (id) do update set
   title = excluded.title,
   rank_order = excluded.rank_order;
 
-insert into governance.officials (id, first_name, middle_name, last_name, position_id, parent_id, contact, image_url) values
+insert into governance.officials (id, first_name, middle_name, last_name, position_id, parent_id, contact, avatar_url) values
   ('22222222-2222-4000-8000-000000000001', 'Grace', 'A.', 'Rodriguez',
     '11111111-1111-4000-8000-000000000001', null, '0917-234-5601', null),
   ('22222222-2222-4000-8000-000000000002', 'Roberto', 'M.', 'Plaza',
@@ -129,7 +129,7 @@ on conflict (id) do update set
   position_id = excluded.position_id,
   parent_id = excluded.parent_id,
   contact = excluded.contact,
-  image_url = excluded.image_url;
+  avatar_url = excluded.avatar_url;
 
 commit;
 -- barangay_directory seed

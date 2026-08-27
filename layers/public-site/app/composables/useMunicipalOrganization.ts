@@ -95,7 +95,6 @@ export function useMunicipalOrganization() {
     { default: () => [] }
   )
 
-  // Label title choices, read from the database (existing labels + position titles).
   const {
     data: labelOptions,
     pending: labelOptionsPending,
@@ -236,9 +235,12 @@ export function useMunicipalOrganization() {
       isCustom?: boolean
       childrenCount: number
       description?: string
+      isLabel?: boolean
     }[] = []
 
     function walk(node: MunicipalDepartmentNode, depth = 0, parentId?: string) {
+      const isLabel = Boolean(node.member?.[0]?.is_label)
+
       list.push({
         id: node.id,
         title: node.title,
@@ -251,6 +253,7 @@ export function useMunicipalOrganization() {
         isCustom: node.isCustom,
         childrenCount: node.children?.length ?? 0,
         description: node.description,
+        isLabel,
       })
 
       if (node.children) {
@@ -266,38 +269,7 @@ export function useMunicipalOrganization() {
     return list
   })
 
-  // Categorized offices list for the sidebar
-  const categorizedOffices = computed(() => {
-    const categories: Record<string, typeof flatDepartments.value> = {
-      'Executive & Mayor': [],
-      'Administrative & Registry': [],
-      'Financial & Fiscal': [],
-      'Health & Social Services': [],
-      'Technical & Planning': [],
-      'Economic & Agriculture': [],
-      'Custom Sub-Units & Independent Offices': [],
-    }
 
-    for (const item of flatDepartments.value ?? []) {
-      if (item.id === 'mayor-root' || item.category === 'Office') {
-        categories['Executive & Mayor']!.push(item)
-      } else if (item.category === 'administrative' || item.title.includes('Resource') || item.title.includes('Civil Registry') || item.title.includes('General Services')) {
-        categories['Administrative & Registry']!.push(item)
-      } else if (item.category === 'financial' || item.title.includes('Treasurer') || item.title.includes('Assessor') || item.title.includes('Accounting') || item.title.includes('Budget')) {
-        categories['Financial & Fiscal']!.push(item)
-      } else if (item.category === 'social' || item.title.includes('Health') || item.title.includes('Social Welfare')) {
-        categories['Health & Social Services']!.push(item)
-      } else if (item.category === 'technical' || item.title.includes('Planning') || item.title.includes('Engineering') || item.title.includes('Environment') || item.title.includes('Disaster')) {
-        categories['Technical & Planning']!.push(item)
-      } else if (item.category === 'economic' || item.title.includes('Agriculture') || item.title.includes('Cooperative') || item.title.includes('Enterprise')) {
-        categories['Economic & Agriculture']!.push(item)
-      } else {
-        categories['Custom Sub-Units & Independent Offices']!.push(item)
-      }
-    }
-
-    return Object.entries(categories).filter(([_, items]) => items.length > 0)
-  })
 
   const filteredDepartments = computed(() => {
     const q = searchQuery.value.trim().toLowerCase()
@@ -333,7 +305,6 @@ export function useMunicipalOrganization() {
     searchQuery,
     flatDepartments,
     filteredDepartments,
-    categorizedOffices,
     selectOffice,
     addNode,
     editNode,

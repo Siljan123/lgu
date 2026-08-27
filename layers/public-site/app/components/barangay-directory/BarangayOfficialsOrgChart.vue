@@ -145,6 +145,12 @@ onUnmounted(() => {
   window.removeEventListener('mouseup', handleMouseUp)
   window.removeEventListener('touchmove', handleTouchMove)
   window.removeEventListener('touchend', handleTouchEnd)
+  window.removeEventListener('resize', scheduleMeasure)
+  if (measureFrame !== null && typeof cancelAnimationFrame !== 'undefined') {
+    cancelAnimationFrame(measureFrame)
+  }
+  canvasObserver?.disconnect()
+  canvasObserver = null
   if (typeof window !== 'undefined') {
     window.removeEventListener('keydown', handleKeydown)
   }
@@ -366,35 +372,53 @@ function moveChild(node: any, dir: 'left' | 'right') {
 
 const chartCanvasRef = ref<HTMLElement | null>(null)
 const chartContentRef = ref<HTMLElement | null>(null)
+
+const viewportSize = ref({ w: 0, h: 0 })
+const contentSize = ref({ w: 0, h: 0 })
+
+const isCanvasMeasured = computed(() =>
+  viewportSize.value.w > 0 && viewportSize.value.h > 0
+  && contentSize.value.w > 0 && contentSize.value.h > 0
+)
+
 // Calculate the visible rectangle for the viewfinder
 const visibleContentRect = computed(() => {
-  const cw = Math.max(1, chartContentRef.value?.offsetWidth || 1)
-  const ch = Math.max(1, chartContentRef.value?.offsetHeight || 1)
-  const vw = chartCanvasRef.value?.clientWidth || 800
-  const vh = chartCanvasRef.value?.clientHeight || 600
-  const s = scale.value
+  const cw = Math.max(1, contentSize.value.w)
+  const ch = Math.max(1, contentSize.value.h)
+  const s = scale.value || 1
   
   return {
     cw, ch,
     x: cw / 2 - (cw / 2 + panX.value) / s,
     y: -panY.value / s,
-    w: vw / s,
-    h: vh / s,
+    w: viewportSize.value.w / s,
+    h: viewportSize.value.h / s,
   }
 })
 const measuredMiniNodes = ref<any[]>([])
 
+function measureCanvasBoxes() {
+  const viewport = chartCanvasRef.value
+  if (viewport) {
+    viewportSize.value = { w: viewport.clientWidth, h: viewport.clientHeight }
+  }
+  const content = chartContentRef.value
+  if (content) {
+    contentSize.value = { w: content.offsetWidth, h: content.offsetHeight }
+  }
+}
+
 function measureMiniMapNodes() {
   const content = chartContentRef.value
-  if (!content) return
+  if (!content || !isCanvasMeasured.value) return
 
   const cards = content.querySelectorAll('[data-mini-node-id]')
   if (cards.length === 0) return
 
   const s = scale.value || 1
   const contentBox = content.getBoundingClientRect()
-  const cw = Math.max(1, content.offsetWidth)
-  const ch = Math.max(1, content.offsetHeight)
+  const cw = Math.max(1, contentSize.value.w)
+  const ch = Math.max(1, contentSize.value.h)
 
   const list: any[] = []
   cards.forEach((el) => {
@@ -418,12 +442,14 @@ let canvasObserver: ResizeObserver | null = null
 
 function scheduleMeasure() {
   if (typeof requestAnimationFrame === 'undefined') {
+    measureCanvasBoxes()
     measureMiniMapNodes()
     return
   }
   if (measureFrame !== null) cancelAnimationFrame(measureFrame)
   measureFrame = requestAnimationFrame(() => {
     measureFrame = null
+    measureCanvasBoxes()
     measureMiniMapNodes()
   })
 }
@@ -442,6 +468,12 @@ onMounted(() => {
   observeCanvas()
   scheduleMeasure()
   window.addEventListener('resize', scheduleMeasure)
+})
+
+// The canvas lives behind a v-if, so the refs arrive after pending/error resolve.
+watch([chartCanvasRef, chartContentRef], () => {
+  observeCanvas()
+  scheduleMeasure()
 })
 
 watch([() => props.officials, scale, isFullscreen], async () => {
@@ -555,7 +587,7 @@ watch([() => props.officials, scale, isFullscreen], async () => {
               ref="chartCanvasRef"
             >
               <div
-                class="w-full flex justify-center py-8 transition-transform duration-75 ease-out"
+                class="w-full min-w-max flex justify-center py-8 transition-transform duration-75 ease-out"
                 :style="{
                   transform: `translate3d(${panX}px, ${panY}px, 0) scale(${scale})`,
                   transformOrigin: 'top center'
@@ -724,10 +756,10 @@ watch([() => props.officials, scale, isFullscreen], async () => {
               </div>
             </div>
 
-            <OrganizationOrgChartMinimap
+            <OrganizationOrgChartMinimapNavigator
               :show="true"
               :nodes="miniMapNodes"
-              :is-canvas-measured="!!chartContentRef"
+              :is-canvas-measured="isCanvasMeasured"
               :visible-content-rect="visibleContentRect"
               :scale="scale"
               :pan-x="panX"

@@ -31,7 +31,6 @@ const {
   pending,
   error,
   flatDepartments,
-  categorizedOffices,
   selectOffice,
   addNode,
   editNode,
@@ -78,9 +77,8 @@ function handleAddSubNodeFromSidebar(officeId: string) {
         >
           <OrganizationMunicipalOrgSidebar
             :offices="flatDepartments"
-            :categorized-offices="categorizedOffices"
             :selected-office-id="selectedOfficeId"
-            @select-office="(id) => { selectOffice(id); isMobileSidebarOpen = false }"
+            @select-office="(id: any) => { selectOffice(id); isMobileSidebarOpen = false }"
             @add-sub-node="handleAddSubNodeFromSidebar"
           />
         </div>

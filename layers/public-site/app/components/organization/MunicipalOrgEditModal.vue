@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { Edit3, X, PlusCircle, RotateCcw, Tag, User } from '@lucide/vue'
+import { Edit3, X, PlusCircle, RotateCcw, Tag, User, Upload, Image as ImageIcon, Loader2 } from '@lucide/vue'
 import type { MunicipalDepartmentNode, EditNodePayload, MunicipalDepartmentMember, OrgLabelOptions } from '../../../types/organization'
 import { formatContactInput } from '#layers/public-site/utils/contact';
 
@@ -76,6 +76,10 @@ function parseMemberName(member?: MunicipalDepartmentMember): { firstName: strin
   }
 }
 
+const isUploadingImage = ref(false)
+const imagePreview = ref<string | null>(null)
+const selectedImageFile = ref<File | null>(null)
+
 const form = ref<{
   nodeId: string
   title: string
@@ -87,6 +91,7 @@ const form = ref<{
   contact: string
   description: string
   isOfficial: boolean
+  imageUrl: string
 }>({
   nodeId: '',
   title: '',
@@ -98,6 +103,7 @@ const form = ref<{
   contact: '',
   description: '',
   isOfficial: false,
+  imageUrl: '',
 })
 
 const positionOptions = computed(() => {
@@ -156,6 +162,17 @@ watch(
       nodeType.value = currentNode.is_label ? 'label' : 'office'
       const mem = currentNode.member?.[0]
       const nameParsed = parseMemberName(mem)
+      
+      selectedImageFile.value = null
+      isUploadingImage.value = false
+      if (!currentNode.is_label && mem?.avatar_url) {
+        form.value.imageUrl = mem.avatar_url
+        imagePreview.value = mem.avatar_url
+      } else {
+        form.value.imageUrl = ''
+        imagePreview.value = null
+      }
+
       form.value = {
         nodeId: currentNode.id,
         title: currentNode.title,
@@ -167,6 +184,7 @@ watch(
         contact: currentNode.is_label ? '' : (mem?.contact || ''),
         description: currentNode.description || '',
         isOfficial: false,
+        imageUrl: form.value.imageUrl,
       }
     }
   },
@@ -187,7 +205,32 @@ function setNodeType(type: 'office' | 'label') {
   }
 }
 
-function handleSubmit() {
+function handleFileChange(e: Event) {
+  const target = e.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml']
+  if (!allowed.includes(file.type)) {
+    alert('Please upload a valid image file (JPEG, PNG, WEBP, or SVG).')
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    alert('Image file size must not exceed 5MB.')
+    return
+  }
+
+  selectedImageFile.value = file
+  imagePreview.value = URL.createObjectURL(file)
+}
+
+function removeAvatar() {
+  selectedImageFile.value = null
+  imagePreview.value = null
+  form.value.imageUrl = ''
+}
+
+async function handleSubmit() {
   if (isLabel.value) {
     const finalTitle = isCustomLabelTitle.value ? customLabelTitle.value.trim() : form.value.title.trim()
     if (!finalTitle || finalTitle === '__custom__' || !form.value.nodeId) return
@@ -209,6 +252,28 @@ function handleSubmit() {
     .filter(Boolean)
     .join(' ')
 
+  let uploadedUrl: string | null = form.value.imageUrl || null
+
+  if (selectedImageFile.value) {
+    isUploadingImage.value = true
+    try {
+      const formData = new FormData()
+      formData.append('file', selectedImageFile.value)
+      const res = await $fetch<{ success: boolean; publicUrl: string }>('/api/organization/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      if (res?.publicUrl) {
+        uploadedUrl = res.publicUrl
+      }
+    } catch (err) {
+      console.error('Failed to upload avatar image:', err)
+      alert('Failed to upload photo. Official will be updated without avatar changes.')
+    } finally {
+      isUploadingImage.value = false
+    }
+  }
+
   emit('submit', {
     nodeId: form.value.nodeId,
     title: form.value.title.trim(),
@@ -222,6 +287,7 @@ function handleSubmit() {
     contact: form.value.contact.trim() || undefined,
     description: form.value.description.trim() || '',
     isOfficial: form.value.isOfficial,
+    avatar_url: uploadedUrl,
   })
 }
 </script>
@@ -509,6 +575,44 @@ function handleSubmit() {
           </div>
         </div>
 
+        <div v-if="!isLabel" class="space-y-1.5">
+          <label class="block text-xs sm:text-sm font-semibold text-neutral-800 dark:text-neutral-200">
+            Official Photo / Avatar
+          </label>
+          <div class="flex items-center space-x-3">
+            <div class="relative size-12 rounded-full overflow-hidden bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center shrink-0">
+              <img
+                v-if="imagePreview"
+                :src="imagePreview"
+                alt="Preview"
+                class="size-full object-cover"
+              />
+              <ImageIcon v-else class="size-5 text-neutral-400" />
+            </div>
+
+            <div class="flex-1 space-y-1">
+              <label class="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 rounded-lg cursor-pointer transition">
+                <Upload class="size-3.5" />
+                <span>Choose Photo</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/svg+xml"
+                  class="hidden"
+                  @change="handleFileChange"
+                />
+              </label>
+              <button
+                v-if="imagePreview"
+                type="button"
+                @click="removeAvatar"
+                class="block text-[11px] text-[#dc2626] hover:underline cursor-pointer"
+              >
+                Remove photo
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- 4. Description -->
         <div class="space-y-1.5">
           <label class="block text-xs sm:text-sm font-semibold text-neutral-800 dark:text-neutral-200">
@@ -533,9 +637,11 @@ function handleSubmit() {
           </button>
           <button
             type="submit"
-            class="w-full sm:w-auto px-6 py-2.5 text-xs sm:text-sm font-semibold bg-[#dc2626] hover:bg-[#b91c1c] text-white rounded-sm shadow-xs hover:shadow-md transition cursor-pointer text-center"
+            :disabled="isUploadingImage"
+            class="w-full sm:w-auto px-6 py-2.5 text-xs sm:text-sm font-semibold bg-[#dc2626] hover:bg-[#b91c1c] text-white rounded-sm shadow-xs hover:shadow-md transition cursor-pointer text-center flex items-center justify-center space-x-1.5 disabled:opacity-50"
           >
-            Save Changes
+            <Loader2 v-if="isUploadingImage" class="size-4 animate-spin" />
+            <span>Save Changes</span>
           </button>
         </div>
       </form>

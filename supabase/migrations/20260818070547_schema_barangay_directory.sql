@@ -189,7 +189,7 @@ SELECT
     p.title,
     p.position_category,
     eo.committee,
-    eo.avatar_url AS avatar,
+    eo.avatar_url AS _url,
     eo.contact,
     eo.is_label,
     eo.sort_order,

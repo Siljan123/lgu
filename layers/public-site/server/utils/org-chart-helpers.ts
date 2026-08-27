@@ -20,7 +20,7 @@ export interface EmployeeRow {
   first_name: string
   middle_name: string
   last_name: string
-  image_url: string | null
+  avatar_url: string | null
   contact: string | null
   position_id: string | null
   department_id: string
@@ -133,7 +133,7 @@ export function buildAllOrgChartTrees(
       position_id: emp.position_id || matchedPos?.id || undefined,
       department_id: emp.department_id,
       add: posTitle,
-      image_url: emp.image_url || undefined,
+      avatar_url: emp.avatar_url || undefined,
       contact: emp.contact || undefined,
       is_label: false,
     })
@@ -262,7 +262,7 @@ export async function seedDefaultOrgDataToSupabase() {
           first_name: nameSplit.first_name,
           middle_name: nameSplit.middle_name,
           last_name: nameSplit.last_name,
-          image_url: m.image_url || m.avatar || null,
+          avatar_url: m.image_url || m.avatar || null,
           contact: m.contact || null,
           position_id: posUUID,
           department_id: deptUUID,
