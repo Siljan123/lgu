@@ -9,7 +9,7 @@ describe('useLocalFares composable', () => {
     expect(fares.value!.length).toBeGreaterThanOrEqual(5)
 
     const hubangRoute = fares.value!.find(
-      f => f.from === 'Poblacion' && f.to === 'New Terminal Hubang'
+      (      f: { from: string; to: string }) => f.from === 'Poblacion' && f.to === 'New Terminal Hubang'
     )
     expect(hubangRoute).toBeDefined()
     expect(hubangRoute?.mode).toContain('Tricycle')
@@ -24,12 +24,12 @@ describe('useLocalFares composable', () => {
     selectedOrigin.value = 'Poblacion'
     const poblacionFares = filteredFares.value
     expect(poblacionFares.length).toBeGreaterThan(0)
-    expect(poblacionFares.every(f => f.from === 'Poblacion')).toBe(true)
+    expect(poblacionFares.every((f: { from: string }) => f.from === 'Poblacion')).toBe(true)
 
     selectedOrigin.value = 'New Terminal Hubang'
     const hubangFares = filteredFares.value
     expect(hubangFares.length).toBeGreaterThan(0)
-    expect(hubangFares.every(f => f.from === 'New Terminal Hubang')).toBe(true)
+    expect(hubangFares.every((f: { from: string }) => f.from === 'New Terminal Hubang')).toBe(true)
   })
 
   it('filters fares correctly by vehicle mode', () => {
@@ -38,7 +38,7 @@ describe('useLocalFares composable', () => {
     selectedMode.value = 'Habal-habal'
     const habalFares = filteredFares.value
     expect(habalFares.length).toBeGreaterThan(0)
-    expect(habalFares.every(f => f.mode.includes('Habal-habal'))).toBe(true)
+    expect(habalFares.every((f: { mode: string | string[] }) => f.mode.includes('Habal-habal'))).toBe(true)
   })
 
   it('filters fares correctly by search query', () => {
