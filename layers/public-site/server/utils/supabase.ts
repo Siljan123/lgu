@@ -10,14 +10,9 @@ export function useServerSupabase(schema: string = 'governance'): SupabaseClient
 
   let supabaseUrl = (
     config.supabaseUrl ||
-    process.env.SUPABASE_URL ||
-    'http://127.0.0.1:54321'
+    process.env.SUPABASE_URL 
+   
   ) as string
-
-  // Studio port (54323) 
-  if (supabaseUrl.includes(':54323')) {
-    supabaseUrl = supabaseUrl.replace(':54323', ':54321')
-  }
 
   const supabaseKey = (
     config.supabaseServiceRoleKey ||
