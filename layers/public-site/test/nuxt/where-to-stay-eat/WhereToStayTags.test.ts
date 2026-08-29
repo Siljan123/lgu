@@ -27,7 +27,7 @@ const sampleEstablishments: Establishment[] = [
 ]
 
 describe('WhereToStayTags Component', () => {
-  it('renders main category tabs, search input, subcategory dropdown, and barangay dropdown', async () => {
+  it('renders search input, category dropdown, and barangay dropdown', async () => {
     const wrapper = await mountSuspended(WhereToStayTags, {
       props: {
         categories: ['Hotels', 'Cafes'],
@@ -46,16 +46,13 @@ describe('WhereToStayTags Component', () => {
       }
     })
 
-    expect(wrapper.text()).toContain('Where to Stay')
-    expect(wrapper.text()).toContain('Where to Eat')
     expect(wrapper.find('input[type="text"]').exists()).toBe(true)
     const selects = wrapper.findAll('select')
-    expect(selects.length).toBe(2)
-    expect(wrapper.text()).toContain('All Subcategories')
-    expect(wrapper.text()).toContain('All Barangays')
+    expect(selects.length).toBe(1)
+    expect(wrapper.text()).toContain('All categories')
   })
 
-  it('emits update:selectedMainCategory when clicking main category tabs', async () => {
+  it('emits update:selectedSubCategory when category dropdown changes', async () => {
     const wrapper = await mountSuspended(WhereToStayTags, {
       props: {
         categories: ['Hotels', 'Cafes'],
@@ -74,13 +71,11 @@ describe('WhereToStayTags Component', () => {
       }
     })
 
-    const buttons = wrapper.findAll('button')
-    const stayBtn = buttons.find(b => b.text().includes('Where to Stay'))
-    expect(stayBtn).toBeDefined()
-    await stayBtn?.trigger('click')
+    const categorySelect = wrapper.findAll('select')[0]!
+    await categorySelect.setValue('Hotels')
 
-    expect(wrapper.emitted('update:selectedMainCategory')).toBeTruthy()
-    expect(wrapper.emitted('update:selectedMainCategory')?.[0]).toEqual(['Where to Stay'])
+    expect(wrapper.emitted('update:selectedSubCategory')).toBeTruthy()
+    expect(wrapper.emitted('update:selectedSubCategory')?.[0]).toEqual(['Hotels'])
   })
 
   it('emits update:searchQuery when typing into search input', async () => {

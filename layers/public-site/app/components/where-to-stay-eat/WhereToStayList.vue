@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { Establishment } from '../../composables/useWhereToStayEat'
+import { type Establishment, calculateDistanceKm } from '../../composables/useWhereToStayEat'
 import { 
   Phone, 
   MapPin, 
@@ -8,9 +8,11 @@ import {
   Check, 
   Building2, 
   Hotel, 
-  Utensils,
-  ExternalLink,
-  Clock,
+  Utensils, 
+  ExternalLink, 
+  Clock, 
+  Navigation,
+  Route,
   Image as ImageIcon
 } from '@lucide/vue'
 
@@ -33,9 +35,14 @@ interface Props {
   viewMode: 'grid' | 'table'
   activeId?: string | null
   currentCategory?: string
+  userLocation?: { lat: number; lng: number } | null
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  activeId: null,
+  currentCategory: 'All',
+  userLocation: null
+})
 
 const emit = defineEmits<{
   (e: 'select', establishment: Establishment): void
@@ -56,6 +63,11 @@ const copyContact = (contact: string, id: string) => {
 
 const onImageError = (id: string) => {
   failedImages.value.add(id)
+}
+
+const getItemDistance = (item: Establishment) => {
+  if (!props.userLocation || !item.coordinates) return null
+  return calculateDistanceKm(props.userLocation, item.coordinates)
 }
 </script>
 
@@ -78,11 +90,19 @@ const onImageError = (id: string) => {
       <article
         v-for="item in establishments"
         :key="item.id"
-        class="group relative flex flex-col h-full bg-[#ffffff] dark:bg-[#202020] rounded-xl border border-[#dfdfdf] dark:border-[#2e2e2e] overflow-hidden transition-all duration-300 hover:shadow-sm hover:border-[#c7c7c7] dark:hover:border-[#404040]"
-        :class="[activeId === item.id ? 'ring-2' : '']"
+        class="group relative flex flex-col h-full bg-[#ffffff] dark:bg-[#202020] rounded-md border border-[#dfdfdf] dark:border-[#2e2e2e] overflow-hidden transition-all duration-300 hover:shadow-md hover:border-[#85181a] dark:hover:border-[#ef4444] cursor-pointer"
+        :class="[activeId === item.id ? 'ring-1 ring-[#85181a] dark:ring-[#ef4444] shadow-md border-transparent' : '']"
+        @click="emit('select', item)"
       >
-        <!-- Card Photo Thumbnail or Fallback UI when no image available -->
         <div class="relative w-full aspect-video overflow-hidden bg-[#18181b] flex flex-col items-center justify-center border-b border-[#dfdfdf] dark:border-[#2e2e2e]">
+          <div 
+            v-if="userLocation && getItemDistance(item)"
+            class="absolute top-2.5 right-2.5 z-10 inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#171717]/85 backdrop-blur-md text-[#ffffff] text-[11px] font-bold shadow-md border border-white/10"
+          >
+            <Route :size="12" class="text-[#facc15]" />
+            <span>{{ getItemDistance(item)?.distanceText }} away</span>
+          </div>
+
           <template v-if="item.image && !failedImages.has(item.id)">
             <img 
               :src="item.image" 
@@ -121,21 +141,20 @@ const onImageError = (id: string) => {
               <span>Hours: {{ item.operatingHours }}</span>
             </div>
           </div>
-
           <!-- Action Button -->
           <button
             type="button"
-            class="mt-4 w-full py-2.5 px-3 rounded-lg text-xs font-semibold text-[#ffffff] bg-[#171717] hover:bg-[#85181a] dark:bg-[#ffffff] dark:text-[#171717] dark:hover:bg-[#ef4444] dark:hover:text-[#ffffff] transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer"
-            @click="emit('select', item)"
+            class="mt-4 w-full py-2.5 px-3 rounded-lg text-xs font-semibold text-[#ffffff] bg-[#171717] dark:bg-[#181616] group-hover:bg-[#85181a] dark:group-hover:bg-[#ef4444] dark:group-hover:text-[#ffffff] transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+            @click.stop="emit('select', item)"
           >
-            <span>Focus on Map / View 360°</span>
-            <ExternalLink :size="13" />
+            <Navigation :size="13" />
+            <span>{{ userLocation ? 'Get Route & View' : 'Focus on Map' }}</span>
           </button>
         </div>
       </article>
     </div>
 
-    <div v-else class="w-full overflow-hidden rounded-xl border border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#ffffff] dark:bg-[#202020] shadow-sm">
+    <div v-else class="w-full overflow-hidden rounded-sm border border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#ffffff] dark:bg-[#202020] shadow-sm">
       <div 
         class="w-full py-4 px-6 bg-[#171717] dark:bg-[#171717] text-[#ffffff] flex items-center justify-between"
       >
@@ -206,6 +225,10 @@ const onImageError = (id: string) => {
                       <span v-if="item.operatingHours" class="inline-flex items-center gap-1 text-[10px] text-[#707070] dark:text-[#a3a3a3]">
                         <Clock :size="10" />
                         {{ item.operatingHours }}
+                      </span>
+                      <span v-if="userLocation && getItemDistance(item)" class="inline-flex items-center gap-1 text-[10px] font-bold text-[#85181a] dark:text-[#ef4444] bg-[#85181a]/10 dark:bg-[#ef4444]/20 px-1.5 py-0.5 rounded">
+                        <Route :size="10" />
+                        {{ getItemDistance(item)?.distanceText }}
                       </span>
                     </div>
                   </div>

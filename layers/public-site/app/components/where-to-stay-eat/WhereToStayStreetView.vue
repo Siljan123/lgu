@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, shallowRef } from 'vue'
-import type { Establishment } from '../../composables/useWhereToStayEat'
+import { ref, computed, watch, onMounted, shallowRef } from 'vue'
+import { type Establishment, calculateDistanceKm } from '../../composables/useWhereToStayEat'
 import { useGoogleMaps } from '../../composables/useGooglemaps'
 import { 
   Building2, 
@@ -10,20 +10,22 @@ import {
   Check, 
   Navigation, 
   ExternalLink, 
-  Compass, 
-  Info,
-  Maximize2
+  Route,
 } from '@lucide/vue'
 
 interface Props {
   establishment: Establishment | null
-  customLocation?: { lat: number; lng: number } | null
+  userLocation?: { lat: number; lng: number } | null
+  routeDistance?: string | null
+  routeDuration?: string | null
   height?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   height: '620px',
-  customLocation: null
+  userLocation: null,
+  routeDistance: null,
+  routeDuration: null
 })
 
 const emit = defineEmits<{
@@ -38,8 +40,23 @@ const copiedState = ref(false)
 
 const { loadGoogleMaps, getNearestPanorama } = useGoogleMaps()
 
+const directDistanceToUser = computed(() => {
+  if (!props.userLocation || !props.establishment?.coordinates) return null
+  return calculateDistanceKm(props.userLocation, props.establishment.coordinates)
+})
+
+const directionsUrl = computed(() => {
+  if (props.userLocation && props.establishment?.coordinates) {
+    return `https://www.google.com/maps/dir/?api=1&origin=${props.userLocation.lat},${props.userLocation.lng}&destination=${props.establishment.coordinates.lat},${props.establishment.coordinates.lng}&travelmode=driving`
+  }
+  if (props.establishment) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(props.establishment.name + ' ' + (props.establishment.address || 'San Francisco Agusan del Sur'))}`
+  }
+  return 'https://www.google.com/maps'
+})
+
 async function updateStreetViewPosition() {
-  const targetCoords = props.customLocation || props.establishment?.coordinates
+  const targetCoords = props.establishment?.coordinates
   if (!targetCoords) return
 
   loading.value = true
@@ -91,79 +108,40 @@ onMounted(() => {
   updateStreetViewPosition()
 })
 
-watch(() => [props.establishment, props.customLocation], () => {
+watch(() => props.establishment, () => {
   updateStreetViewPosition()
 }, { deep: true })
 </script>
 
 <template>
-  <div class="relative w-full rounded-xl overflow-hidden border border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#171717] shadow-lg flex flex-col" :style="{ height }">
-    
-    <!-- Header Bar -->
-    <div class="bg-[#1e293b] text-[#ffffff] px-4 py-3 flex items-center justify-between z-10 border-b border-[#334155]">
-      <div class="flex items-center gap-2">
-        <Compass :size="18" class="text-[#facc15] animate-pulse" />
-        <span class="text-xs font-bold uppercase tracking-wider">
-         Street View & Location View
-        </span>
-      </div>
-      <span v-if="establishment" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#334155] text-[#e2e8f0]">
-        {{ establishment.category }}
-      </span>
-      <span v-else-if="customLocation" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#85181a] text-[#ffffff]">
-        Custom Map Location
-      </span>
-    </div>
-
-    <!-- Panorama View Container -->
-    <div class="relative flex-1 w-full bg-[#0f172a]">
-      <div ref="containerRef" class="w-full h-full" />
-
-      <!-- Loading State Overlay -->
-      <div v-if="loading" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#0f172a]/90 text-[#ffffff] p-6 text-center space-y-3">
-        <div class="w-8 h-8 border-3 border-[#85181a] border-t-transparent rounded-full animate-spin"></div>
-        <p class="text-xs font-medium text-[#94a3b8]">Loading Street View 360° panorama for marked location...</p>
-      </div>
-
-      <!-- Empty / Fallback State -->
-      <div v-if="!establishment && !customLocation" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#0f172a] text-[#ffffff] p-8 text-center space-y-4">
-        <div class="p-4 rounded-full bg-[#1e293b] text-[#94a3b8]">
-          <Building2 :size="36" />
-        </div>
-        <div class="space-y-1 max-w-sm">
-          <h4 class="text-base font-bold text-[#f8fafc]">Select or Click Map Location</h4>
-          <p class="text-xs text-[#94a3b8]">
-            Click anywhere on the map or select a pin to point the 360° Street View directly to that spot.
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Bottom Floating Details Card (Overlaid at bottom of Street View) -->
-    <div v-if="establishment || customLocation" class="z-20 bg-[#ffffff] dark:bg-[#1e293b] border-t border-[#dfdfdf] dark:border-[#334155] p-4 sm:p-5 space-y-3 text-[#171717] dark:text-[#ffffff]">
-      
-      <div class="flex items-start justify-between gap-3">
+  <div class="w-full overflow-hidden flex flex-col" :style="{ height }">
+     <div v-if="establishment" class="z-20 py-4 sm:py-5 space-y-3 text-[#171717] dark:text-[#ffffff]">
+      <div class="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h3 class="text-lg font-extrabold text-[#171717] dark:text-[#ffffff] leading-snug">
-            {{ establishment ? establishment.name : 'Marked Map Location' }}
+            {{ establishment.name }}
           </h3>
           <div class="flex items-center gap-2 mt-1 text-xs text-[#64748b] dark:text-[#94a3b8]">
             <MapPin :size="13" class="text-[#85181a] dark:text-[#ef4444]" />
-            <span>{{ establishment ? establishment.address : 'San Francisco, Agusan del Sur' }}</span>
+            <span>{{ establishment.address || 'San Francisco, Agusan del Sur' }}</span>
           </div>
         </div>
-      </div>
 
-      <!-- Contact & Action Buttons -->
-      <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#f1f5f9] dark:border-[#334155]">
-        
-        <!-- Phone number if available -->
+        <div v-if="userLocation && (routeDistance || directDistanceToUser)" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#85181a]/10 dark:bg-[#ef4444]/20 text-[#85181a] dark:text-[#ef4444] text-xs font-bold border border-[#85181a]/20 dark:border-[#ef4444]/30">
+          <Route :size="13" />
+          <span>{{ routeDistance || directDistanceToUser?.distanceText }} from your location</span>
+          <span v-if="routeDuration" class="text-[11px] font-normal text-[#707070] dark:text-[#cbd5e1]">
+            ({{ routeDuration }})
+          </span>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-2 pt-2">
         <div v-if="establishment?.contactNo" class="flex items-center gap-2 text-xs font-bold text-[#1e293b] dark:text-[#f8fafc]">
           <Phone :size="14" class="text-[#85181a] dark:text-[#ef4444]" />
           <span>{{ establishment.contactNo }}</span>
           <button 
             type="button" 
-            class="p-1 rounded hover:bg-[#f1f5f9] dark:hover:bg-[#334155] text-[#64748b] transition-colors" 
+            class="p-1 hover:bg-[#f1f5f9] dark:hover:bg-[#334155] text-[#64748b] transition-colors" 
             title="Copy phone"
             @click="copyPhone(establishment.contactNo)"
           >
@@ -172,19 +150,19 @@ watch(() => [props.establishment, props.customLocation], () => {
           </button>
         </div>
         <div v-else class="text-xs italic text-[#94a3b8]">
-          {{ establishment ? 'No contact number recorded' : 'Click any establishment pin for contact details' }}
+          {{ 'No contact number' }}
         </div>
 
         <!-- Directions CTA -->
         <div class="flex items-center gap-2">
           <a
-            :href="`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((establishment?.name || 'San Francisco Agusan del Sur') + ' ' + (establishment?.address || ''))}`"
+            :href="directionsUrl"
             target="_blank"
             rel="noopener noreferrer"
             class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#ffffff] bg-[#85181a] hover:bg-[#a11e20] dark:bg-[#ef4444] dark:hover:bg-[#dc2626] transition-all shadow-xs"
           >
             <Navigation :size="13" />
-            <span>Open in Google Maps</span>
+            <span>{{ userLocation ? 'Navigate from My Location' : 'Open in Google Maps' }}</span>
             <ExternalLink :size="12" />
           </a>
         </div>
@@ -193,5 +171,30 @@ watch(() => [props.establishment, props.customLocation], () => {
 
     </div>
 
+    <div class="bg-[#1e293b] text-[#ffffff] px-4 py-3 flex items-center justify-between z-10 border-b border-[#334155]">
+      <span v-if="establishment" class="text-xs font-semibold px-2.5 py-0.5 rounded-sm bg-[#334155] text-[#e2e8f0]">
+        {{ establishment.category }}
+      </span>
+    </div>
+    <div class="relative flex-1 w-full bg-[#0f172a]">
+      <div ref="containerRef" class="w-full h-full" />
+      <div v-if="loading" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#0f172a]/90 text-[#ffffff] p-6 text-center space-y-3">
+        <div class="w-8 h-8 border-3 border-[#85181a] border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-xs font-medium text-[#94a3b8]">Loading Street View 360° panorama for destination...</p>
+      </div>
+      <div v-if="!establishment" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#0f172a] text-[#ffffff] p-8 text-center space-y-4">
+        <div class="p-4 rounded-full bg-[#1e293b] text-[#94a3b8]">
+          <Building2 :size="36" />
+        </div>
+        <div class="space-y-1 max-w-sm">
+          <h4 class="text-base font-bold text-[#f8fafc]">Select an Establishment</h4>
+          <p class="text-xs text-[#94a3b8]">
+            Click any hotel, resort, restaurant, or cafe from the directory below to view its 360° Street View and navigation route.
+          </p>
+        </div>
+      </div>
+    </div>
+
+   
   </div>
 </template>

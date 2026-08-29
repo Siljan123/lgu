@@ -17,20 +17,18 @@ describe('WhereToStayStreetView Component', () => {
   it('renders empty fallback prompt when no location is provided', async () => {
     const wrapper = await mountSuspended(WhereToStayStreetView, {
       props: {
-        establishment: null,
-        customLocation: null
+        establishment: null
       }
     })
 
-    expect(wrapper.text()).toContain('Select or Click Map Location')
-    expect(wrapper.text()).toContain('Street View & Location View')
+    expect(wrapper.text()).toContain('Select an Establishment')
+    expect(wrapper.text()).toContain('360° Street View')
   })
 
   it('renders establishment name, address, category, and phone number when establishment is passed', async () => {
     const wrapper = await mountSuspended(WhereToStayStreetView, {
       props: {
-        establishment: sampleEstablishment,
-        customLocation: null
+        establishment: sampleEstablishment
       }
     })
 
@@ -41,15 +39,22 @@ describe('WhereToStayStreetView Component', () => {
     expect(wrapper.text()).toContain('Open in Google Maps')
   })
 
-  it('renders custom location badge when customLocation is set', async () => {
+  it('renders distance badge and Navigate from My Location CTA when userLocation is set', async () => {
     const wrapper = await mountSuspended(WhereToStayStreetView, {
       props: {
-        establishment: null,
-        customLocation: { lat: 8.5042, lng: 125.9786 }
+        establishment: sampleEstablishment,
+        userLocation: { lat: 8.5042, lng: 125.9786 },
+        routeDistance: '2.5 km',
+        routeDuration: '5 mins'
       }
     })
 
-    expect(wrapper.text()).toContain('Custom Map Location')
-    expect(wrapper.text()).toContain('Marked Map Location')
+    expect(wrapper.text()).toContain('2.5 km from your location')
+    expect(wrapper.text()).toContain('(5 mins)')
+    expect(wrapper.text()).toContain('Navigate from My Location')
+    const link = wrapper.find('a')
+    expect(link.attributes('href')).toContain('google.com/maps/dir/')
+    expect(link.attributes('href')).toContain('origin=8.5042,125.9786')
+    expect(link.attributes('href')).toContain('destination=8.5056,125.9945')
   })
 })

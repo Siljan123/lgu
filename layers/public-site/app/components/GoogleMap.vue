@@ -24,6 +24,8 @@ interface Props {
   showStreetViewBtn?: boolean
   routeOrigin?: google.maps.LatLngLiteral | string | null
   routeDestination?: google.maps.LatLngLiteral | string | null
+  routeOriginTitle?: string
+  routeDestinationTitle?: string
   travelMode?: 'DRIVING' | 'WALKING' | 'BICYCLING' | 'TRANSIT'
   showRouteSummary?: boolean
   mapTypeId?: 'hybrid' | 'roadmap' | 'satellite' | 'terrain'
@@ -31,7 +33,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   center: () => ({ lat: 8.5042, lng: 125.9786 }),
-  zoom: 15,
+  zoom: 20,
   markers: () => [],
   height: '300px',
   showSearch: false,
@@ -39,6 +41,8 @@ const props = withDefaults(defineProps<Props>(), {
   showStreetViewBtn: true,
   routeOrigin: null,
   routeDestination: null,
+  routeOriginTitle: '',
+  routeDestinationTitle: '',
   travelMode: 'DRIVING',
   showRouteSummary: true,
   mapTypeId: 'hybrid',
@@ -74,7 +78,7 @@ const routeEndMarker = shallowRef<google.maps.Marker | null>(null)
 const currentRouteResult = ref<RouteCalculationResult | null>(null)
 const routeLoading = ref(false)
 
-const { loadGoogleMaps, createMap, createMarker, geocodeAddress, getNearestPanorama, calculateDirections } = useGoogleMaps()
+const { loadGoogleMaps, createMap, createMarker, geocodeAddress,  calculateDirections } = useGoogleMaps()
 
 async function renderMarkers() {
   if (!map.value) return
@@ -147,7 +151,7 @@ async function renderRoutePath() {
     if (result.directionsResult && typeof google !== 'undefined' && google.maps && google.maps.DirectionsRenderer) {
       directionsRenderer.value = new google.maps.DirectionsRenderer({
         map: map.value,
-        suppressMarkers: false,
+        suppressMarkers: true,
         polylineOptions: {
           strokeColor: '#85181a',
           strokeWeight: 5,
@@ -155,6 +159,27 @@ async function renderRoutePath() {
         },
       })
       directionsRenderer.value.setDirections(result.directionsResult)
+
+      if (props.markers.length === 0) {
+        const leg = result.directionsResult.routes?.[0]?.legs?.[0]
+        const originLoc = leg?.start_location
+        const destLoc = leg?.end_location
+
+        if (originLoc) {
+          routeStartMarker.value = new google.maps.Marker({
+            map: map.value,
+            position: originLoc,
+            title: props.routeOriginTitle || leg?.start_address || 'Starting Location',
+          })
+        }
+        if (destLoc) {
+          routeEndMarker.value = new google.maps.Marker({
+            map: map.value,
+            position: destLoc,
+            title: props.routeDestinationTitle || leg?.end_address || 'Destination',
+          })
+        }
+      }
     } else if (result.path && result.path.length > 0) {
       // Custom Polyline Fallback
       routePolyline.value = new google.maps.Polyline({
@@ -169,19 +194,19 @@ async function renderRoutePath() {
       const originPt = result.path[0]!
       const destPt = result.path[result.path.length - 1]!
 
-      routeStartMarker.value = new google.maps.Marker({
-        map: map.value,
-        position: originPt,
-        title: 'Start Location',
-        label: 'A',
-      })
+      if (props.markers.length === 0) {
+        routeStartMarker.value = new google.maps.Marker({
+          map: map.value,
+          position: originPt,
+          title: props.routeOriginTitle || (typeof props.routeOrigin === 'string' ? props.routeOrigin : 'Starting Location'),
+        })
 
-      routeEndMarker.value = new google.maps.Marker({
-        map: map.value,
-        position: destPt,
-        title: 'Destination',
-        label: 'B',
-      })
+        routeEndMarker.value = new google.maps.Marker({
+          map: map.value,
+          position: destPt,
+          title: props.routeDestinationTitle || (typeof props.routeDestination === 'string' ? props.routeDestination : 'Destination'),
+        })
+      }
 
       if (typeof google !== 'undefined' && google.maps && google.maps.LatLngBounds) {
         const bounds = new google.maps.LatLngBounds()
@@ -256,29 +281,6 @@ function applySearchResult(location: google.maps.LatLngLiteral, label: string) {
   }
 
   emit('search', { address: label, location })
-}
-
-function clearSearch() {
-  searchQuery.value = ''
-  if (searchMarker.value) {
-    searchMarker.value.setMap(null)
-    searchMarker.value = null
-  }
-}
-
-async function toggleStreetView() {
-  if (!map.value) return
-  const panorama = map.value.getStreetView()
-  const visible = panorama.getVisible()
-  if (!visible) {
-    const targetLoc = searchMarker.value?.getPosition() || map.value.getCenter()
-    if (!targetLoc) return
-    const nearest = await getNearestPanorama(targetLoc, 5000)
-    panorama.setPosition(nearest || targetLoc)
-    panorama.setVisible(true)
-  } else {
-    panorama.setVisible(false)
-  }
 }
 
 function setupStreetViewListener() {
@@ -358,25 +360,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="relative w-full overflow-hidden rounded-xl border border-[#dfdfdf] dark:border-[#2e2e2e] shadow-md bg-[#ffffff] dark:bg-[#202020]" :style="{ height }">
-
+  <div class="relative w-full overflow-hidden rounded-md border border-[#dfdfdf] dark:border-[#2e2e2e] shadow-md bg-[#ffffff] dark:bg-[#202020]" :style="{ height }">
     <div ref="mapContainer" class="h-full w-full" />
-
-    <div
-      v-if="showRouteSummary && currentRouteResult"
-      class="absolute top-2 left-50 z-10 max-w-70 sm:max-w-xs bg-[#ffffff]/90 dark:bg-[#181818]/90 backdrop-blur-md p-3 rounded-xl border border-[#dfdfdf] dark:border-[#333333] shadow-lg text-xs space-y-1.5"
-    >
-      <div class="flex items-center justify-between text-[#171717] dark:text-[#ffffff] font-medium">
-        <span>Distance: <strong>{{ currentRouteResult.distanceText }}</strong></span>
-      </div>
-      <p v-if="currentRouteResult.isFallbackPolyline" class="text-[10px] text-[#707070] dark:text-[#a3a3a3] italic">
-        Direct polyline connecting landmarks
-      </p>
-    </div>
 
     <div v-if="pending || routeLoading" class="absolute inset-0 flex items-center justify-center bg-[#ffffff]/60 dark:bg-[#171717]/60 backdrop-blur-xs z-20">
       <span class="text-sm font-semibold text-[#707070] dark:text-[#a3a3a3] animate-pulse">
-        {{ routeLoading ? 'Calculating Route Line…' : 'Loading Map…' }}
+        {{ routeLoading ? 'Calculating Route …' : 'Loading Map…' }}
       </span>
     </div>
 
@@ -385,18 +374,6 @@ onBeforeUnmount(() => {
     </div>
   </div>
 </template>
-
-<style>
-/* Remove native top-right X close button from Google Maps InfoWindow */
-.gm-ui-hover-effect {
-  display: none !important;
-}
-
-/* Adjust InfoWindow content container padding for custom Close button */
-.gm-style-iw-c {
-  padding-right: 12px !important;
-}
-</style>
 
 
 <style>

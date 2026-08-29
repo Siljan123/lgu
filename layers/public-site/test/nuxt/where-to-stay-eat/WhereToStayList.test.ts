@@ -41,7 +41,43 @@ describe('WhereToStayList Component', () => {
     expect(wrapper.text()).toContain('Grand Hotel')
     expect(wrapper.text()).toContain('Local Diner')
     expect(wrapper.text()).toContain('No Image Available')
-    expect(wrapper.text()).toContain('Focus on Map / View 360°')
+    expect(wrapper.text()).toContain('Focus on Map')
+  })
+
+  it('renders distance badge and Get Route button when userLocation is set', async () => {
+    const wrapper = await mountSuspended(WhereToStayList, {
+      props: {
+        establishments: sampleList,
+        totalCount: 2,
+        currentPage: 1,
+        itemsPerPage: 9,
+        viewMode: 'grid',
+        currentCategory: 'All',
+        userLocation: { lat: 8.5042, lng: 125.9786 }
+      }
+    })
+
+    expect(wrapper.text()).toContain('away')
+    expect(wrapper.text()).toContain('Get Route')
+  })
+
+  it('renders table view with distance tags when userLocation is set', async () => {
+    const wrapper = await mountSuspended(WhereToStayList, {
+      props: {
+        establishments: sampleList,
+        totalCount: 2,
+        currentPage: 1,
+        itemsPerPage: 9,
+        viewMode: 'table',
+        currentCategory: 'All',
+        userLocation: { lat: 8.5042, lng: 125.9786 }
+      }
+    })
+
+    expect(wrapper.find('table').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Grand Hotel')
+    expect(wrapper.text()).toContain('Local Diner')
+    expect(wrapper.text()).toContain('09123456789')
   })
 
   it('renders table view when viewMode is table', async () => {
@@ -89,7 +125,7 @@ describe('WhereToStayList Component', () => {
       }
     })
 
-    const focusButton = wrapper.findAll('button').find(b => b.text().includes('Focus on Map'))
+    const focusButton = wrapper.findAll('button').find(b => b.text().includes('Focus on Map') || b.text().includes('Get Route'))
     expect(focusButton).toBeDefined()
     await focusButton?.trigger('click')
 
