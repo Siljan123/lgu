@@ -105,76 +105,8 @@ const selectSubCategory = (subCat: string) => {
 </script>
 
 <template>
-  <div class="w-full bg-[#ffffff] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#2e2e2e] rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
+  <div class="w-full bg-[#ffffff] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#2e2e2e] rounded-sm p-4 sm:p-5 shadow-sm space-y-4">
     
-    <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#dfdfdf] dark:border-[#2e2e2e]">
-      <div class="flex items-center gap-2 overflow-x-auto py-1 max-w-full">
-        <!-- ALL -->
-        <button
-          type="button"
-          class="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0"
-          :class="[
-            activeMainCategory === 'All'
-              ? 'bg-[#85181a] text-[#ffffff] shadow-md dark:bg-[#ef4444]'
-              : 'bg-[#fafafa] dark:bg-[#1a1a1a] text-[#171717] dark:text-[#e5e5e5] hover:bg-[#eaeaea] dark:hover:bg-[#2e2e2e]'
-          ]"
-          @click="selectMainCategory('All')"
-        >
-          <Layers :size="16" />
-          <span>All Places</span>
-          <span class="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-black/20 text-[#ffffff] font-medium">
-            {{ totalCount }}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          class="px-4 py-2 rounded-md text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0"
-          :class="[
-            activeMainCategory === 'Where to Stay'
-              ? 'bg-[#85181a] text-[#ffffff] shadow-md dark:bg-[#ef4444]'
-              : 'bg-[#fafafa] dark:bg-[#1a1a1a] text-[#171717] dark:text-[#e5e5e5] hover:bg-[#eaeaea] dark:hover:bg-[#2e2e2e]'
-          ]"
-          @click="selectMainCategory('Where to Stay')"
-        >
-          <Hotel :size="16" />
-          <span>Where to Stay</span>
-          <span 
-            v-if="mainCategoryCounts['Where to Stay'] !== undefined" 
-            class="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-black/20 text-[#ffffff] font-medium"
-          >
-            {{ mainCategoryCounts['Where to Stay'] }}
-          </span>
-        </button>
-
-        <!-- WHERE TO EAT -->
-        <button
-          type="button"
-          class="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shrink-0"
-          :class="[
-            activeMainCategory === 'Where to Eat'
-              ? 'bg-[#85181a] text-[#ffffff] shadow-md dark:bg-[#ef4444]'
-              : 'bg-[#fafafa] dark:bg-[#1a1a1a] text-[#171717] dark:text-[#e5e5e5] hover:bg-[#eaeaea] dark:hover:bg-[#2e2e2e]'
-          ]"
-          @click="selectMainCategory('Where to Eat')"
-        >
-          <Utensils :size="16" />
-          <span>Where to Eat</span>
-          <span 
-            v-if="mainCategoryCounts['Where to Eat'] !== undefined" 
-            class="ml-1 text-[11px] px-2 py-0.5 rounded-full bg-black/20 text-[#ffffff] font-medium"
-          >
-            {{ mainCategoryCounts['Where to Eat'] }}
-          </span>
-        </button>
-      </div>
-
-      <div class="text-xs font-semibold text-[#707070] dark:text-[#a3a3a3]">
-        Showing {{ filteredCount }} of {{ totalCount }} establishments
-      </div>
-    </div>
-
-    <!-- Search & Subcategory & Barangay Filter Controls -->
     <div class="flex flex-col md:flex-row items-stretch md:items-center gap-3">
       
       <!-- Search Input -->
@@ -186,8 +118,8 @@ const selectSubCategory = (subCat: string) => {
           <input 
             type="text"
             :value="searchQuery"
-            placeholder="Search hotel, restaurant, cafe, resort, homestay or street..."
-            class="w-full pl-10 pr-10 py-3 text-sm rounded-xl border border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#fafafa] dark:bg-[#1a1a1a] text-[#171717] dark:text-[#ffffff] placeholder-[#9a9a9a] dark:placeholder-[#707070] focus:outline-none focus:ring-2 focus:ring-[#85181a] dark:focus:ring-[#ef4444] transition-all font-medium shadow-2xs"
+            placeholder="search hotel, restaurant, cafe, resort, homestay..."
+            class="w-full pl-10 pr-10 py-3 text-sm rounded-sm border border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#fafafa] dark:bg-[#1a1a1a] text-[#171717] dark:text-[#ffffff] placeholder-[#9a9a9a] dark:placeholder-[#707070] focus:outline-none focus:ring-2 focus:ring-[#85181a] dark:focus:ring-[#ef4444] transition-all font-medium shadow-2xs"
             @input="onInputSearch"
             @focus="isDropdownOpen = true"
           />
@@ -201,10 +133,9 @@ const selectSubCategory = (subCat: string) => {
           </button>
         </div>
 
-        <!-- Search Auto-complete Dropdown -->
         <div 
           v-if="isDropdownOpen && searchQuery.trim() && searchDropdownResults.length > 0"
-          class="absolute left-0 right-0 top-full mt-2 z-50 bg-[#ffffff] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#333333] rounded-xl shadow-2xl overflow-hidden max-h-80 overflow-y-auto divide-y divide-[#ededed] dark:divide-[#2e2e2e]"
+          class="absolute left-0 right-0 top-full mt-2 z-50 bg-[#ffffff] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#333333] rounded-sm  overflow-hidden max-h-80 overflow-y-auto divide-y divide-[#ededed] dark:divide-[#2e2e2e]"
         >
           <div class="px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-[#9a9a9a] bg-[#fafafa] dark:bg-[#1a1a1a]">
             Matching Places ({{ searchDropdownResults.length }})
@@ -217,7 +148,7 @@ const selectSubCategory = (subCat: string) => {
             @mousedown.prevent="selectSearchResult(item)"
           >
             <div class="flex items-center gap-3 min-w-0">
-              <div class="p-2 rounded-lg bg-[#fafafa] dark:bg-[#1a1a1a] text-[#85181a] dark:text-[#ef4444] shrink-0 border border-[#dfdfdf] dark:border-[#333333]">
+              <div class="p-2 rounded-sm bg-[#fafafa] dark:bg-[#1a1a1a] text-[#85181a] dark:text-[#ef4444] shrink-0 border border-[#dfdfdf] dark:border-[#333333]">
                 <Hotel v-if="item.mainCategory === 'Where to Stay'" :size="16" />
                 <Utensils v-else :size="16" />
               </div>
@@ -237,10 +168,10 @@ const selectSubCategory = (subCat: string) => {
       <div class="md:w-64 shrink-0">
         <select 
           :value="selectedSubCategory !== 'All' ? selectedSubCategory : (selectedCategory !== 'All' && selectedCategory !== 'Where to Stay' && selectedCategory !== 'Where to Eat' ? selectedCategory : 'All')" 
-          class="w-full py-3 px-3.5 text-sm rounded-xl border border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#fafafa] dark:bg-[#1a1a1a] text-[#171717] dark:text-[#ffffff] focus:outline-none focus:ring-2 focus:ring-[#85181a] dark:focus:ring-[#ef4444] transition-all cursor-pointer font-semibold shadow-2xs"
+          class="w-full py-3 px-3.5 text-sm rounded-sm border border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#fafafa] dark:bg-[#1a1a1a] text-[#171717] dark:text-[#ffffff] focus:outline-none focus:ring-2 focus:ring-[#85181a] dark:focus:ring-[#ef4444] transition-all cursor-pointer font-semibold shadow-2xs"
           @change="selectSubCategory(($event.target as HTMLSelectElement).value)"
         >
-          <option value="All">All Subcategories</option>
+          <option value="All">All categories</option>
           <option 
             v-for="cat in categories" 
             :key="cat" 
@@ -250,21 +181,6 @@ const selectSubCategory = (subCat: string) => {
           </option>
         </select>
       </div>
-
-      <div class="md:w-52 shrink-0">
-        <select 
-          :value="selectedBarangay" 
-          class="w-full py-3 px-3.5 text-sm rounded-xl border border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#fafafa] dark:bg-[#1a1a1a] text-[#171717] dark:text-[#ffffff] focus:outline-none focus:ring-2 focus:ring-[#85181a] dark:focus:ring-[#ef4444] transition-all cursor-pointer font-medium shadow-2xs"
-          @change="emit('update:selectedBarangay', ($event.target as HTMLSelectElement).value)"
-        >
-          <option value="All">All Barangays</option>
-          <option v-for="brgy in barangays.filter(b => b !== 'All')" :key="brgy" :value="brgy">
-            {{ brgy }}
-          </option>
-        </select>
-      </div>
-
     </div>
-
   </div>
 </template>

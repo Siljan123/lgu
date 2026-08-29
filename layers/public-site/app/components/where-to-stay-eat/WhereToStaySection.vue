@@ -18,7 +18,12 @@ import {
   Table,
   Eye,
   Layers,
-  LayoutGrid
+  LayoutGrid,
+  Locate,
+  LocateFixed,
+  Route,
+  AlertCircle,
+  RotateCcw
 } from '@lucide/vue'
 
 const {
@@ -42,17 +47,23 @@ const {
   paginatedEstablishments,
   establishmentsData,
   mapMarkers,
+  userLocation,
+  isLocating,
+  locationError,
+  travelMode,
+  routeCalculationResult,
   selectMainCategory,
   selectSubCategory,
   selectCategory,
   selectBarangay,
-  selectEstablishment
+  selectEstablishment,
+  requestUserLocation,
 } = useWhereToStayEat()
 
 const mapCenter = ref({ lat: 8.5042, lng: 125.9786 })
 const mapZoom = ref(15)
-const customMarkedLocation = ref<{ lat: number; lng: number } | null>(null)
 const mapViewContainerRef = ref<HTMLElement | null>(null)
+const showLocationBanner = ref(true)
 
 // Auto-select first establishment in category if none is selected
 onMounted(() => {
@@ -60,7 +71,6 @@ onMounted(() => {
     selectEstablishment(filteredEstablishments.value[0]!)
     if (filteredEstablishments.value[0]?.coordinates) {
       mapCenter.value = filteredEstablishments.value[0].coordinates!
-      customMarkedLocation.value = filteredEstablishments.value[0].coordinates!
     }
   }
 })
@@ -70,7 +80,6 @@ watch(filteredEstablishments, (newList) => {
     selectEstablishment(newList[0]!)
     if (newList[0]?.coordinates) {
       mapCenter.value = newList[0].coordinates!
-      customMarkedLocation.value = newList[0].coordinates!
     }
   }
 })
@@ -79,8 +88,7 @@ const onSelectEstablishment = (item: Establishment, shouldScroll = true) => {
   selectEstablishment(item)
   if (item.coordinates) {
     mapCenter.value = item.coordinates
-    customMarkedLocation.value = item.coordinates
-    mapZoom.value = 17
+    mapZoom.value = 16
   }
 
   // Smoothly scroll back to top Map & Street View container when Focus button is clicked
@@ -89,47 +97,162 @@ const onSelectEstablishment = (item: Establishment, shouldScroll = true) => {
   }
 }
 
-// Handle arbitrary clicks anywhere on the Google Map to point Street View
-const handleMapClick = (e: google.maps.MapMouseEvent) => {
-  if (e.latLng) {
-    const coords = { lat: e.latLng.lat(), lng: e.latLng.lng() }
-    customMarkedLocation.value = coords
-
-    // Check if click is near any establishment
-    const matched = establishmentsData.find(item => {
-      if (!item.coordinates) return false
-      const dLat = Math.abs(item.coordinates.lat - coords.lat)
-      const dLng = Math.abs(item.coordinates.lng - coords.lng)
-      return dLat < 0.0025 && dLng < 0.0025
-    })
-
-    if (matched) {
-      selectEstablishment(matched)
-    } else {
-      selectEstablishment(null)
-    }
-  }
-}
-
 const handleMarkerClick = (marker: any, index: number) => {
-  const matchingItem = filteredEstablishments.value[index]
-  if (matchingItem) {
-    onSelectEstablishment(matchingItem, false)
+  // Check if clicked marker is the user's location marker
+  const markerConfig = mapMarkers.value[index]
+  if (markerConfig?.isUserLocation) {
+    if (userLocation.value) {
+      mapCenter.value = userLocation.value
+      mapZoom.value = 17
+    }
+    return
+  }
+
+  if (selectedEstablishment.value) {
+    onSelectEstablishment(selectedEstablishment.value, false)
   }
 }
+
+const handleRouteCalculated = (result: any) => {
+  routeCalculationResult.value = result
+}
+
+const onLocateMeClick = async () => {
+  showLocationBanner.value = true
+  try {
+    const coords = await requestUserLocation({ enableHighAccuracy: true, watch: true })
+    mapCenter.value = coords
+    mapZoom.value = 16
+  } catch {
+  }
+}
+
+const centerOnUser = () => {
+  if (userLocation.value) {
+    mapCenter.value = userLocation.value
+    mapZoom.value = 17
+  }
+}
+
+const startPointLabel = computed(() => {
+  if (userLocation.value) {
+    return 'Your Device GPS Location'
+  }
+  return 'Your Starting Location'
+})
+
+const activeDestinationCoords = computed(() => {
+  return selectedEstablishment.value?.coordinates || null
+})
+
+const activeDestinationName = computed(() => {
+  return selectedEstablishment.value?.name || null
+})
 </script>
 
 <template>
-  <section class="w-full py-4 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto space-y-6">
+  <section class="w-full py-4 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">
     
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div>
         <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#171717] dark:text-[#ffffff]">
-          <span>Interactive Directory Map & Street View 360°</span>
+          <span>Interactive Directory Map & Street View </span>
         </h2>
         <p class="text-xs sm:text-sm text-[#707070] dark:text-[#a3a3a3] mt-1">
-          Discover places to stay (Hotels, Inns, Homestays, Resorts) and places to eat (Restaurants, Eateries, Cafes, Local Food Stalls) across San Francisco, Agusan del Sur.
+          Discover places to stay (Hotels, Inns, Homestays, Resorts) and places to eat (Restaurants, Eateries, Cafes, Local Food Stalls) across San Francisco, Agusan del Sur with GPS route line directions.
         </p>
+      </div>
+    </div>
+
+    <div ref="mapViewContainerRef" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start scroll-mt-24">
+      <div class="lg:col-span-6 space-y-3">
+        <div class="flex items-center justify-between px-1">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-[#707070] dark:text-[#a3a3a3] flex items-center gap-1.5">
+            <MapPin :size="15" class="text-[#85181a] dark:text-[#ef4444]" />
+            Location Map — {{ selectedCategory !== 'All' ? selectedCategory : 'Where to Stay & Eat' }}
+          </h3>
+        </div>
+
+        <GoogleMap 
+          :center="mapCenter"
+          :zoom="mapZoom"
+          :markers="mapMarkers"
+          :route-origin="userLocation"
+          :route-destination="activeDestinationCoords"
+          :route-origin-title="startPointLabel"
+          :route-destination-title="selectedEstablishment ? `${selectedEstablishment.name} (${selectedEstablishment.address})` : 'Destination'"
+          :travel-mode="travelMode"
+          :show-route-summary="true"
+          height="540px"
+          center-address="San Francisco, Agusan del Sur, Philippines"
+          @marker-click="handleMarkerClick"
+          @route-calculated="handleRouteCalculated"
+        />
+      </div>
+
+    <div class="lg:col-span-6 lg:sticky lg:top-20 space-y-3">
+        <WhereToStayStreetView 
+          :establishment="selectedEstablishment"
+          :user-location="userLocation"
+          :route-distance="routeCalculationResult?.distanceText"
+          :route-duration="routeCalculationResult?.durationText"
+          height="580px"
+        />
+      </div>
+    </div>
+    <div class="space-y-3 mt-8">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            class="px-4 py-2.5 rounded-sm text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-xs"
+            :class="[
+              userLocation 
+                ? 'bg-[#10b981] text-[#ffffff] hover:bg-[#059669]' 
+                : isLocating 
+                  ? 'bg-[#85181a]/20 text-[#85181a] dark:text-[#ef4444]' 
+                  : 'bg-[#85181a] text-[#ffffff] hover:bg-[#a11e20] dark:bg-[#ef4444] dark:hover:bg-[#dc2626]'
+            ]"
+            :disabled="isLocating"
+            title="Detect your device GPS location and draw route line to chosen destination"
+            @click="onLocateMeClick"
+          >
+            <div v-if="isLocating" class="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+            <LocateFixed v-else-if="userLocation" :size="15" class="animate-pulse" />
+            <Locate v-else :size="15" />
+
+            <span>
+              {{ isLocating ? 'Detecting GPS…' : userLocation ? 'GPS Tracking Active' : 'Use My Device GPS' }}
+            </span>
+          </button>
+          <button
+            v-if="userLocation"
+            type="button"
+            class="px-3 py-2 rounded-sm text-xs font-semibold text-[#707070] dark:text-[#a3a3a3] hover:text-[#171717] dark:hover:text-[#ffffff] bg-[#fafafa] dark:bg-[#1a1a1a] border border-[#dfdfdf] dark:border-[#2e2e2e] transition-colors cursor-pointer"
+            title="Recenter map on your location"
+            @click="centerOnUser"
+          >
+            <span>Center on Me</span>
+          </button>
+        </div>
+      </div>
+
+   
+      <div 
+        v-if="locationError && showLocationBanner" 
+        class="flex flex-row items-center justify-between gap-3 p-3 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs"
+      >
+        <div class="flex items-center gap-2">
+          <AlertCircle :size="16" class="shrink-0 text-amber-600 dark:text-amber-400" />
+          <span>{{ locationError }}</span>
+        </div>
+        <button 
+          type="button" 
+          class="text-amber-800 dark:text-amber-300 hover:text-amber-950 dark:hover:text-white shrink-0 cursor-pointer"
+          @click="showLocationBanner = false"
+        >
+          <X :size="14" />
+        </button>
       </div>
     </div>
 
@@ -154,40 +277,6 @@ const handleMarkerClick = (marker: any, index: number) => {
       @update:search-query="searchQuery = $event"
       @select-establishment="onSelectEstablishment($event, true)"
     />
-
-    <!-- Main Split Layout: Clean Map ON THE LEFT, Street View ON THE RIGHT -->
-    <div ref="mapViewContainerRef" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start scroll-mt-24">
-      
-      <!-- LEFT COLUMN: Clean Google Map -->
-      <div class="lg:col-span-6 space-y-3">
-        <div class="flex items-center justify-between px-1">
-          <h3 class="text-xs font-bold uppercase tracking-wider text-[#707070] dark:text-[#a3a3a3] flex items-center gap-1.5">
-            <MapPin :size="15" class="text-[#85181a] dark:text-[#ef4444]" />
-            Location Map — {{ selectedCategory !== 'All' ? selectedCategory : 'Where to Stay & Eat' }} (Click any point or pin to update Street View)
-          </h3>
-        </div>
-
-        <GoogleMap 
-          :center="mapCenter"
-          :zoom="mapZoom"
-          :markers="mapMarkers"
-          height="540px"
-          center-address="San Francisco, Agusan del Sur, Philippines"
-          @click="handleMapClick"
-          @marker-click="handleMarkerClick"
-        />
-      </div>
-
-      <div class="lg:col-span-6 lg:sticky lg:top-20 space-y-3">
-        <WhereToStayStreetView 
-          :establishment="selectedEstablishment"
-          :custom-location="customMarkedLocation"
-          height="580px"
-        />
-      </div>
-
-    </div>
-
     <div class="pt-6 border-t border-[#dfdfdf] dark:border-[#2e2e2e] space-y-4">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -195,13 +284,9 @@ const handleMarkerClick = (marker: any, index: number) => {
             <LayoutGrid :size="20" class="text-[#85181a] dark:text-[#ef4444]" />
             Establishments Showcase — {{ selectedCategory !== 'All' ? selectedCategory : 'Where to Stay & Eat' }}
           </h3>
-          <p class="text-xs text-[#707070] dark:text-[#a3a3a3] mt-0.5">
-            Card view is shown by default. Toggle to table view for a compact spreadsheet layout.
-          </p>
         </div>
 
-        <!-- View Mode Switcher: Cards View Default vs Table View Optional -->
-        <div class="inline-flex items-center p-1 rounded-lg bg-[#fafafa] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#2e2e2e] self-start sm:self-auto">
+        <div class="inline-flex items-center p-1 rounded-sm bg-[#fafafa] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#2e2e2e] self-start sm:self-auto">
           <button
             type="button"
             class="px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
@@ -222,7 +307,6 @@ const handleMarkerClick = (marker: any, index: number) => {
           </button>
         </div>
       </div>
-
       <WhereToStayList 
         :establishments="paginatedEstablishments"
         :total-count="filteredEstablishments.length"
@@ -231,6 +315,7 @@ const handleMarkerClick = (marker: any, index: number) => {
         :view-mode="viewMode"
         :active-id="activeEstablishmentId"
         :current-category="selectedCategory"
+        :user-location="userLocation"
         @select="onSelectEstablishment($event, true)"
         @update:current-page="currentPage = $event"
       />

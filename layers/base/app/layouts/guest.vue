@@ -48,7 +48,7 @@ import { Button } from '../components/ui/button'
           <ThemeSwitcher />
           <div class="hidden lg:flex items-center gap-2">
             <Button size="sm" as-child class="gap-1.5 font-medium shadow-xs bg-brand! text-white dark:text-white hover:bg-brand/90">
-              <NuxtLink to="/directory">
+              <NuxtLink to="/emergency">
                 <Phone class="size-3.5 animate-shake-grow" aria-hidden="true" />
                 <span>Emergency</span>
               </NuxtLink>

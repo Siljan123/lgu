@@ -8,6 +8,6 @@ describe('Where to Stay & Eat Tourism Page', () => {
 
     expect(wrapper.text()).toContain('Where to Stay and Eat')
     expect(wrapper.text()).toContain('Explore local accommodations')
-    expect(wrapper.text()).toContain('Interactive Directory Map & Street View 360°')
+    expect(wrapper.text()).toContain('Interactive Directory Map & Street View')
   })
 })
