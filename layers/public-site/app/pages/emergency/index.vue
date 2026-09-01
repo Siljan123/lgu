@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import HospitlasClinicSection from '../../components/emergency/HospitlasClinicSection.vue'
 
+definePageMeta({
+  layout: 'guest',
+})
 useSeoMeta({
   title: 'Emergency, Hospitals, Clinics & Pharmacies — Municipality of San Francisco, Agusan del Sur',
   description: 'Quick access to emergency hotlines, hospitals, rural health units, clinics, diagnostic centers, and pharmacies across San Francisco, Agusan del Sur with GPS route line directions.'
