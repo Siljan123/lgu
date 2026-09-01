@@ -3,11 +3,14 @@ import { setOptions, importLibrary } from '@googlemaps/js-api-loader'
 let loadPromise: Promise<void> | null = null
 
 export interface MarkerConfig {
+  id?: string
   position?: google.maps.LatLngLiteral
   address?: string
   title?: string
   icon?: string | google.maps.Icon | google.maps.Symbol
   infoWindowContent?: string
+  isUserLocation?: boolean
+  heading?: number | null
   onClick?: () => void
 }
 
@@ -73,7 +76,7 @@ export function useGoogleMaps() {
       mapTypeControl: true,
       streetViewControl: true,
       fullscreenControl: true,
-      mapTypeId: 'hybrid',
+      mapTypeId: 'terrain',
       ...options,
     })
   }
@@ -272,4 +275,4 @@ export function useGoogleMaps() {
     getNearestPanorama,
     calculateDirections,
   }
-}
+}

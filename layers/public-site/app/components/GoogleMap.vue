@@ -26,7 +26,6 @@ interface Props {
   routeDestination?: google.maps.LatLngLiteral | string | null
   routeOriginTitle?: string
   routeDestinationTitle?: string
-  travelMode?: 'DRIVING' | 'WALKING' | 'BICYCLING' | 'TRANSIT'
   showRouteSummary?: boolean
   mapTypeId?: 'hybrid' | 'roadmap' | 'satellite' | 'terrain'
 }
@@ -45,7 +44,7 @@ const props = withDefaults(defineProps<Props>(), {
   routeDestinationTitle: '',
   travelMode: 'DRIVING',
   showRouteSummary: true,
-  mapTypeId: 'hybrid',
+  mapTypeId: 'terrain',
 })
 
 const emit = defineEmits<{
@@ -77,11 +76,59 @@ const routeEndMarker = shallowRef<google.maps.Marker | null>(null)
 
 const currentRouteResult = ref<RouteCalculationResult | null>(null)
 const routeLoading = ref(false)
+const lastCalculatedOrigin = ref<google.maps.LatLngLiteral | string | null>(null)
+const lastCalculatedDestination = ref<google.maps.LatLngLiteral | string | null>(null)
 
 const { loadGoogleMaps, createMap, createMarker, geocodeAddress,  calculateDirections } = useGoogleMaps()
 
+function getUserLocationSymbol(heading?: number | null): google.maps.Symbol | undefined {
+  if (typeof google === 'undefined' || !google.maps) return undefined
+
+  const rotation = heading !== null && heading !== undefined && !isNaN(heading) ? heading : 0
+
+  // Google Maps navigation directional chevron arrow heading in the user's front direction
+  return {
+    path: 'M 0 -16 L 9 10 L 0 4 L -9 10 Z',
+    fillColor: '#2563eb', // Google Maps navigation blue
+    fillOpacity: 1,
+    strokeColor: '#ffffff',
+    strokeWeight: 2.5,
+    scale: 1.3,
+    rotation,
+    anchor: new google.maps.Point(0, 0),
+  }
+}
+
 async function renderMarkers() {
   if (!map.value) return
+
+  // In-place update check to prevent full tear-down jitter when GPS coordinates/heading change
+  const canUpdateInPlace =
+    mapMarkers.value.length === props.markers.length &&
+    mapMarkers.value.length > 0 &&
+    props.markers.every((cfg, i) => {
+      const m = mapMarkers.value[i]
+      return m && Boolean(cfg.isUserLocation) === Boolean((m as any)._isUserLocation)
+    })
+
+  if (canUpdateInPlace) {
+    props.markers.forEach((cfg, index) => {
+      const marker = mapMarkers.value[index]
+      if (!marker) return
+      if (cfg.position) {
+        marker.setPosition(cfg.position)
+      }
+      if (cfg.isUserLocation) {
+        const symbol = cfg.icon || getUserLocationSymbol(cfg.heading)
+        if (symbol) marker.setIcon(symbol)
+      } else if (cfg.icon) {
+        marker.setIcon(cfg.icon)
+      }
+      if (cfg.title) marker.setTitle(cfg.title)
+    })
+    return
+  }
+
   if (activeInfoWindow.value) {
     activeInfoWindow.value.close()
     activeInfoWindow.value = null
@@ -89,8 +136,10 @@ async function renderMarkers() {
   mapMarkers.value.forEach(m => m.setMap(null))
   const createdMarkers = await Promise.all(
     props.markers.map(async (cfg, index) => {
+      const icon = cfg.icon || (cfg.isUserLocation ? getUserLocationSymbol(cfg.heading) : undefined)
       const marker = await createMarker(map.value!, {
         ...cfg,
+        icon,
         onClick: () => {
           if (cfg.infoWindowContent && typeof google !== 'undefined' && google.maps) {
             if (activeInfoWindow.value) activeInfoWindow.value.close()
@@ -103,6 +152,7 @@ async function renderMarkers() {
           emit('marker-click', marker, index)
         },
       })
+      ;(marker as any)._isUserLocation = Boolean(cfg.isUserLocation)
       return marker
     })
   )
@@ -133,19 +183,48 @@ async function renderRoutePath() {
   if (!map.value) return
   if (!props.routeOrigin || !props.routeDestination) {
     clearRouteGraphics()
+    lastCalculatedOrigin.value = null
+    lastCalculatedDestination.value = null
     emit('route-calculated', null)
     return
+  }
+
+  // Check if route origin moved less than 20m and destination is identical
+  if (
+    lastCalculatedOrigin.value &&
+    lastCalculatedDestination.value &&
+    typeof props.routeOrigin === 'object' &&
+    typeof lastCalculatedOrigin.value === 'object' &&
+    props.routeDestination === lastCalculatedDestination.value
+  ) {
+    const p1 = props.routeOrigin as google.maps.LatLngLiteral
+    const p2 = lastCalculatedOrigin.value as google.maps.LatLngLiteral
+    const R = 6371e3
+    const φ1 = (p1.lat * Math.PI) / 180
+    const φ2 = (p2.lat * Math.PI) / 180
+    const Δφ = ((p2.lat - p1.lat) * Math.PI) / 180
+    const Δλ = ((p2.lng - p1.lng) * Math.PI) / 180
+    const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    const meters = R * c
+    if (meters < 20) {
+      return
+    }
   }
 
   routeLoading.value = true
   try {
     clearRouteGraphics()
-    const result = await calculateDirections(props.routeOrigin, props.routeDestination, props.travelMode)
+    const result = await calculateDirections(props.routeOrigin, props.routeDestination)
     if (!result || !map.value) {
       emit('route-calculated', null)
       return
     }
 
+    lastCalculatedOrigin.value = props.routeOrigin
+    lastCalculatedDestination.value = props.routeDestination
     currentRouteResult.value = result
 
     if (result.directionsResult && typeof google !== 'undefined' && google.maps && google.maps.DirectionsRenderer) {
@@ -348,7 +427,7 @@ watch(() => props.centerAddress, async (addr) => {
 })
 watch(() => props.zoom, (z) => { if (typeof z === 'number') map.value?.setZoom(z) })
 
-watch([() => props.routeOrigin, () => props.routeDestination, () => props.travelMode], () => {
+watch([() => props.routeOrigin, () => props.routeDestination], () => {
   renderRoutePath()
 })
 
@@ -374,7 +453,6 @@ onBeforeUnmount(() => {
     </div>
   </div>
 </template>
-
 
 <style>
 /* Remove native top-right X close button from Google Maps InfoWindow */

@@ -158,7 +158,7 @@ const activeDropdown = computed(() => {
 
       <SheetFooter>
         <Button as-child class="w-full gap-2 font-medium shadow-xs">
-          <NuxtLink to="/directory" @click="isOpen = false">
+          <NuxtLink to="/emergency" @click="isOpen = false">
             <Phone class="size-4" aria-hidden="true" />
             <span>Emergency</span>
           </NuxtLink>

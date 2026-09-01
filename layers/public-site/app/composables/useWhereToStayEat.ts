@@ -189,35 +189,34 @@ export const useWhereToStayEat = () => {
   const watchId = ref<number | null>(null)
 
   // Map coordinates.json entries belonging to Where to Stay or Where to Eat
-  const establishmentsData: Establishment[] = rawCoordinatesData
-    .map((item: any) => {
-      const classification = classifyEstablishment(item.category || '', item.name || '')
-      if (!classification) return null
+  const establishmentsData: Establishment[] = (rawCoordinatesData as any[]).reduce<Establishment[]>((acc, item) => {
+    const classification = classifyEstablishment(item.category || '', item.name || '')
+    if (!classification) return acc
 
-      const phone = extractPhone(item.short_description || '')
-      const addressStr = item.short_description || 'San Francisco, Agusan del Sur'
+    const phone = extractPhone(item.short_description || '')
+    const addressStr = item.short_description || 'San Francisco, Agusan del Sur'
 
-      let hours: string | undefined = undefined
-      if (item.opening && item.closing) {
-        hours = `${item.opening} - ${item.closing}`
-      }
+    let hours: string | undefined = undefined
+    if (item.opening && item.closing) {
+      hours = `${item.opening} - ${item.closing}`
+    }
 
-      return {
-        id: item.id || `json-${item.lat}-${item.lng}`,
-        name: item.name,
-        mainCategory: classification.mainCategory,
-        subCategory: classification.subCategory,
-        category: classification.subCategory,
-        address: addressStr,
-        contactNo: phone,
-        barangay: addressStr,
-        operatingHours: hours,
-        coordinates: { lat: item.lat, lng: item.lng },
-        image: item.photoUrls && item.photoUrls.length > 0 ? item.photoUrls[0] : undefined,
-        photoUrls: item.photoUrls || []
-      }
+    acc.push({
+      id: item.id || `json-${item.lat}-${item.lng}`,
+      name: item.name,
+      mainCategory: classification.mainCategory,
+      subCategory: classification.subCategory,
+      category: classification.subCategory,
+      address: addressStr,
+      contactNo: phone,
+      barangay: addressStr,
+      operatingHours: hours,
+      coordinates: { lat: Number(item.lat), lng: Number(item.lng) },
+      image: item.photoUrls && item.photoUrls.length > 0 ? item.photoUrls[0] : undefined,
+      photoUrls: item.photoUrls || []
     })
-    .filter((e): e is Establishment => e !== null)
+    return acc
+  }, [])
 
   const subCategories = computed(() => {
     if (selectedMainCategory.value === 'Where to Stay') {
@@ -236,28 +235,28 @@ export const useWhereToStayEat = () => {
   })
 
   // Counts for main categories and subcategories
-  const mainCategoryCounts = computed(() => {
+  const mainCategoryCounts = computed<Record<string, number>>(() => {
     const counts: Record<string, number> = {
       All: establishmentsData.length,
       'Where to Stay': 0,
       'Where to Eat': 0
     }
     establishmentsData.forEach(item => {
-      if (counts[item.mainCategory] !== undefined) {
-        counts[item.mainCategory]++
-      }
+      const cat = item.mainCategory
+      counts[cat] = (counts[cat] ?? 0) + 1
     })
     return counts
   })
 
-  const categoryCounts = computed(() => {
+  const categoryCounts = computed<Record<string, number>>(() => {
     const counts: Record<string, number> = { All: establishmentsData.length }
     ALL_SUBCATEGORIES.forEach(sc => { counts[sc] = 0 })
-    counts['Where to Stay'] = mainCategoryCounts.value['Where to Stay']
-    counts['Where to Eat'] = mainCategoryCounts.value['Where to Eat']
+    counts['Where to Stay'] = mainCategoryCounts.value['Where to Stay'] ?? 0
+    counts['Where to Eat'] = mainCategoryCounts.value['Where to Eat'] ?? 0
 
     establishmentsData.forEach(item => {
-      counts[item.subCategory] = (counts[item.subCategory] || 0) + 1
+      const subCat = item.subCategory
+      counts[subCat] = (counts[subCat] ?? 0) + 1
     })
     return counts
   })
@@ -376,7 +375,12 @@ export const useWhereToStayEat = () => {
           <div style="padding: 8px 12px; font-family: system-ui, -apple-system, sans-serif;">
             <div style="font-size: 10px; font-weight: 700; color: #10b981; text-transform: uppercase; margin-bottom: 2px;">Starting Point</div>
             <h4 style="font-size: 13px; font-weight: 700; color: #171717; margin: 0 0 2px 0;">Your Device GPS Location</h4>
-            <p style="font-size: 11px; color: #64748b; margin: 0;">Lat: ${userLocation.value.lat.toFixed(5)}, Lng: ${userLocation.value.lng.toFixed(5)}</p>
+            <p style="font-size: 11px; color: #64748b; margin: 0 0 8px 0;">Lat: ${userLocation.value.lat.toFixed(5)}, Lng: ${userLocation.value.lng.toFixed(5)}</p>
+            <div style="display: flex; gap: 6px;">
+              <button type="button" onclick="if(window.closeGoogleMapInfoWindow)window.closeGoogleMapInfoWindow()" style="display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px; font-size: 10px; font-weight: 600; color: #ffffff; background-color: #10b981; border: none; border-radius: 4px; cursor: pointer;">
+                Close
+              </button>
+            </div>
           </div>
         `
       })
