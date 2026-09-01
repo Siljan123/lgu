@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import { mountSuspended, registerEndpoint } from '@nuxt/test-utils/runtime'
 import BarangayDirectorySection from '../../../app/components/barangay-directory/BarangayDirectorySection.vue'
+import BarangayDirectoryAuthSection from '../../../app/components/barangay-directory/BarangayDirectoryAuthSection.vue'
 import { useBarangayDirectory, type BarangayItem } from '../../../app/composables/useBarangayDirectory'
 
 describe('BarangayDirectorySection Component', () => {
@@ -20,7 +21,7 @@ describe('BarangayDirectorySection Component', () => {
       contactPhone: '+63 912 001 0001',
       contactEmail: 'brgy.alegria@sanfranz.gov.ph',
       officials: [
-        { id: 'al-1', name: 'Hon. Rodrigo M. Santos', title: 'Punong Barangay (Captain)' }
+        { id: 'al-1', name: 'Hon. Rodrigo M. Santos', title: 'Punong Barangay (Captain)', position_category: 'captain' }
       ]
     }
   ]
@@ -28,14 +29,35 @@ describe('BarangayDirectorySection Component', () => {
   beforeEach(() => {
     registerEndpoint('/api/barangay-directory', () => mockBarangays)
     registerEndpoint('/api/barangay-directory/alegria', () => mockBarangays[0])
+    registerEndpoint('/api/barangay-directory/terms', () => [
+      { id: 'term-1', label: '2023-2026', is_current: true }
+    ])
     const { setDynamicBarangays } = useBarangayDirectory()
     setDynamicBarangays(mockBarangays)
   })
 
-  it('renders sidebar and main details section with child components when a barangay is selected', async () => {
+  it('renders public directory without CRUD buttons', async () => {
     const wrapper = await mountSuspended(BarangayDirectorySection)
 
     expect(wrapper.text()).toContain('List of Barangays')
-    expect(wrapper.text()).toContain('Barangay Officials')
+
+    // Public view must not have CRUD buttons
+    expect(wrapper.find('button[title="Add New Barangay"]').exists()).toBe(false)
+    expect(wrapper.find('button[title="Edit Official"]').exists()).toBe(false)
+    expect(wrapper.find('button[title="Delete Official"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Add Term')
+  })
+
+  it('renders auth directory with CRUD buttons allowed', async () => {
+    const wrapper = await mountSuspended(BarangayDirectoryAuthSection)
+
+    expect(wrapper.text()).toContain('List of Barangays')
+
+    // Auth section must have CRUD buttons
+    expect(wrapper.find('button[title="Add New Barangay"]').exists()).toBe(true)
+    expect(wrapper.find('button[title="Edit Official"]').exists()).toBe(true)
+    expect(wrapper.find('button[title="Delete Official"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Add Term')
   })
 })
+

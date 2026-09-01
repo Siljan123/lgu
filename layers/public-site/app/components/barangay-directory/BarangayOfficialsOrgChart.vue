@@ -6,6 +6,7 @@ import type {
   OrganizationChartNode,
   OrganizationChartSelectPayload,
 } from 'organization-chart-vue3'
+import BarangayTermSwitcher from './BarangayTermSwitcher.vue'
 import type { BarangayOfficial } from '../../composables/useBarangayDirectory'
 import {
   UserCheck,
@@ -26,11 +27,32 @@ import {
   Minimize2
 } from '@lucide/vue'
 
-const props = defineProps<{
-  officials: BarangayOfficial[]
-  barangayName: string
-  barangayId?: string
-}>()
+
+const {
+  selectTerm,
+  terms,
+  selectedTermId,
+
+} = useBarangayDirectory()
+
+async function handleSelectTerm(termId: string) {
+  try {
+    await selectTerm(termId)
+  } catch (err) {
+    console.error('Failed to switch term:', err)
+  }
+}
+const props = withDefaults(
+  defineProps<{
+    officials: BarangayOfficial[]
+    barangayName: string
+    barangayId?: string
+    isAdmin?: boolean
+  }>(),
+  {
+    isAdmin: false
+  }
+)
 
 const emit = defineEmits<{
   (e: 'add-official'): void
@@ -236,7 +258,7 @@ const treeRoot = computed<OrganizationChartNode | null>(() => {
       const displayTitle = o.title || o.position?.title || 'Official'
       const parentId = o.parent_id || o.parentId
       const parent = parentId ? props.officials.find(x => x.id === parentId) : undefined
-      const hideTitle = !!parent?.is_label && !o.is_label
+      const hideTitle = !!o.is_label || (!!parent?.is_label && !o.is_label)
       officialMap.set(o.id, {
         id: o.id,
         title: displayTitle,
@@ -491,31 +513,30 @@ watch([() => props.officials, scale, isFullscreen], async () => {
       ]"
     >
       <Card
-        class="bg-white dark:bg-[#1c1c1c] border-[#dfdfdf] dark:border-[#333333] shadow-xs flex flex-col transition-all h-full"
         :class="[
           isFullscreen
             ? 'flex-1 min-h-0 h-full p-4 md:p-6 shadow-2xl rounded-2xl overflow-hidden'
-            : 'p-4'
+            : 'p-1'
         ]"
       >
-        <CardHeader v-if="!isFullscreen" class="px-0 pt-0 shrink-0">
-          <div class="flex flex-wrap items-center justify-between border-b border-[#dfdfdf] dark:border-[#333333] pb-4 gap-3">
-            <div class="flex items-center space-x-3">
-                <UserCheck class="size-5" />
-              <div>
-                <div class="flex items-center space-x-2">
-                  <h2 class="text-base sm:text-lg font-bold text-[#171717] dark:text-[#ffffff] tracking-tight">
-                    Barangay Officials
-                  </h2>
-                  <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300">
-                    {{ officials.filter(o => !o.is_label).length }} Members
-                  </span>
-                </div>
-              </div>
-            </div>
+       <CardHeader v-if="!isFullscreen" class="px-0 pt-0 shrink-0">
+        <div
+          class="sm:flex-col-1 border-b border-[#dfdfdf] dark:border-[#333333] pb-4 gap-3"
+        >
+        
+          <div>
+            <BarangayTermSwitcher
+              v-if="terms.length"
+              :terms="terms"
+              :selected-term-id="selectedTermId"
+              :is-admin="false"
+              class="w-full sm:w-auto"
+              @select="handleSelectTerm"
+            />
           </div>
-        </CardHeader>
 
+        </div>
+      </CardHeader>
         <CardContent
           ref="containerRef"
           class="px-0 py-2 space-y-3 flex-1 flex flex-col min-h-0 w-full transition-all duration-300 relative"
@@ -578,7 +599,7 @@ watch([() => props.officials, scale, isFullscreen], async () => {
 
             <!-- Movable & Zoomable Viewport Canvas -->
             <div
-              class="relative w-full overflow-hidden rounded-xl border border-[#dfdfdf] dark:border-[#333333] bg-[#fafafa]/50 dark:bg-[#121212]/50 cursor-grab active:cursor-grabbing select-none"
+              class="relative w-full overflow-hidden rounded-xl p-2 border border-[#dfdfdf] dark:border-[#333333] bg-[#fafafa]/50 dark:bg-[#121212]/50 cursor-grab active:cursor-grabbing select-none"
               :class="[isFullscreen ? 'flex-1 min-h-0 h-full' : 'min-h-125 h-[65vh]']"
               @mousedown="handleMouseDown"
               @touchstart.passive="handleTouchStart"
@@ -586,6 +607,16 @@ watch([() => props.officials, scale, isFullscreen], async () => {
               @dragstart.prevent
               ref="chartCanvasRef"
             >
+              <div class="flex items-center space-x-3 col-span-2 min-w-0">
+                  <UserCheck class="size-5 shrink-0" />
+                    <div class="min-w-0">
+                      <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 shrink-0">
+                        {{ officials.filter(o => !o.is_label).length }} Members
+                      </span>
+                    </div>
+                  </div>
+              </div>
               <div
                 class="w-full min-w-max flex justify-center py-8 transition-transform duration-75 ease-out"
                 :style="{
@@ -594,15 +625,15 @@ watch([() => props.officials, scale, isFullscreen], async () => {
                 }"
                 ref="chartContentRef"
               >
+                
                 <OrganizationChart
                   :data="treeRoot"
                   class="barangay-org-chart mx-auto"
                 >
-                  <!-- Node Title Bar -->
                   <template #node-title="{ node }">
                     <div
-                      v-if="!node.hideTitle"
-                      class="w-full m-0 px-2.5 py-1.5 font-bold text-xs flex items-center justify-center text-center dark:bg-[#181818]"
+                      v-if="!node.hideTitle && !node.member?.[0]?.is_label"
+                      class="w-full m-0 px-2.5 py-1.5 font-bold text-xs flex items-center justify-center text-center bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 border-b border-[#dfdfdf] dark:border-[#333333]"
                     >
                       <span class="truncate">
                         {{ node.title }}
@@ -615,14 +646,16 @@ watch([() => props.officials, scale, isFullscreen], async () => {
                       v-if="member.is_label"
                       :data-mini-node-id="member.id"
                       data-mini-node-label="true"
-                      class="text-center w-full bg-neutral-50 dark:bg-[#181818] text-[#171717] dark:text-[#ffffff] transition-all p-2.5 space-y-1.5"
+                      class="px-3 py-2 text-center w-full bg-neutral-100 dark:bg-neutral-800 text-[#171717] dark:text-[#ffffff] transition-all"
                     >
-                      <div class="flex items-center justify-center space-x-1 text-xs text-neutral-500 dark:text-neutral-400">
-                        <Tag class="size-3 text-[#dc2626]" />
-                        <span class="text-[10px] font-bold uppercase tracking-wider">Section Label</span>
+                      <div class="font-bold text-xs truncate">
+                        {{ member.title || member.name }}
                       </div>
 
-                      <div class="pt-1.5 border-t border-neutral-200 dark:border-neutral-700 flex items-center justify-center space-x-1">
+                      <div
+                        v-if="isAdmin"
+                        class="mt-1.5 pt-1.5 border-t border-neutral-200 dark:border-neutral-700 flex items-center justify-center space-x-1"
+                      >
                         <button
                           type="button"
                           @click.stop="onCardAddChild(member)"
@@ -630,6 +663,16 @@ watch([() => props.officials, scale, isFullscreen], async () => {
                           title="Add Official / Node Under This Label"
                         >
                           <UserPlus class="size-3.5" />
+                        </button>
+
+                        <button
+                          v-if="member.rawOfficial"
+                          type="button"
+                          @click.stop="onCardEdit(member)"
+                          class="p-1.5 rounded-md hover:bg-blue-50 dark:hover:bg-blue-950/40 text-neutral-500 hover:text-blue-600 dark:hover:text-blue-400 transition cursor-pointer"
+                          title="Edit Label"
+                        >
+                          <Edit3 class="size-3.5" />
                         </button>
 
                         <button
@@ -692,6 +735,7 @@ watch([() => props.officials, scale, isFullscreen], async () => {
 
                       <!-- CRUD Actions Toolbar Inside the Node -->
                       <div
+                        v-if="isAdmin"
                         class="mt-2.5 pt-2 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-center space-x-1"
                       >
                         <!-- Move earlier among siblings (only when there is more than one sibling) -->
@@ -752,22 +796,21 @@ watch([() => props.officials, scale, isFullscreen], async () => {
                     </div>
                   </template>
                 </OrganizationChart>
-                
               </div>
+              <OrganizationOrgChartMinimapNavigator
+                :show="true"
+                :nodes="miniMapNodes"
+                :is-canvas-measured="isCanvasMeasured"
+                :visible-content-rect="visibleContentRect"
+                :scale="scale"
+                :pan-x="panX"
+                :pan-y="panY"
+                :is-main-dragging="isDragging"
+                @update:panX="panX = $event"
+                @update:panY="panY = $event"
+              />
             </div>
-
-            <OrganizationOrgChartMinimapNavigator
-              :show="true"
-              :nodes="miniMapNodes"
-              :is-canvas-measured="isCanvasMeasured"
-              :visible-content-rect="visibleContentRect"
-              :scale="scale"
-              :pan-x="panX"
-              :pan-y="panY"
-              :is-main-dragging="isDragging"
-              @update:panX="panX = $event"
-              @update:panY="panY = $event"
-            />
+           
           </template>
 
           <template v-else>
@@ -782,6 +825,7 @@ watch([() => props.officials, scale, isFullscreen], async () => {
                 </p>
               </div>
               <button
+                v-if="isAdmin"
                 type="button"
                 @click="emit('add-official')"
                 class="inline-flex items-center space-x-1.5 px-4 py-2 rounded-sm bg-[#dc2626] hover:bg-[#b91c1c] text-white text-xs font-semibold transition-colors cursor-pointer shadow-xs mt-2"
@@ -823,14 +867,16 @@ watch([() => props.officials, scale, isFullscreen], async () => {
   min-width: 195px !important;
   max-width: 195px !important;
   box-sizing: border-box !important;
-  border-radius: 5px;
+  border: 1px solid #dfdfdf;
+  border-radius: 8px;
+  background-color: #ffffff;
   overflow: hidden;
   transition: all 0.2s ease-in-out;
 }
 
-:deep(.dark .org-node .org-container) {
+.dark :deep(.org-node .org-container) {
   border-color: #333333;
-  background-color: #a61b1b;
+  background-color: #1c1c1c;
 }
 
 :deep(.org-node .org-container:hover) {
@@ -839,10 +885,44 @@ watch([() => props.officials, scale, isFullscreen], async () => {
   border-color: #dc2626;
 }
 
-/* Children placed directly under a label inherit that label's position,
+:deep(.org-title) {
+  order: 1 !important;
+  background-color: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+}
+
+/* Children placed directly under a label or label nodes themselves inherit that label's position,
    so their own title bar is collapsed entirely (no empty gray strip). */
 :deep(.org-title.brgy-title-hidden) {
   display: none !important;
+}
+
+:deep(.org-title:empty) {
+  display: none !important;
+}
+
+:deep(.org-content) {
+  order: 2 !important;
+  border: none !important;
+  margin-top: 0 !important;
+  padding: 0 !important;
+  background-color: transparent !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+}
+
+:deep(.org-content .org-content-item) {
+  padding: 0 !important;
+  border: none !important;
+  display: block !important;
 }
 
 :deep(.org-lines) {
@@ -851,13 +931,6 @@ watch([() => props.officials, scale, isFullscreen], async () => {
 
 :deep(.org-lines td) {
   padding: 0 !important;
-}
-
-:deep(.org-title) {
-  padding: 0 !important;
-  margin: 0 !important;
-  width: 100% !important;
-  box-sizing: border-box !important;
 }
 
 :deep(.org-line-down) {
@@ -877,5 +950,78 @@ watch([() => props.officials, scale, isFullscreen], async () => {
 
 :deep(.org-line-right) {
   border-left: 2px solid #dc2626 !important;
+}
+
+.dark :deep(.org-child-level:before),
+.dark :deep(.org-child-level:after),
+.dark :deep(.org-extend:after) {
+  border-color: #475569 !important;
+}
+
+:deep(.org-extend:after) {
+  height: 20px !important;
+  bottom: 10px !important;
+}
+
+:deep(.org-extend-arrow) {
+  box-sizing: border-box !important;
+  appearance: none !important;
+  cursor: pointer !important;
+  width: 24px !important;
+  height: 24px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  position: absolute !important;
+  bottom: 12px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 10 !important;
+  background-color: #ffffff !important;
+  border: 2px solid #cbd5e1 !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.dark :deep(.org-extend-arrow) {
+  background-color: #1e293b !important;
+  border-color: #475569 !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
+:deep(.org-extend-arrow:hover) {
+  transform: translateX(-50%) scale(1.2) !important;
+  border-color: #dc2626 !important;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25) !important;
+}
+
+:deep(.org-extend-arrow:before) {
+  content: "" !important;
+  box-sizing: border-box !important;
+  width: 7px !important;
+  height: 7px !important;
+  border-style: solid !important;
+  border-width: 2px 2px 0 0 !important;
+  border-color: #64748b !important;
+  margin: 0 !important;
+  display: block !important;
+  transform-origin: center !important;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s ease !important;
+  transform: translateY(-1px) rotate(135deg) !important;
+}
+
+.dark :deep(.org-extend-arrow:before) {
+  border-color: #94a3b8 !important;
+}
+
+:deep(.org-extend-arrow:hover:before) {
+  border-color: #dc2626 !important;
+}
+
+:deep(.org-extend .org-extend-arrow:before) {
+  transform: translateY(1px) rotate(-45deg) !important;
 }
 </style>

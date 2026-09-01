@@ -82,13 +82,52 @@ describe('BarangayDirectorySidebar Component', () => {
   it('handles barangay selection when clicked', async () => {
     const wrapper = await mountSuspended(BarangayDirectorySidebar)
 
-    const barangayButtons = wrapper.findAll('button')
-    const alegriaButton = barangayButtons.find(b => b.text().includes('Alegria'))
-    expect(alegriaButton).toBeDefined()
+    const alegriaButton = wrapper.find('button[data-barangay-id="alegria"]')
+    expect(alegriaButton.exists()).toBe(true)
 
-    await alegriaButton?.trigger('click')
+    await alegriaButton.trigger('click')
 
     const { selectedBarangayId } = useBarangayDirectory()
     expect(selectedBarangayId.value).toBe('alegria')
   })
+
+  it('renders mobile filter trigger and toggles mobile dropdown', async () => {
+    const wrapper = await mountSuspended(BarangayDirectorySidebar)
+
+    const mobileTrigger = wrapper.find('[data-testid="mobile-filter-trigger"]')
+    expect(mobileTrigger.exists()).toBe(true)
+    expect(mobileTrigger.text()).toContain('Selected Barangay')
+
+    expect(wrapper.find('[data-testid="mobile-filter-dropdown"]').exists()).toBe(false)
+
+    await mobileTrigger.trigger('click')
+    expect(wrapper.find('[data-testid="mobile-filter-dropdown"]').exists()).toBe(true)
+
+    const mobileItem = wrapper.find('[data-mobile-barangay-id="bayugan-2"]')
+    expect(mobileItem.exists()).toBe(true)
+
+    await mobileItem.trigger('click')
+
+    const { selectedBarangayId } = useBarangayDirectory()
+    expect(selectedBarangayId.value).toBe('bayugan-2')
+    expect(wrapper.find('[data-testid="mobile-filter-dropdown"]').exists()).toBe(false)
+  })
+
+  it('hides add-barangay button when isAdmin is false (default) and renders it when isAdmin is true', async () => {
+    const defaultWrapper = await mountSuspended(BarangayDirectorySidebar)
+    expect(defaultWrapper.find('button[title="Add New Barangay"]').exists()).toBe(false)
+
+    const adminWrapper = await mountSuspended(BarangayDirectorySidebar, {
+      props: {
+        isAdmin: true
+      }
+    })
+    const addButton = adminWrapper.find('button[title="Add New Barangay"]')
+    expect(addButton.exists()).toBe(true)
+
+    await addButton.trigger('click')
+    expect(adminWrapper.emitted('add-barangay')).toBeTruthy()
+  })
 })
+
+

@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { CalendarRange, Plus, Pencil, Trash2, Star } from '@lucide/vue'
+import { CalendarRange, Plus, Pencil, Trash2, Star, Filter } from '@lucide/vue'
 import type { BarangayTerm } from '../../composables/useBarangayDirectory'
 
 const props = withDefaults(
   defineProps<{
     terms?: BarangayTerm[]
     selectedTermId?: string
+    isAdmin?: boolean
   }>(),
   {
     terms: () => [],
-    selectedTermId: ''
+    selectedTermId: '',
+    isAdmin: false
   }
 )
 
@@ -51,18 +53,16 @@ function onSelect(e: Event) {
 
 <template>
   <div
-    class="bg-white dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#333333] rounded-2xl px-4 py-3 sm:px-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4"
+    class="sm:px-4 flex flex-col sm:gap-4"
   >
     <!-- Term selector -->
-    <div class="flex items-center gap-3 min-w-0 flex-1">
-      <div class="size-9 shrink-0 rounded-xl bg-[#dc2626]/10 text-[#dc2626] dark:text-[#f87171] flex items-center justify-center">
-        <CalendarRange class="size-4" />
-      </div>
-      <div class="min-w-0 flex-1">
-        <label class="block text-[10px] font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400 mb-0.5">
-          Term of Office
+    <div class="flex items-center gap-3 flex-1">
+      <div class="flex-1">
+        <label class="block text-md text-primary font-semibold uppercase tracking-wide dark:text-neutral-400">
+          Term
         </label>
-        <div class="flex items-center gap-2 min-w-0">
+        <div class="flex items-center gap-2">
+          <Filter class="text-red-500" :size="20"/>
           <div class="relative min-w-0">
             <select
               :value="selectedTerm?.id || ''"
@@ -70,7 +70,7 @@ function onSelect(e: Event) {
               class="max-w-full appearance-none pl-3 pr-8 py-1.5 text-sm font-bold bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg text-neutral-900 dark:text-white focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition cursor-pointer"
             >
               <option v-for="t in terms" :key="t.id" :value="t.id">
-                {{ t.label }}{{ t.is_current ? ' (Current)' : '' }}
+                {{ t.label }}{{ t.is_current ? ' ' : '' }}
               </option>
             </select>
             <svg
@@ -82,14 +82,13 @@ function onSelect(e: Event) {
           </div>
          
         </div>
-        <p v-if="dateRange" class="text-[11px] text-neutral-500 dark:text-neutral-400 mt-1">
-          {{ dateRange }}
-        </p>
+       
       </div>
     </div>
-
-    <!-- Manage actions -->
-    <div class="flex items-center gap-2 shrink-0 border-t sm:border-t-0 border-neutral-200 dark:border-neutral-800 pt-3 sm:pt-0">
+    <div
+      v-if="isAdmin"
+      class="flex items-center gap-2 shrink-0 border-t sm:border-t-0 border-neutral-200 dark:border-neutral-800 pt-3 sm:pt-0"
+    >
       <button
         type="button"
         @click="emit('add')"
