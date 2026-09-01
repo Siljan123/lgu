@@ -1,85 +1,21 @@
 <script setup lang="ts">
-import { ref, watch, computed, onMounted } from 'vue'
-import {
-  useBarangayDirectory,
-  type BarangayItem,
-  type BarangayOfficial,
-  type BarangayTerm
-} from '../../composables/useBarangayDirectory'
+import { watch, onMounted } from 'vue'
+import { useBarangayDirectory } from '../../composables/useBarangayDirectory'
 import BarangayDirectorySidebar from './BarangayDirectorySidebar.vue'
 import BarangayDirectoryHeaderStats from './BarangayDirectoryHeaderStats.vue'
 import BarangayMiniMapCard from './BarangayMiniMapCard.vue'
 import BarangayOfficialsOrgChart from './BarangayOfficialsOrgChart.vue'
-import BarangayOfficialAddModal from './BarangayOfficialAddModal.vue'
-import BarangayOfficialEditModal from './BarangayOfficialEditModal.vue'
-import BarangayOfficialDeleteModal from './BarangayOfficialDeleteModal.vue'
-import BarangayAddModal from './BarangayAddModal.vue'
-import BarangayEditModal from './BarangayEditModal.vue'
-import BarangayDeleteModal from './BarangayDeleteModal.vue'
-import BarangayTermSwitcher from './BarangayTermSwitcher.vue'
-import BarangayTermModal from './BarangayTermModal.vue'
 
 const {
   barangays,
-  filteredBarangays,
   selectedBarangay,
-  selectedClassification,
-  searchQuery,
-  totalPopulation,
-  classificationCounts,
   isLoading,
-  isLoadingDetails,
-  error,
   terms,
-  selectedTermId,
   fetchBarangays,
   fetchBarangayById,
   fetchTerms,
-  selectTerm,
-  createTerm,
-  updateTerm,
-  deleteTerm,
-  selectBarangay,
-  createBarangay,
-  updateBarangay,
-  deleteBarangay,
-  addOfficial,
-  updateOfficial,
-  deleteOfficial,
-  reorderOfficials,
-  uploadAvatar
+  selectBarangay
 } = useBarangayDirectory()
-
-// Modal states
-const isAddOfficialOpen = ref(false)
-const isEditOfficialOpen = ref(false)
-const isDeleteOfficialOpen = ref(false)
-const isDetailsOfficialOpen = ref(false)
-const isAddBarangayOpen = ref(false)
-const isEditBarangayOpen = ref(false)
-const isDeleteBarangayOpen = ref(false)
-const isTermModalOpen = ref(false)
-
-const selectedParentId = ref<string | null>(null)
-const targetOfficial = ref<BarangayOfficial | null>(null)
-const targetBarangay = ref<BarangayItem | null>(null)
-const targetTerm = ref<BarangayTerm | null>(null)
-
-const activeOfficials = computed<BarangayOfficial[]>(() => {
-  return selectedBarangay.value?.officials || []
-})
-
-const parentOfficialName = computed(() => {
-  if (!targetOfficial.value?.parent_id && !targetOfficial.value?.parentId) return undefined
-  const pId = targetOfficial.value.parent_id || targetOfficial.value.parentId
-  const p = activeOfficials.value.find(o => o.id === pId)
-  return p ? `${p.name} (${p.title || p.position?.title})` : undefined
-})
-
-const targetSubordinates = computed<BarangayOfficial[]>(() => {
-  if (!targetOfficial.value?.id) return []
-  return activeOfficials.value.filter(o => o.parent_id === targetOfficial.value?.id || o.parentId === targetOfficial.value?.id)
-})
 
 // Automatically load full details (officials) when a barangay becomes active
 watch(
@@ -108,176 +44,11 @@ onMounted(async () => {
   }
 })
 
-// Official CRUD Handlers
-function openAddOfficialModal(parentId: string | null = null) {
-  selectedParentId.value = parentId
-  isAddOfficialOpen.value = true
-}
 
-function openAddChildModal(parentId: string) {
-  selectedParentId.value = parentId
-  isAddOfficialOpen.value = true
-}
-
-function openEditOfficialModal(official: BarangayOfficial) {
-  targetOfficial.value = official
-  isEditOfficialOpen.value = true
-}
-
-function openDeleteOfficialModal(official: BarangayOfficial) {
-  targetOfficial.value = official
-  isDeleteOfficialOpen.value = true
-}
-
-function openDetailsOfficialModal(official: BarangayOfficial) {
-  targetOfficial.value = official
-  isDetailsOfficialOpen.value = true
-}
-
-async function handleAddOfficial(payload: Partial<BarangayOfficial>) {
-  if (!selectedBarangay.value?.id) return
-  try {
-    await addOfficial(selectedBarangay.value.id, payload)
-    isAddOfficialOpen.value = false
-    selectedParentId.value = null
-  } catch (err) {
-    console.error('Failed to add official:', err)
-  }
-}
-
-async function handleEditOfficial(officialId: string, payload: Partial<BarangayOfficial>) {
-  try {
-    await updateOfficial(officialId, payload, selectedBarangay.value?.id)
-    isEditOfficialOpen.value = false
-    targetOfficial.value = null
-  } catch (err) {
-    console.error('Failed to update official:', err)
-  }
-}
-
-async function handleDeleteOfficial(officialId: string) {
-  try {
-    await deleteOfficial(officialId, selectedBarangay.value?.id)
-    isDeleteOfficialOpen.value = false
-    targetOfficial.value = null
-  } catch (err) {
-    console.error('Failed to delete official:', err)
-  }
-}
-
-// Persist a new sibling ordering emitted by the org chart move buttons.
-async function handleReorderOfficials(orderedIds: string[]) {
-  if (!selectedBarangay.value?.id || !orderedIds?.length) return
-  try {
-    await reorderOfficials(selectedBarangay.value.id, orderedIds)
-  } catch (err) {
-    console.error('Failed to reorder officials:', err)
-  }
-}
-
-// Barangay CRUD Handlers
-function openAddBarangayModal() {
-  isAddBarangayOpen.value = true
-}
-
-function openEditBarangayModal() {
-  if (selectedBarangay.value) {
-    targetBarangay.value = selectedBarangay.value
-    isEditBarangayOpen.value = true
-  }
-}
-
-function openDeleteBarangayModal() {
-  if (selectedBarangay.value) {
-    targetBarangay.value = selectedBarangay.value
-    isDeleteBarangayOpen.value = true
-  }
-}
-
-async function handleAddBarangay(payload: Partial<BarangayItem>) {
-  try {
-    const created = await createBarangay(payload)
-    isAddBarangayOpen.value = false
-    if (created?.id) {
-      await selectBarangay(created.id)
-    }
-  } catch (err) {
-    console.error('Failed to create barangay:', err)
-  }
-}
-
-async function handleEditBarangay(id: string, payload: Partial<BarangayItem>) {
-  try {
-    await updateBarangay(id, payload)
-    isEditBarangayOpen.value = false
-    targetBarangay.value = null
-  } catch (err) {
-    console.error('Failed to update barangay:', err)
-  }
-}
-
-async function handleDeleteBarangay(id: string) {
-  try {
-    await deleteBarangay(id)
-    isDeleteBarangayOpen.value = false
-    targetBarangay.value = null
-  } catch (err) {
-    console.error('Failed to delete barangay:', err)
-  }
-}
-
-// Term Handlers
-function openAddTermModal() {
-  targetTerm.value = null
-  isTermModalOpen.value = true
-}
-
-function openEditTermModal(term: BarangayTerm) {
-  targetTerm.value = term
-  isTermModalOpen.value = true
-}
-
-async function handleTermSubmit(payload: Partial<BarangayTerm>, id?: string) {
-  try {
-    if (id) {
-      await updateTerm(id, payload)
-    } else {
-      await createTerm(payload)
-    }
-    isTermModalOpen.value = false
-    targetTerm.value = null
-  } catch (err) {
-    console.error('Failed to save term:', err)
-  }
-}
-
-async function handleSelectTerm(termId: string) {
-  try {
-    await selectTerm(termId)
-  } catch (err) {
-    console.error('Failed to switch term:', err)
-  }
-}
-
-async function handleDeleteTerm(term: BarangayTerm) {
-  if (!term?.id) return
-  // Deleting a term cascades to its officials, so confirm before proceeding.
-  const ok = typeof window === 'undefined'
-    ? true
-    : window.confirm(
-        `Delete term "${term.label}"? All elected officials recorded under this term will be permanently removed. This cannot be undone.`
-      )
-  if (!ok) return
-  try {
-    await deleteTerm(term.id)
-  } catch (err) {
-    console.error('Failed to delete term:', err)
-  }
-}
 </script>
 
 <template>
-  <section class="w-full bg-[#fafafa] dark:bg-[#1c1c1c] text-[#171717] dark:text-[#ffffff] py-8 sm:py-10 md:py-14 transition-colors min-h-screen">
+  <section class="w-full p-4 sm:p-6 lg:p-8 transition-colors min-h-screen">
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
       <!-- Loading Skeleton (when initially loading list) -->
       <div v-if="isLoading && barangays.length === 0" class="animate-pulse space-y-6">
@@ -293,49 +64,28 @@ async function handleDeleteTerm(term: BarangayTerm) {
         <BarangayDirectoryHeaderStats 
           v-if="selectedBarangay" 
           :barangay="selectedBarangay" 
-          @add-official="() => openAddOfficialModal(null)"
-          @edit-barangay="openEditBarangayModal"
-          @delete-barangay="openDeleteBarangayModal"
         />
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 items-start mt-6">
-          <!-- Sidebar -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 items-start">
+          <!-- Sidebar / Filter Bar -->
           <div class="lg:col-span-3 px-1 sm:px-2 lg:sticky lg:top-24">
-            <BarangayDirectorySidebar @add-barangay="openAddBarangayModal" />
+            <BarangayDirectorySidebar :is-admin="false" />
           </div>
 
           <!-- Main Content Area -->
           <main class="lg:col-span-9 min-w-0 space-y-6 md:space-y-8">
             <div v-if="selectedBarangay" class="space-y-6 md:space-y-8">
               <BarangayMiniMapCard :barangay="selectedBarangay" />
-
-              <!-- Term of office switcher (public can browse past terms) -->
-              <BarangayTermSwitcher
-                v-if="terms.length"
-                :terms="terms"
-                :selected-term-id="selectedTermId"
-                @select="handleSelectTerm"
-                @add="openAddTermModal"
-                @edit="openEditTermModal"
-                @delete="handleDeleteTerm"
-              />
-
               <div class="w-full overflow-x-auto">
                 <BarangayOfficialsOrgChart
                   :officials="selectedBarangay.officials ?? []"
                   :barangay-name="selectedBarangay.name"
                   :barangay-id="selectedBarangay.id"
-                  @add-official="() => openAddOfficialModal(null)"
-                  @add-child="openAddChildModal"
-                  @edit="openEditOfficialModal"
-                  @delete="openDeleteOfficialModal"
-                  @view-details="openDetailsOfficialModal"
-                  @reorder="handleReorderOfficials"
+                  :is-admin="false"
                 />
               </div>
             </div>
 
-            <!-- Empty / Error state -->
             <div 
               v-else 
               class="py-16 text-center text-neutral-500 dark:text-neutral-400 bg-white dark:bg-[#1c1c1c] rounded-2xl border border-[#dfdfdf] dark:border-[#333333]"
@@ -355,64 +105,5 @@ async function handleDeleteTerm(term: BarangayTerm) {
         </div>
       </div>
     </div>
-
-    <!-- Official Modals -->
-    <BarangayOfficialAddModal
-      :open="isAddOfficialOpen"
-      :barangay-id="selectedBarangay?.id || ''"
-      :barangay-name="selectedBarangay?.name || ''"
-      :selected-parent-id="selectedParentId"
-      :all-officials="activeOfficials"
-      @close="isAddOfficialOpen = false"
-      @submit="handleAddOfficial"
-      @upload-avatar="uploadAvatar"
-    />
-
-    <BarangayOfficialEditModal
-      :open="isEditOfficialOpen"
-      :official="targetOfficial"
-      :all-officials="activeOfficials"
-      :barangay-name="selectedBarangay?.name"
-      @close="isEditOfficialOpen = false"
-      @submit="handleEditOfficial"
-      @upload-avatar="uploadAvatar"
-    />
-
-    <BarangayOfficialDeleteModal
-      :open="isDeleteOfficialOpen"
-      :official="targetOfficial"
-      :all-officials="activeOfficials"
-      @close="isDeleteOfficialOpen = false"
-      @confirm="handleDeleteOfficial"
-    />
-
-    <!-- Barangay Modals -->
-    <BarangayAddModal
-      :open="isAddBarangayOpen"
-      @close="isAddBarangayOpen = false"
-      @submit="handleAddBarangay"
-    />
-
-    <BarangayEditModal
-      :open="isEditBarangayOpen"
-      :barangay="targetBarangay"
-      @close="isEditBarangayOpen = false"
-      @submit="handleEditBarangay"
-    />
-
-    <BarangayDeleteModal
-      :open="isDeleteBarangayOpen"
-      :barangay="targetBarangay"
-      @close="isDeleteBarangayOpen = false"
-      @confirm="handleDeleteBarangay"
-    />
-
-    <!-- Term Modal (add / edit) -->
-    <BarangayTermModal
-      :open="isTermModalOpen"
-      :term="targetTerm"
-      @close="isTermModalOpen = false"
-      @submit="handleTermSubmit"
-    />
   </section>
 </template>

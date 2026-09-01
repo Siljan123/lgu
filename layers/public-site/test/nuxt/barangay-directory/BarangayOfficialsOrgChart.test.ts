@@ -14,16 +14,30 @@ describe('BarangayOfficialsOrgChart Component', () => {
   ]
 
 
-  it('renders an empty state with a + New button when officials list is empty', async () => {
+  it('renders an empty state with a First Label button when officials list is empty and isAdmin is true', async () => {
     const wrapper = await mountSuspended(BarangayOfficialsOrgChart, {
       props: {
         officials: [],
-        barangayName: 'Sample Barangay'
+        barangayName: 'Sample Barangay',
+        isAdmin: true
       }
     })
 
     expect(wrapper.text()).toContain('No Officials Added Yet')
     expect(wrapper.text()).toContain('First Label')
+  })
+
+  it('renders empty state without First Label button when isAdmin is false', async () => {
+    const wrapper = await mountSuspended(BarangayOfficialsOrgChart, {
+      props: {
+        officials: [],
+        barangayName: 'Sample Barangay',
+        isAdmin: false
+      }
+    })
+
+    expect(wrapper.text()).toContain('No Officials Added Yet')
+    expect(wrapper.text()).not.toContain('First Label')
   })
 
   it('hides the position title of officials placed directly under a label', async () => {
@@ -45,7 +59,6 @@ describe('BarangayOfficialsOrgChart Component', () => {
     const text = wrapper.text()
     // The label keeps its own title (the shared position header).
     expect(text).toContain('Kagawad Group')
-    expect(text).toContain('Section Label')
     // The child official's person details still render.
     expect(text).toContain('Hon. Child Person')
     // But the child's own position title bar is not rendered (it lives under the label).

@@ -33,10 +33,6 @@ const mapMarkers = computed(() => [
           height="100%"
           :show-street-view-btn="true"
         />
-        <div class="absolute bottom-3 left-3 bg-[#ffffff]/90 dark:bg-[#1c1c1c]/90 text-[#171717] dark:text-[#ffffff] backdrop-blur-md px-3 py-1.5 rounded-md text-[11px] font-mono shadow-md flex items-center space-x-2 z-10 pointer-events-none">
-          <Navigation class="size-3 text-[#f87171]" />
-          <span>{{ barangay.coordinates.display }}</span>
-        </div>
       </div>
     </CardContent>
 

@@ -51,9 +51,10 @@ watch(
   () => props.barangay,
   (b) => {
     if (b) {
-      const lat = Number(b.coordinates?.lat ?? b.lat ?? 0)
-      const lng = Number(b.coordinates?.lng ?? b.lng ?? 0)
-      const display = b.coordinates?.display || b.coordinates_display || calculateDms(lat, lng)
+      const coords = typeof b.coordinates === 'object' && b.coordinates !== null ? b.coordinates : null
+      const lat = coords?.lat ?? (typeof (b as any).lat === 'number' ? (b as any).lat : 8.506308)
+      const lng = coords?.lng ?? (typeof (b as any).lng === 'number' ? (b as any).lng : 126.011568)
+      const display = coords?.display || (typeof b.coordinates === 'string' ? b.coordinates : '') || calculateDms(lat, lng)
 
       form.value = {
         name: b.name || '',
