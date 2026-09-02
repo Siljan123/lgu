@@ -25,11 +25,41 @@ export default defineEventHandler(async (event) => {
   }
 
   const payload: Record<string, any> = {}
-  if (body.first_name !== undefined) payload.first_name = body.first_name.trim()
-  if (body.middle_name !== undefined) payload.middle_name = body.middle_name.trim()
-  if (body.last_name !== undefined) payload.last_name = body.last_name.trim()
-  if (body.image_url !== undefined) payload.image_url = body.image_url || null
-  if (body.contact !== undefined) payload.contact = body.contact ? body.contact.trim() : null
+  const isLabel = body.is_label !== undefined || body.isLabel !== undefined
+    ? Boolean(body.is_label ?? body.isLabel)
+    : undefined
+
+  if (isLabel !== undefined) {
+    payload.is_label = isLabel
+    if (isLabel) {
+      payload.first_name = null
+      payload.middle_name = null
+      payload.last_name = null
+      payload.avatar_url = null
+      payload.contact = null
+      if (body.label_name || body.position || body.position_title || body.first_name) {
+        payload.label_name = (body.label_name || body.position || body.position_title || body.first_name).trim()
+      }
+    } else {
+      payload.label_name = null
+      if (body.first_name !== undefined) payload.first_name = body.first_name ? body.first_name.trim() : null
+      if (body.middle_name !== undefined) payload.middle_name = body.middle_name ? body.middle_name.trim() : ''
+      if (body.last_name !== undefined) payload.last_name = body.last_name ? body.last_name.trim() : null
+    }
+  } else {
+    if (body.label_name !== undefined) payload.label_name = body.label_name ? body.label_name.trim() : null
+    if (body.first_name !== undefined) payload.first_name = body.first_name ? body.first_name.trim() : null
+    if (body.middle_name !== undefined) payload.middle_name = body.middle_name ? body.middle_name.trim() : ''
+    if (body.last_name !== undefined) payload.last_name = body.last_name ? body.last_name.trim() : null
+  }
+
+  if (body.avatar_url !== undefined || body.image_url !== undefined || body.photo_url !== undefined) {
+    payload.avatar_url = body.avatar_url ?? body.image_url ?? body.photo_url ?? null
+  }
+
+  if (body.contact !== undefined) {
+    payload.contact = body.contact ? body.contact.trim() : null
+  }
 
   if (body.position_id !== undefined) {
     if (isUUID(body.position_id)) {

@@ -38,30 +38,41 @@ function buildOfficialsTree(rows: OfficialRow[], parentId: string | null = null)
     return (a.last_name || '').localeCompare(b.last_name || '')
   })
 
+  const parentRow = parentId ? rows.find((r) => r.id === parentId) : null
+
   return matchingRows.map((r) => {
     const posTitle = r.position?.title || 'Elected Official'
-    const fullName = formatOfficialName(r.first_name, r.middle_name, r.last_name)
+    const isLabel = Boolean(r.is_label)
+    const labelTitle = r.label_name || posTitle
+    const fullName = isLabel ? labelTitle : formatOfficialName(r.first_name, r.middle_name, r.last_name)
     const children = buildOfficialsTree(rows, r.id)
+    const hideTitle = isLabel || (Boolean(parentRow?.is_label) && !isLabel)
 
     const member: OfficialMember = {
       id: r.id,
       name: fullName,
-      first_name: r.first_name,
+      label_name: r.label_name || undefined,
+      first_name: r.first_name || undefined,
       middle_name: r.middle_name || undefined,
-      last_name: r.last_name,
-      role: posTitle,
-      position: posTitle,
+      last_name: r.last_name || undefined,
+      role: isLabel ? labelTitle : posTitle,
+      position: isLabel ? labelTitle : posTitle,
       position_id: r.position_id || r.position?.id || undefined,
       parent_id: r.parent_id,
-      add: posTitle,
-      image_url: r.image_url || undefined,
-      photo_url: r.image_url || undefined,
+      is_label: isLabel,
+      add: isLabel ? labelTitle : posTitle,
+      avatar_url: r.avatar_url || r.image_url || undefined,
+      image_url: r.avatar_url || r.image_url || undefined,
+      photo_url: r.avatar_url || r.image_url || undefined,
       contact: r.contact || undefined,
     }
 
     const node: OfficialNode = {
       id: r.id,
-      title: posTitle,
+      title: isLabel ? labelTitle : posTitle,
+      label_name: r.label_name || undefined,
+      is_label: isLabel,
+      hideTitle,
       rank_order: r.position?.rank_order ?? 99,
       parent_id: r.parent_id,
       member: [member],
@@ -122,45 +133,61 @@ export function useOfficials() {
   // Flat list with enriched display names
   const flatOfficials = computed(() => {
     return rows.value.map((o) => {
-      const fullName = formatOfficialName(o.first_name, o.middle_name, o.last_name)
-      const posTitle = o.position?.title || 'Elected Official'
+      const isLabel = Boolean(o.is_label)
+      const labelTitle = o.label_name || o.position?.title || 'Label'
+      const fullName = isLabel ? labelTitle : formatOfficialName(o.first_name, o.middle_name, o.last_name)
+      const posTitle = o.position?.title || (isLabel ? labelTitle : 'Elected Official')
       const parentOfficial = o.parent_id
         ? rows.value.find((p) => p.id === o.parent_id)
         : null
       const parentName = parentOfficial
-        ? formatOfficialName(parentOfficial.first_name, parentOfficial.middle_name, parentOfficial.last_name)
+        ? (parentOfficial.is_label
+            ? (parentOfficial.label_name || parentOfficial.position?.title || 'Section Label')
+            : formatOfficialName(parentOfficial.first_name, parentOfficial.middle_name, parentOfficial.last_name))
         : null
 
       return {
         id: o.id,
         fullName,
+        label_name: o.label_name || undefined,
         first_name: o.first_name,
         middle_name: o.middle_name,
         last_name: o.last_name,
         position: posTitle,
         position_id: o.position_id,
+        is_label: isLabel,
         rank_order: o.position?.rank_order ?? 99,
         parent_id: o.parent_id,
         parentName,
         contact: o.contact,
-        image_url: o.image_url,
+        avatar_url: o.avatar_url || o.image_url || undefined,
+        image_url: o.avatar_url || o.image_url || undefined,
         created_at: o.created_at,
         updated_at: o.updated_at,
       }
     })
   })
 
-  // Filtered officials for search & list views
+  // Filtered officials highest rank first)
   const filteredOfficials = computed(() => {
     const q = searchQuery.value.trim().toLowerCase()
-    if (!q) return flatOfficials.value
+    let list = flatOfficials.value.filter((o) => !o.is_label)
 
-    return flatOfficials.value.filter(
-      (o) =>
-        o.fullName.toLowerCase().includes(q) ||
-        o.position.toLowerCase().includes(q) ||
-        (o.contact && o.contact.toLowerCase().includes(q))
-    )
+    if (q) {
+      list = list.filter(
+        (o) =>
+          o.fullName.toLowerCase().includes(q) ||
+          o.position.toLowerCase().includes(q) ||
+          (o.contact && o.contact.toLowerCase().includes(q))
+      )
+    }
+
+    return [...list].sort((a, b) => {
+      const rankA = a.rank_order ?? 99
+      const rankB = b.rank_order ?? 99
+      if (rankA !== rankB) return rankA - rankB
+      return (a.last_name || '').localeCompare(b.last_name || '')
+    })
   })
 
   // Selected Official object
@@ -173,9 +200,8 @@ export function useOfficials() {
     selectedOfficialId.value = id
   }
 
-  // Summary statistics
   const stats = computed(() => {
-    const list = flatOfficials.value
+    const list = flatOfficials.value.filter((o) => !o.is_label)
     const total = list.length
     const mayor = list.find((o) => o.position.toLowerCase().includes('mayor') && !o.position.toLowerCase().includes('vice'))
     const viceMayor = list.find((o) => o.position.toLowerCase().includes('vice'))
@@ -183,6 +209,7 @@ export function useOfficials() {
       (o) =>
         o.position.toLowerCase().includes('sangguniang bayan') ||
         o.position.toLowerCase().includes('councilor') ||
+        o.position.toLowerCase().includes('sb member') ||
         o.position.toLowerCase().includes('sb member')
     )
 

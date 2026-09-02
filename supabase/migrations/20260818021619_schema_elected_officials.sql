@@ -21,25 +21,40 @@ ADD COLUMN IF NOT EXISTS rank_order INT DEFAULT 0 NOT NULL;
 -- 3. Officials Table
 CREATE TABLE IF NOT EXISTS governance.officials (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    first_name VARCHAR(255) NOT NULL,
+    label_name VARCHAR(255) DEFAULT NULL,
+    first_name VARCHAR(255) DEFAULT NULL,
     middle_name VARCHAR(255) DEFAULT '',
-    last_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) DEFAULT NULL,
     avatar_url TEXT,
     contact VARCHAR(255),
     position_id UUID REFERENCES governance.positions(id) ON DELETE SET NULL,
     parent_id UUID REFERENCES governance.officials(id) ON DELETE SET NULL,
+    is_label BOOLEAN DEFAULT FALSE NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
--- Ensure parent_id exists even if officials was created prior
+-- Ensure parent_id, is_label, and label_name exist even if officials was created prior
 ALTER TABLE governance.officials 
 ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES governance.officials(id) ON DELETE SET NULL;
+
+ALTER TABLE governance.officials 
+ADD COLUMN IF NOT EXISTS is_label BOOLEAN DEFAULT FALSE NOT NULL;
+
+ALTER TABLE governance.officials 
+ADD COLUMN IF NOT EXISTS label_name VARCHAR(255) DEFAULT NULL;
+
+ALTER TABLE governance.officials 
+ALTER COLUMN first_name DROP NOT NULL;
+
+ALTER TABLE governance.officials 
+ALTER COLUMN last_name DROP NOT NULL;
 
 -- 4. Foreign Key and Query Indexes
 CREATE INDEX IF NOT EXISTS idx_positions_rank_order ON governance.positions (rank_order);
 CREATE INDEX IF NOT EXISTS idx_officials_position_id ON governance.officials (position_id);
 CREATE INDEX IF NOT EXISTS idx_officials_parent_id ON governance.officials (parent_id);
+CREATE INDEX IF NOT EXISTS idx_officials_is_label ON governance.officials (is_label);
 
 -- 5. Auto-Update Timestamp Function and Triggers
 CREATE OR REPLACE FUNCTION governance.handle_updated_at()
@@ -87,11 +102,16 @@ CREATE OR REPLACE VIEW governance.v_orgchart_officials AS
 SELECT 
     o.id,
     o.parent_id,
-    TRIM(
-      o.first_name || ' ' || 
-      CASE WHEN o.middle_name IS NOT NULL AND o.middle_name <> '' THEN o.middle_name || ' ' ELSE '' END || 
-      o.last_name
-    ) AS name,
+    o.is_label,
+    o.label_name,
+    CASE 
+        WHEN o.is_label THEN COALESCE(o.label_name, p.title, '')
+        ELSE TRIM(
+            COALESCE(o.first_name, '') || ' ' || 
+            CASE WHEN o.middle_name IS NOT NULL AND o.middle_name <> '' THEN o.middle_name || ' ' ELSE '' END || 
+            COALESCE(o.last_name, '')
+        )
+    END AS name,
     p.title AS title,
     o.avatar_url,
     o.contact,

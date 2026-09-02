@@ -30,10 +30,15 @@ function handleConfirm() {
         <Trash2 class="size-6" />
       </div>
       <h3 class="text-base font-bold text-neutral-900 dark:text-white">
-        Delete Elected Official?
+        {{ official.is_label ? 'Delete Section / Group Label?' : 'Delete Elected Official?' }}
       </h3>
       <p class="text-xs text-neutral-500 dark:text-neutral-400 mt-1.5 leading-relaxed">
-        Are you sure you want to remove <strong>{{ formatOfficialName(official.first_name, official.middle_name, official.last_name) }}</strong> ({{ official.position?.title || 'Elected Official' }})? Any attached sub-officials will be automatically re-linked.
+        <template v-if="official.is_label">
+          Are you sure you want to remove <strong>{{ official.label_name || official.position?.title || 'Section Label' }}</strong>? Any attached sub-officials will be automatically re-linked.
+        </template>
+        <template v-else>
+          Are you sure you want to remove <strong>{{ formatOfficialName(official.first_name, official.middle_name, official.last_name) }}</strong> ({{ official.position?.title || 'Elected Official' }})? Any attached sub-officials will be automatically re-linked.
+        </template>
       </p>
 
       <div class="mt-6 flex items-center justify-center space-x-2">

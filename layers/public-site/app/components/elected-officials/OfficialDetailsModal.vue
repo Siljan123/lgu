@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { X, UserCheck, Phone, ShieldCheck, Edit3, UserPlus, GitFork } from '@lucide/vue'
 import type { OfficialRow } from '../../../types/official'
+import { formatOfficialName } from '../../composables/useOfficials'
 
 
 const props = defineProps<{
   open: boolean
   official: OfficialRow | null
   parentOfficialName?: string | null
-  subordinates?: { id: string; fullName: string; position: string }[]
+  subordinates?: { id: string; fullName: string; position: string; is_label?: boolean; label_name?: string }[]
 }>()
 
 const emit = defineEmits<{
@@ -23,7 +24,7 @@ const emit = defineEmits<{
     class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200"
     @click.self="emit('close')"
   >
-    <div class="bg-white dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#333333] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden my-auto animate-in zoom-in-95 duration-200">
+    <div class="bg-white dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#333333] rounded-md w-full max-w-md shadow-2xl overflow-hidden my-auto animate-in zoom-in-95 duration-200">
       <!-- Modal Header Banner -->
       <div class="relative bg-linear-to-r from-neutral-900 via-neutral-800 to-neutral-900 dark:from-neutral-950 dark:to-neutral-900 p-6 text-white">
         <button
@@ -39,8 +40,8 @@ const emit = defineEmits<{
           <!-- Avatar -->
           <div class="relative size-20 rounded-full overflow-hidden border-2 border-white/20 shadow-lg bg-white dark:bg-[#222222]">
             <img
-              v-if="official.image_url"
-              :src="official.image_url"
+              v-if="official.avatar_url || official.image_url"
+              :src="(official.avatar_url || official.image_url) as string"
               :alt="formatOfficialName(official.first_name, official.middle_name, official.last_name)"
               class="size-full object-cover"
             />
@@ -57,7 +58,7 @@ const emit = defineEmits<{
               {{ official.position?.title || 'Elected Official' }}
             </span>
             <h3 class="text-lg font-bold text-white mt-1.5 leading-snug">
-              {{ formatOfficialName(official.first_name, official.middle_name, official.last_name) }}
+              {{ official.is_label ? (official.label_name || official.position?.title || 'Section Label') : formatOfficialName(official.first_name, official.middle_name, official.last_name) }}
             </h3>
             <p class="text-xs text-neutral-300">
               Municipality of San Francisco, Agusan del Sur
@@ -90,16 +91,6 @@ const emit = defineEmits<{
             </span>
           </div>
 
-          <div v-if="parentOfficialName" class="flex items-center justify-between">
-            <span class="text-neutral-500 dark:text-neutral-400 flex items-center space-x-1.5">
-              <GitFork class="size-3.5 text-[#dc2626]" />
-              <span>Reports To:</span>
-            </span>
-            <span class="font-medium text-neutral-700 dark:text-neutral-300">
-              {{ parentOfficialName }}
-            </span>
-          </div>
-
           <div v-if="subordinates && subordinates.length > 0" class="pt-2 border-t border-neutral-200/60 dark:border-neutral-800">
             <span class="text-neutral-500 dark:text-neutral-400 block mb-1.5 font-medium">
               Attached Sub-Officials / Councilors ({{ subordinates.length }}):
@@ -110,7 +101,7 @@ const emit = defineEmits<{
                 :key="sub.id"
                 class="px-2 py-1 rounded-md bg-neutral-200/70 dark:bg-neutral-800 text-[11px] text-neutral-800 dark:text-neutral-200"
               >
-                {{ sub.fullName }}
+                {{ sub.is_label ? (sub.label_name || sub.fullName) : sub.fullName }}
               </span>
             </div>
           </div>

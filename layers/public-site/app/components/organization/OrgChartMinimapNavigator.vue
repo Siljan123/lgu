@@ -39,8 +39,8 @@ const props = withDefaults(
     show: true,
     highlightedNodeId: null,
     isMainDragging: false,
-    miniW: 180,
-    miniH: 120,
+    miniW: 140,
+    miniH: 100,
   }
 )
 
@@ -60,9 +60,9 @@ function clamp(value: number, min: number, max: number): number {
 const viewRect = computed(() => {
   if (!props.isCanvasMeasured) return { x: 0, y: 0, w: props.miniW, h: props.miniH }
   const r = props.visibleContentRect
-  const w = Math.min(props.miniW, Math.max(10, (r.w / r.cw) * props.miniW))
-  const h = Math.min(props.miniH, Math.max(10, (r.h / r.ch) * props.miniH))
-  const keep = 12
+  const w = Math.min(props.miniW, Math.max(100, (r.w / r.cw) * props.miniW))
+  const h = Math.min(props.miniH, Math.max(100, (r.h / r.ch) * props.miniH))
+  const keep = 20
   return {
     x: clamp((r.x / r.cw) * props.miniW, -w + keep, props.miniW - keep),
     y: clamp((r.y / r.ch) * props.miniH, -h + keep, props.miniH - keep),
