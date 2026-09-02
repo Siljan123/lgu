@@ -20,7 +20,13 @@ const props = withDefaults(
   defineProps<{
     open: boolean
     official: OfficialRow | null
-    allOfficials?: { id: string; fullName: string; position: string }[]
+    allOfficials?: {
+      id: string
+      fullName: string
+      position: string
+      is_label?: boolean
+      label_name?: string
+    }[]
     positions?: PositionRow[]
   }>(),
   {
@@ -33,7 +39,8 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'submit', payload: EditOfficialPayload): void
 }>()
-
+const nodeType = ref<'official' | 'label'>('official')
+const isofficial = computed(() => nodeType.value === 'official')
 const isCustomPosition = ref(false)
 const customPosition = ref('')
 const isUploadingImage = ref(false)
@@ -49,7 +56,7 @@ const form = ref({
   positionId: '',
   position: '',
   contact: '',
-  imageUrl: '',
+  avatarUrl: '',
 })
 
 function onContactInput(e: Event) {
@@ -87,10 +94,11 @@ watch(
   () => props.official,
   (cur) => {
     if (cur) {
+      nodeType.value = cur.is_label ? 'label' : 'official'
       isCustomPosition.value = false
       customPosition.value = ''
       selectedImageFile.value = null
-      imagePreview.value = cur.image_url || null
+      imagePreview.value = cur.avatar_url || null
       isUploadingImage.value = false
 
       form.value = {
@@ -100,9 +108,9 @@ watch(
         middleName: cur.middle_name || '',
         lastName: cur.last_name || '',
         positionId: cur.position_id || cur.position?.id || '',
-        position: cur.position?.title || '',
+        position: cur.label_name || cur.position?.title || '',
         contact: cur.contact || '',
-        imageUrl: cur.image_url || '',
+        avatarUrl: cur.avatar_url || '',
       }
 
       // Check if position exists in options
@@ -140,18 +148,37 @@ async function handleFileChange(e: Event) {
 function removeAvatar() {
   selectedImageFile.value = null
   imagePreview.value = null
-  form.value.imageUrl = ''
+  form.value.avatarUrl = ''
 }
 
 async function handleSubmit() {
+  const isLabel = nodeType.value === 'label'
+  const finalPosTitle = isCustomPosition.value ? customPosition.value.trim() : form.value.position.trim()
+
+  if (isLabel) {
+    if (!finalPosTitle && !form.value.positionId) return
+    const payload: EditOfficialPayload = {
+      id: form.value.id,
+      label_name: finalPosTitle,
+      first_name: null,
+      middle_name: undefined,
+      last_name: null,
+      position_id: isCustomPosition.value ? undefined : form.value.positionId || undefined,
+      position: finalPosTitle || undefined,
+      parent_id: form.value.parentId || null,
+      is_label: true,
+    }
+    emit('submit', payload)
+    return
+  }
+
   const firstName = form.value.firstName.trim()
   const lastName = form.value.lastName.trim()
   if (!firstName || !lastName || !form.value.id) return
 
-  const finalPosTitle = isCustomPosition.value ? customPosition.value.trim() : form.value.position.trim()
   if (!finalPosTitle && !form.value.positionId) return
 
-  let uploadedUrl = form.value.imageUrl || null
+  let uploadedUrl = form.value.avatarUrl || null
 
   // If new local image selected, upload it
   if (selectedImageFile.value) {
@@ -182,7 +209,9 @@ async function handleSubmit() {
     position_id: isCustomPosition.value ? undefined : form.value.positionId || undefined,
     position: finalPosTitle || undefined,
     parent_id: form.value.parentId || null,
+    is_label: false,
     contact: form.value.contact.trim() || undefined,
+    avatar_url: uploadedUrl,
     image_url: uploadedUrl,
   }
 
@@ -196,20 +225,20 @@ async function handleSubmit() {
     class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-200"
     @click.self="emit('close')"
   >
-    <div class="bg-white dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#333333] rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden my-auto animate-in zoom-in-95 duration-200">
+    <div class="bg-white dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#333333] rounded-md w-full max-w-xl shadow-2xl overflow-hidden my-auto animate-in zoom-in-95 duration-200">
       <!-- Header -->
       <div class="px-5 py-4 sm:px-6 sm:py-4.5 border-b border-[#dfdfdf] dark:border-[#333333] flex items-center justify-between bg-neutral-50/80 dark:bg-[#222222]/80">
         <div class="flex items-center space-x-3">
-          <div class="p-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 shrink-0">
+          <div class="p-2 rounded-md bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 shrink-0">
             <Edit3 class="size-5" />
           </div>
           <div>
-            <h3 class="text-sm sm:text-base font-bold text-neutral-900 dark:text-white leading-tight">
+            <h3 class="text-sm sm:text-base font-bold text-neutral-900 dark:text-white leading-tight" v-if="isofficial">
               Edit Elected Official
             </h3>
-            <p class="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
-              Update official's profile, position, contact, and reports-to hierarchy
-            </p>
+            <h3 class="text-sm sm:text-base font-bold text-neutral-900 dark:text-white leading-tight" v-else>
+              Edit Section Label
+            </h3>
           </div>
         </div>
         <button
@@ -222,41 +251,38 @@ async function handleSubmit() {
         </button>
       </div>
 
-      <!-- Form Body -->
       <form @submit.prevent="handleSubmit" class="p-5 sm:p-6 space-y-4 sm:space-y-5 max-h-[calc(88vh-80px)] overflow-y-auto">
-        <!-- 1. Reports To (Parent Official) -->
         <div class="space-y-1.5">
           <label class="block text-xs sm:text-sm font-semibold text-neutral-800 dark:text-neutral-200">
-            Reports To (Hierarchy Placement)
+            Superior Label Title
           </label>
           <select
             v-model="form.parentId"
-            class="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 focus:outline-hidden focus:border-[#dc2626] focus:ring-2 focus:ring-[#dc2626]/10 transition cursor-pointer"
+            class="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-md text-neutral-900 dark:text-neutral-100 focus:outline-hidden focus:border-[#dc2626] focus:ring-2 focus:ring-[#dc2626]/10 transition cursor-pointer"
           >
-            <option value="">No Superior (Top Level / Mayor)</option>
+            <option value="">No Superior/Independent</option>
             <option
               v-for="item in availableParents"
               :key="item.id"
               :value="item.id"
             >
-              {{ item.fullName }} ({{ item.position }})
+              {{ item.is_label ? (item.label_name || item.fullName) : `${item.fullName} (${item.position})` }}
             </option>
           </select>
         </div>
 
-        <!-- 2. Full Name -->
-        <div class="space-y-1.5">
+        <div v-if="nodeType === 'official'" class="space-y-1.5">
           <label class="block text-xs sm:text-sm font-semibold text-neutral-800 dark:text-neutral-200">
             Full Name <span class="text-[#dc2626]">*</span>
           </label>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-            <div>
+            <div class="sm:col-span-2">
               <input
                 type="text"
                 v-model="form.firstName"
                 required
                 placeholder="First Name *"
-                class="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 focus:outline-hidden focus:border-[#dc2626] focus:ring-2 focus:ring-[#dc2626]/10 transition"
+                class="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-md text-neutral-900 dark:text-neutral-100 focus:outline-hidden focus:border-[#dc2626] focus:ring-2 focus:ring-[#dc2626]/10 transition"
               />
             </div>
             <div>
@@ -264,26 +290,25 @@ async function handleSubmit() {
                 type="text"
                 v-model="form.middleName"
                 placeholder="Middle Name / M.I."
-                class="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 focus:outline-hidden focus:border-[#dc2626] focus:ring-2 focus:ring-[#dc2626]/10 transition"
+                class="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-md text-neutral-900 dark:text-neutral-100 focus:outline-hidden focus:border-[#dc2626] focus:ring-2 focus:ring-[#dc2626]/10 transition"
               />
             </div>
-            <div>
+            <div class="sm:col-span-3">
               <input
                 type="text"
                 v-model="form.lastName"
                 required
                 placeholder="Last Name *"
-                class="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 focus:outline-hidden focus:border-[#dc2626] focus:ring-2 focus:ring-[#dc2626]/10 transition"
+                class="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-md text-neutral-900 dark:text-neutral-100 focus:outline-hidden focus:border-[#dc2626] focus:ring-2 focus:ring-[#dc2626]/10 transition"
               />
             </div>
           </div>
         </div>
 
-        <!-- 3. Position / Designation -->
         <div class="space-y-1.5">
           <div class="flex items-center justify-between">
             <label class="block text-xs sm:text-sm font-semibold text-neutral-800 dark:text-neutral-200">
-              Elected Position / Designation <span class="text-[#dc2626]">*</span>
+              {{ nodeType === 'label' ? 'Designation /  Label Title' : 'Elected Position / Designation' }} <span class="text-[#dc2626]">*</span>
             </label>
             <button
               v-if="!isCustomPosition"
@@ -292,7 +317,7 @@ async function handleSubmit() {
               class="inline-flex items-center space-x-1 text-xs text-[#dc2626] hover:text-[#b91c1c] font-medium transition cursor-pointer"
             >
               <PlusCircle class="size-3.5" />
-              <span>Custom Position</span>
+              <span>Custom Label</span>
             </button>
             <button
               v-else
@@ -305,14 +330,14 @@ async function handleSubmit() {
             </button>
           </div>
 
-          <!-- Position Select -->
           <select
             v-if="!isCustomPosition"
             v-model="form.positionId"
             required
-            class="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 focus:outline-hidden focus:border-[#dc2626] focus:ring-2 focus:ring-[#dc2626]/10 transition cursor-pointer"
+            class="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-md text-neutral-900 dark:text-neutral-100 focus:outline-hidden focus:border-[#dc2626] focus:ring-2 focus:ring-[#dc2626]/10 transition cursor-pointer"
           >
-            <option value="" disabled>Select elected position...</option>
+            <option value="" disabled v-if="isofficial">Select designation  label position...</option>
+            <option value="" disabled v-if="isofficial">Select designation official position...</option>
             <option
               v-for="pos in positionOptions"
               :key="pos.id"
@@ -320,7 +345,6 @@ async function handleSubmit() {
             >
               {{ pos.title }}
             </option>
-    
           </select>
 
           <!-- Custom Position Input -->
@@ -329,13 +353,13 @@ async function handleSubmit() {
             type="text"
             v-model="customPosition"
             required
-            placeholder="e.g. Sangguniang Bayan Member"
-            class="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 focus:outline-hidden focus:border-[#dc2626] focus:ring-2 focus:ring-[#dc2626]/10 transition"
+            :placeholder="nodeType === 'label' ? 'e.g. Sangguniang Bayan Members' : 'e.g. Sangguniang Bayan Member'"
+            class="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-md text-neutral-900 dark:text-neutral-100 focus:outline-hidden focus:border-[#dc2626] focus:ring-2 focus:ring-[#dc2626]/10 transition"
           />
         </div>
 
-        <!-- 4. Contact & Photo -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+        <!-- 4. Contact & Photo (Only for Officials) -->
+        <div v-if="nodeType === 'official'" class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
           <div class="space-y-1.5">
             <label class="block text-xs sm:text-sm font-semibold text-neutral-800 dark:text-neutral-200">
               Contact Number (Optional)
@@ -345,7 +369,7 @@ async function handleSubmit() {
               v-model="form.contact"
               @input="onContactInput"
               placeholder="e.g. 0917-234-5601"
-              class="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl text-neutral-900 dark:text-neutral-100 focus:outline-hidden focus:border-[#dc2626] focus:ring-2 focus:ring-[#dc2626]/10 transition"
+              class="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-md text-neutral-900 dark:text-neutral-100 focus:outline-hidden focus:border-[#dc2626] focus:ring-2 focus:ring-[#dc2626]/10 transition"
             />
           </div>
 
@@ -393,14 +417,14 @@ async function handleSubmit() {
           <button
             type="button"
             @click="emit('close')"
-            class="w-full sm:w-auto px-5 py-2.5 text-xs sm:text-sm font-medium bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 rounded-xl transition cursor-pointer text-center"
+            class="w-full sm:w-auto px-5 py-2.5 text-xs sm:text-sm font-medium bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 rounded-md transition cursor-pointer text-center"
           >
             Cancel
           </button>
           <button
             type="submit"
             :disabled="isUploadingImage"
-            class="w-full sm:w-auto px-6 py-2.5 text-xs sm:text-sm font-semibold bg-[#dc2626] hover:bg-[#b91c1c] text-white rounded-xl shadow-xs hover:shadow-md transition cursor-pointer text-center flex items-center justify-center space-x-1.5 disabled:opacity-50"
+            class="w-full sm:w-auto px-6 py-2.5 text-xs sm:text-sm font-semibold bg-[#dc2626] hover:bg-[#b91c1c] text-white rounded-md shadow-xs hover:shadow-md transition cursor-pointer text-center flex items-center justify-center space-x-1.5 disabled:opacity-50"
           >
             <Loader2 v-if="isUploadingImage" class="size-4 animate-spin" />
             <span>Save Changes</span>

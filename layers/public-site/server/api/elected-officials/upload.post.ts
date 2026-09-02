@@ -1,8 +1,8 @@
-// server/api/upload.post.ts
 import { randomUUID } from 'node:crypto'
+import { useServerSupabase } from '../../utils/supabase'
 
 export default defineEventHandler(async (event) => {
-  const client = useServerSupabase()
+  const client = useServerSupabase('governance')
   
   // Read multipart form-data
   const formData = await readMultipartFormData(event)
@@ -14,8 +14,8 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Find the target file field (e.g., 'file' or 'image')
-  const file = formData.find((item) => item.name === 'file' || item.name === 'image')
+  // Find the target file field (e.g., 'file', 'image', or 'avatar')
+  const file = formData.find((item) => item.name === 'file' || item.name === 'image' || item.name === 'avatar')
 
   if (!file || !file.data || !file.type) {
     throw createError({
@@ -39,15 +39,26 @@ export default defineEventHandler(async (event) => {
   const filePath = `avatars/${fileName}`
   const bucketName = 'officials'
 
+  // Ensure bucket exists or auto-create if missing
+  try {
+    const { data: buckets } = await client.storage.listBuckets()
+    if (buckets && !buckets.some((b) => b.name === bucketName)) {
+      await client.storage.createBucket(bucketName, { public: true })
+    }
+  } catch (err) {
+    console.warn('Bucket verification warning:', err)
+  }
+
   // Upload to Supabase Storage (bypassing RLS with service_role)
   const { data, error } = await client.storage
     .from(bucketName)
     .upload(filePath, file.data, {
       contentType: file.type,
-      upsert: false
+      upsert: true
     })
 
   if (error) {
+    console.error('Supabase storage upload error:', error)
     throw createError({
       statusCode: 500,
       statusMessage: `Storage upload failed: ${error.message}`
