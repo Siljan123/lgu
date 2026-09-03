@@ -173,4 +173,27 @@ describe('useWhereToStayEat composable', () => {
       }
     }
   })
+
+  it('correctly classifies locationSource as Satellite GPS or IP Network', () => {
+    const { setUserLocation, locationSource, mapMarkers } = useWhereToStayEat()
+
+    expect(locationSource.value).toBeNull()
+
+    // Accuracy <= 20m indicates Satellite GPS
+    setUserLocation({ lat: 8.5042, lng: 125.9786 }, 12)
+    expect(locationSource.value).not.toBeNull()
+    expect(locationSource.value?.type).toBe('satellite')
+    expect(locationSource.value?.shortLabel).toBe('Satellite GPS')
+    expect(locationSource.value?.accuracyRadiusText).toBe('±12m')
+    expect(mapMarkers.value[0]?.title).toContain('Satellite GPS')
+    expect(mapMarkers.value[0]?.infoWindowContent).toContain('Satellite GPS')
+
+    // Accuracy > 150m indicates IP Network
+    setUserLocation({ lat: 8.5042, lng: 125.9786 }, 2500)
+    expect(locationSource.value?.type).toBe('network')
+    expect(locationSource.value?.shortLabel).toBe('IP Network')
+    expect(locationSource.value?.accuracyRadiusText).toBe('±2.5km')
+    expect(mapMarkers.value[0]?.title).toContain('IP Network')
+    expect(mapMarkers.value[0]?.infoWindowContent).toContain('IP Network')
+  })
 })

@@ -1,5 +1,6 @@
 import { ref, computed, watch } from 'vue'
 import rawCoordinatesData from '../../coordinates.json'
+import type { LocationSourceType, LocationSourceInfo } from './useEmergency'
 
 export type MainCategory = 'Where to Stay' | 'Where to Eat'
 export type StaySubCategory = 'Hotels' | 'Inns / lodges' | 'Homestays' | 'Resorts'
@@ -349,10 +350,55 @@ export const useWhereToStayEat = () => {
             <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #85181a; margin-bottom: 2px;">${item.subCategory || item.category}</div>
             <h4 style="font-size: 13px; font-weight: 700; color: #171717; margin: 0 0 3px 0; line-height: 1.3;">${item.name}</h4>
             <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">${item.address}</p>
-            ${item.contactNo ? `<div style="font-size: 11px; color: #1e293b; font-weight: 600;">📞 ${item.contactNo}</div>` : ''}
+            ${item.contactNo ? `<div style="font-size: 11px; color: #1e293b; font-weight: 600;">${item.contactNo}</div>` : ''}
           </div>
         `
       }))
+  })
+
+  // Detect whether location originates from orbital Satellite GPS , Wi-Fi, or Network IP
+  const locationSource = computed<LocationSourceInfo | null>(() => {
+    if (!userLocation.value || locationAccuracy.value === null) return null
+
+    const acc = Math.round(locationAccuracy.value)
+    const accText = acc < 1000 ? `±${acc}m` : `±${(acc / 1000).toFixed(1)}km`
+
+    if (acc <= 20) {
+      return {
+        type: 'satellite',
+        label: 'Satellite GPS',
+        shortLabel: 'Satellite GPS',
+        description: 'Locked onto orbital satellites (precise street-level accuracy)',
+        accuracyMeters: acc,
+        accuracyRadiusText: accText,
+        isHighPrecision: true,
+        color: '#059669',
+      }
+    }
+
+    if (acc <= 150) {
+      return {
+        type: 'wifi',
+        label: 'Wi-Fi Positioning',
+        shortLabel: 'Wi-Fi Network',
+        description: 'Estimated via nearby Wi-Fi network beacons (neighborhood-level accuracy)',
+        accuracyMeters: acc,
+        accuracyRadiusText: accText,
+        isHighPrecision: false,
+        color: '#2563eb',
+      }
+    }
+
+    return {
+      type: 'network',
+      label: 'IP Network',
+      shortLabel: 'IP Network',
+      description: 'Estimated from ISP public IP address ',
+      accuracyMeters: acc,
+      accuracyRadiusText: accText,
+      isHighPrecision: false,
+      color: '#d97706',
+    }
   })
 
   // Focused map markers: only show Starting Point and the Chosen Destination (No marker clutter)
@@ -366,17 +412,24 @@ export const useWhereToStayEat = () => {
     }> = []
 
     if (userLocation.value) {
+      const sourceBadgeHtml = locationSource.value ? `
+        <div style="display: inline-block; font-size: 10px; font-weight: 600; color: ${locationSource.value.color}; margin-bottom: 6px; background: rgba(0,0,0,0.04); padding: 2px 6px; border-radius: 4px;">
+          ${locationSource.value.type === 'satellite' ? 'Satellite GPS' : 'IP Network'})
+        </div>
+      ` : ''
+
       markers.push({
-        address: 'Your Device GPS Location',
-        title: '📍 Starting Point (Your GPS Location)',
+        address: locationSource.value?.type === 'satellite' ? 'Your Device Satellite GPS Location' : 'Your Device IP Network Location',
+        title: locationSource.value?.type === 'satellite' ? 'Starting Point (Satellite GPS)' : 'Starting Point (IP Network)',
         position: userLocation.value,
         isUserLocation: true,
         infoWindowContent: `
           <div style="padding: 8px 12px; font-family: system-ui, -apple-system, sans-serif;">
             <div style="font-size: 10px; font-weight: 700; color: #10b981; text-transform: uppercase; margin-bottom: 2px;">Starting Point</div>
             <h4 style="font-size: 13px; font-weight: 700; color: #171717; margin: 0 0 2px 0;">Your Device GPS Location</h4>
-            <p style="font-size: 11px; color: #64748b; margin: 0 0 8px 0;">Lat: ${userLocation.value.lat.toFixed(5)}, Lng: ${userLocation.value.lng.toFixed(5)}</p>
-            <div style="display: flex; gap: 6px;">
+            <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Lat: ${userLocation.value.lat.toFixed(5)}, Lng: ${userLocation.value.lng.toFixed(5)}</p>
+            ${sourceBadgeHtml}
+            <div style="display: flex; gap: 6px; margin-top: 4px;">
               <button type="button" onclick="if(window.closeGoogleMapInfoWindow)window.closeGoogleMapInfoWindow()" style="display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px; font-size: 10px; font-weight: 600; color: #ffffff; background-color: #10b981; border: none; border-radius: 4px; cursor: pointer;">
                 Close
               </button>
@@ -398,8 +451,8 @@ export const useWhereToStayEat = () => {
             <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #85181a; margin-bottom: 2px;">${est.subCategory || est.category}</div>
             <h4 style="font-size: 13px; font-weight: 700; color: #171717; margin: 0 0 3px 0; line-height: 1.3;">${est.name}</h4>
             <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">${est.address}</p>
-            ${est.contactNo ? `<div style="font-size: 11px; color: #1e293b; font-weight: 600; margin-top: 4px;">📞 ${est.contactNo}</div>` : ''}
-            ${est.operatingHours ? `<div style="font-size: 11px; color: #64748b; margin-top: 2px;">🕒 ${est.operatingHours}</div>` : ''}
+            ${est.contactNo ? `<div style="font-size: 11px; color: #1e293b; font-weight: 600; margin-top: 4px;">${est.contactNo}</div>` : ''}
+            ${est.operatingHours ? `<div style="font-size: 11px; color: #64748b; margin-top: 2px;"> ${est.operatingHours}</div>` : ''}
             <div style="margin-top: 8px; display: flex; gap: 6px;">
               <button type="button" onclick="if(window.closeGoogleMapInfoWindow)window.closeGoogleMapInfoWindow()" style="display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px; font-size: 10px; font-weight: 600; color: #ffffff; background-color: #85181a; border: none; border-radius: 4px; cursor: pointer;">
                 Close
@@ -621,6 +674,7 @@ export const useWhereToStayEat = () => {
     allEstablishmentMarkers,
     userLocation,
     locationAccuracy,
+    locationSource,
     isLocating,
     locationError,
     isLiveTracking,
