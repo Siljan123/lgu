@@ -43,7 +43,7 @@ const closePreview = () => {
       <article
         v-for="doc in documents"
         :key="doc.id"
-        class="rounded-sm border-b  p-5 sm:p-6 transition-all hover:border-[#c7c7c7] dark:hover:border-[#3a3a3a] shadow-xs space-y-3"
+        class="border-b p-5 sm:p-6 transition-all hover:border-[#c7c7c7] dark:hover:border-[#3a3a3a] space-y-3"
       >
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-[#dfdfdf]/60 dark:border-[#2a2a2a] pb-3">
           <div class="space-y-1">
@@ -93,7 +93,7 @@ const closePreview = () => {
               @click="downloadPdf(doc)"
               :disabled="downloadingId === doc.id"
               :class="[
-                'inline-flex items-center gap-2 px-4 py-2 rounded-sm text-xs font-medium transition-all shadow-xs cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed',
+                'inline-flex items-center gap-2 px-4 py-2 rounded-sm text-xs font-medium transition-all  cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed',
                 downloadSuccessId === doc.id
                   ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                   : 'bg-brand text-white hover:bg-brand-deep'
@@ -115,7 +115,7 @@ const closePreview = () => {
 
     <div
       v-else
-      class="py-16 px-4 text-center rounded-xl border border-dashed border-[#dfdfdf] dark:border-[#333333] bg-[#ffffff] dark:bg-[#1c1c1c] space-y-4"
+      class="py-16 px-4 text-center rounded-md border border-dashed border-[#dfdfdf] dark:border-[#333333] bg-[#ffffff] dark:bg-[#1c1c1c] space-y-4"
     >
       <div class="size-12 rounded-full bg-[#fafafa] dark:bg-[#252525] border border-[#dfdfdf] dark:border-[#333333] flex items-center justify-center mx-auto text-[#707070] dark:text-[#a3a3a3]">
         <SearchX class="size-6" />

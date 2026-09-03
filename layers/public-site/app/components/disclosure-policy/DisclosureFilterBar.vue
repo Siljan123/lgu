@@ -31,7 +31,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="w-full bg-[#ffffff] dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#2a2a2a] rounded-xl p-4 sm:p-6 space-y-4 shadow-xs">
+  <div class="w-full bg-[#ffffff] dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#2a2a2a] rounded-md p-4 sm:p-6 space-y-4 shadow-xs">
     
     <!-- Top Row: Title & Active Filters / Reset -->
     <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#dfdfdf] dark:border-[#2a2a2a]">
