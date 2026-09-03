@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import MunicipalOrgChart from '../../../app/components/organization/MunicipalOrgChart.vue'
+import AuthMunicipalOrgChart from '../../../app/components/organization/AuthMunicipalOrgChart.vue'
 import MunicipalOrgSidebar from '../../../app/components/organization/MunicipalOrgSidebar.vue'
 import MunicipalOrgAddModal from '../../../app/components/organization/MunicipalOrgAddModal.vue'
 import MunicipalOrgEditModal from '../../../app/components/organization/MunicipalOrgEditModal.vue'
@@ -258,5 +259,53 @@ describe('MunicipalOrgChart Independent Root Structures', () => {
     expect(wrapper.text()).not.toContain('lgu-main-root')
   })
 })
+
+describe('AuthMunicipalOrgChart Component', () => {
+  it('renders root department and child units correctly', async () => {
+    const wrapper = await mountSuspended(AuthMunicipalOrgChart, {
+      props: {
+        treeRoot: mockDefaultMunicipalOrg,
+        pending: false,
+      },
+    })
+    expect(wrapper.text()).toContain('Office of the Municipal Mayor')
+    expect(wrapper.text()).toContain('Hon. Grace A. Rodriguez')
+    expect(wrapper.text()).toContain('Human Resource Management Office')
+    expect(wrapper.text()).toContain('Municipal Health Office')
+  })
+
+  it('renders loading and error states properly', async () => {
+    const loadingWrapper = await mountSuspended(AuthMunicipalOrgChart, {
+      props: {
+        treeRoot: null,
+        pending: true,
+      },
+    })
+    expect(loadingWrapper.text()).toContain('Loading organizational structure')
+
+    const errorWrapper = await mountSuspended(AuthMunicipalOrgChart, {
+      props: {
+        treeRoot: null,
+        pending: false,
+        error: new Error('Network error'),
+      },
+    })
+    expect(errorWrapper.text()).toContain('Unable to load organizational structure')
+  })
+
+  it('provides pan/zoom/reset and minimap controls in toolbar', async () => {
+    const wrapper = await mountSuspended(AuthMunicipalOrgChart, {
+      props: {
+        treeRoot: mockDefaultMunicipalOrg,
+        pending: false,
+      },
+    })
+
+    expect(wrapper.find('button[title="Zoom In (+)"]').exists()).toBe(true)
+    expect(wrapper.find('button[title="Zoom Out (-)"]').exists()).toBe(true)
+    expect(wrapper.find('button[title="Reset Zoom & Pan"]').exists()).toBe(true)
+  })
+})
+
 
 

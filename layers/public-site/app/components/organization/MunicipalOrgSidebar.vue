@@ -5,7 +5,6 @@ import {
   Building2,
   Search,
   X,
-  Plus,
 } from '@lucide/vue'
 
 const props = defineProps<{
@@ -56,8 +55,7 @@ const filteredOffices = computed(() => {
 </script>
 
 <template>
-  <aside class="w-full bg-white dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#333333] rounded-2xl p-4 md:p-5 flex flex-col space-y-3.5 shadow-xs">
-    <!-- Header -->
+ <aside class="w-full h-full flex flex-col py-4 space-y-3.5">
     <div class="flex items-center justify-between border-b border-[#dfdfdf] dark:border-[#333333] pb-3">
       <div class="flex items-center space-x-2.5">
         <div class="p-2 rounded-lg bg-[#dc2626]/10 text-[#dc2626] dark:bg-[#dc2626]/20 dark:text-[#f87171]">
@@ -65,14 +63,11 @@ const filteredOffices = computed(() => {
         </div>
         <div>
           <h3 class="text-xs font-bold uppercase tracking-wider text-neutral-900 dark:text-white">
-            Municipal Offices
+            Municipal Organizations
           </h3>
-          
         </div>
       </div>
     </div>
-
-    <!-- Search Input -->
     <div class="relative">
       <Search class="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
       <input
@@ -91,7 +86,7 @@ const filteredOffices = computed(() => {
       </button>
     </div>
 
-    <div class="space-y-2.5 max-h-[58vh] overflow-y-auto pr-1">
+    <div class="flex-1 max-h-165 overflow-y-auto pb-3 space-y-2.5 pr-1">
       <div
         v-if="filteredOffices.length === 0"
         class="py-8 text-center text-xs text-neutral-400"
@@ -106,8 +101,8 @@ const filteredOffices = computed(() => {
         class="w-full text-left p-2.5 rounded-md border transition-all relative flex flex-col gap-1 group cursor-pointer"
         :class="[
           selectedOfficeId === dept.id
-            ? 'bg-neutral-50 dark:bg-[#222222] border-[#dc2626] shadow-xs'
-            : 'bg-white dark:bg-[#1c1c1c] border-[#dfdfdf] dark:border-[#333333] hover:border-neutral-400 dark:hover:border-neutral-600'
+            ? ''
+            : ' '
         ]"
       >
         <span
@@ -117,7 +112,8 @@ const filteredOffices = computed(() => {
               ? 'bg-[#dc2626] opacity-100'
               : 'bg-transparent opacity-0 group-hover:bg-neutral-300 dark:group-hover:bg-neutral-700'
           ]"
-        ></span>
+        >
+        </span>
 
         <div class="flex items-center justify-between gap-2 ">
           <div class="flex items-center space-x-1.5 overflow-hidden">
@@ -127,11 +123,8 @@ const filteredOffices = computed(() => {
             >
               {{ dept.acronym }}
             </span>
-          
           </div>
-
         </div>
-
         <p
           class="text-xs font-semibold leading-snug line-clamp-2 transition-colors"
           :class="[
@@ -141,10 +134,6 @@ const filteredOffices = computed(() => {
           ]"
         >
           {{ dept.title }}
-        </p>
-
-        <p class="text-[10px] text-neutral-500 dark:text-neutral-400 w-full truncate">
-          {{ dept.headName || 'Office In-Charge' }}
         </p>
       </button>
     </div>

@@ -202,32 +202,47 @@ function handleMinimapMouseDown(e: MouseEvent) {
 
         <!-- Group: nodes + viewport rect move together, keeping viewport centered -->
         <g :style="minimapGroupStyle" class="transition-all duration-75">
-          <!-- Node dots -->
+          <!-- Minimap node shapes -->
           <g v-for="node in nodes" :key="'node-' + node.id">
+            <!-- Section / Label node: rectangular bar -->
             <rect
+              v-if="node.isLabel"
+              :x="node.x - (Math.max(node.w, 14) - node.w) / 2"
+              :y="node.y"
+              :width="Math.max(node.w, 14)"
+              :height="Math.max(node.h, 5)"
+              rx="1"
+              :fill="highlightedNodeId === node.id ? '#dc2626' : '#0284c7'"
+              :stroke="highlightedNodeId === node.id ? '#ffffff' : 'transparent'"
+              stroke-width="1"
+              :opacity="isMiniNodeInView(node) ? 1 : 0.4"
+              class="transition-opacity duration-75"
+            />
+            <!-- Regular official / department card -->
+            <rect
+              v-else
               :x="node.x"
               :y="node.y"
               :width="node.w"
               :height="node.h"
               rx="2"
-              :fill="highlightedNodeId === node.id ? '#dc2626' : (node.isLabel ? '#0284c7' : '#111827')"
+              :fill="highlightedNodeId === node.id ? '#dc2626' : '#111827'"
               :stroke="highlightedNodeId === node.id ? '#ffffff' : 'transparent'"
               stroke-width="1"
               :opacity="isMiniNodeInView(node) ? 1 : 0.3"
               :class="[
                 'transition-opacity duration-75',
-                highlightedNodeId === node.id || node.isLabel ? '' : 'dark:fill-neutral-100'
+                highlightedNodeId === node.id ? '' : 'dark:fill-neutral-100'
               ]"
             />
           </g>
 
-          <!-- Viewport rect -->
           <rect
             :x="viewRectX"
             :y="viewRectY"
             :width="viewRectWidth"
             :height="viewRectHeight"
-            rx="3"
+            rx="2"
             fill="rgba(100, 38, 38, 0.01)"
             stroke="#f2603c"
             stroke-width="1.5"

@@ -665,7 +665,6 @@ async function handleSubmit() {
             type="text"
             v-model="customPosition"
             required
-            placeholder="e.g. Sangguniang Bayan Member"
             class="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-sm text-neutral-900 dark:text-neutral-100 focus:outline-hidden focus:border-[#dc2626] focus:ring-2 focus:ring-[#dc2626]/10 transition"
           />
           <label class="flex items-center space-x-2 mt-2 cursor-pointer">
