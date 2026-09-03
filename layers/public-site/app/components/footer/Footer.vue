@@ -7,7 +7,7 @@ import { Phone, Mail } from '@lucide/vue';
 <template>
   <footer class="border-t border-footer-foreground/20 bg-footer-background">
     <div class="container mx-auto px-4 md:px-8 py-12 md:py-16">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-12">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8 lg:gap-12">
         <!-- Logo -->
         <div class="space-y-4 col-span-1 md:col-span-2 lg:col-span-3">
           <div class="flex items-center justify-start">
@@ -84,10 +84,21 @@ import { Phone, Mail } from '@lucide/vue';
             </li>
           </ul>
         </div>
+
+        <div class="flex items-center justify-center w-28 h-44 mt-1">
+          <a href="https://npcregistration.privacy.gov.ph/certificate/organizationRegistration/6a6ab51631d7a82d7a61462b" target="_blank"
+            class="text-foreground/80 hover:text-foreground transition-colors text-sm w-full h-full flex items-center justify-center"
+          >
+            <NuxtImg
+              src="images/logo/dpo.png"
+              alt="Philippine Government Seal"
+              class="w-full h-full object-contain"
+            />
+          </a>
+        </div>
       </div>
     </div>
 
-    <Separator />
 
     <div
       class="bg-[repeating-linear-gradient(135deg,transparent,transparent_8px,#e5e7eb_8px,#e5e7eb_9px)] dark:bg-[repeating-linear-gradient(135deg,transparent,transparent_8px,#262626_8px,#262626_9px)]"
