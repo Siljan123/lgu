@@ -43,10 +43,9 @@ function handleSelectBarangay(id: string) {
 
 <template>
   <div class="w-full">
-    <!-- MOBILE VIEW: Filter Dropdown (lg:hidden) -->
+    <!-- MOBILE VIEW: Filter Dropdown  -->
     <div ref="mobileDropdownRef" class="relative block lg:hidden w-full mb-4">
       <div class="flex items-center gap-2">
-        <!-- Main Dropdown Trigger Button -->
         <button
           type="button"
           @click="isMobileDropdownOpen = !isMobileDropdownOpen"
@@ -176,16 +175,6 @@ function handleSelectBarangay(id: string) {
                 <span class="text-xs font-semibold truncate">
                   {{ brgy.name }}
                 </span>
-                <span
-                  class="px-1.5 py-0.2 text-[9px] font-medium rounded-full"
-                  :class="[
-                    brgy.classification === 'Urban'
-                      ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'
-                      : 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
-                  ]"
-                >
-                  {{ brgy.classification }}
-                </span>
               </div>
               
               <div class="flex items-center space-x-2 text-[10px] text-[#707070] dark:text-[#a3a3a3] pl-5">
@@ -205,7 +194,6 @@ function handleSelectBarangay(id: string) {
       </div>
     </div>
 
-    <!-- DESKTOP VIEW: Full Sidebar Card (hidden lg:block) -->
     <Card class="hidden lg:block">
       <!-- Title & Counter Header -->
       <CardHeader>
@@ -270,8 +258,8 @@ function handleSelectBarangay(id: string) {
         </div>
       </CardHeader>
      
-      <CardContent>
-        <div class="space-y-2 max-h-135 overflow-y-auto pr-1 pb-4">
+      <CardContent class="px-2 lg:px-0">
+        <div class="space-y-2 max-h-135 overflow-y-auto  pb-4">
           <div v-if="filteredBarangays.length === 0" class="p-6 text-center text-xs text-[#707070] dark:text-[#a3a3a3]">
             No barangays found matching "{{ searchQuery }}"
           </div>

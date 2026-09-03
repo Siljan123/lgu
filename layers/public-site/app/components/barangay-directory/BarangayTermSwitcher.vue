@@ -58,16 +58,16 @@ function onSelect(e: Event) {
     <!-- Term selector -->
     <div class="flex items-center gap-3 flex-1">
       <div class="flex-1">
-        <label class="block text-md text-primary font-semibold uppercase tracking-wide dark:text-neutral-400">
+        <label class="block text-sm text-primary font-sans font-semibold uppercase tracking-wide dark:text-neutral-400">
           Term
         </label>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1">
           <Filter class="text-red-500" :size="20"/>
           <div class="relative min-w-0">
             <select
               :value="selectedTerm?.id || ''"
               @change="onSelect"
-              class="max-w-full appearance-none pl-3 pr-8 py-1.5 text-sm font-bold bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-lg text-neutral-900 dark:text-white focus:outline-hidden focus:border-[#dc2626] focus:ring-1 focus:ring-[#dc2626] transition cursor-pointer"
+              class="max-w-full appearance-none pl-3 pr-8 py-1 text-sm font-bold bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded-md text-neutral-900 dark:text-white focus:outline-hidden  transition cursor-pointer"
             >
               <option v-for="t in terms" :key="t.id" :value="t.id">
                 {{ t.label }}{{ t.is_current ? ' ' : '' }}
