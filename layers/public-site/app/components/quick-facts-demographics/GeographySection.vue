@@ -18,8 +18,6 @@ const formatCellValue = (val: string) => {
 <template>
   <div>
     <div class="max-w-7xl mx-auto px-6 lg:px-8 space-y-8 mb-4">  
-      <!-- Accordion Container -->
-      
       <div class="overflow-hidden">
         <button 
           class="w-full flex items-center justify-between px-2 md:px-4 py-2 bg-[#fafafa] dark:bg-[#202020] hover:bg-[#f2f2f2] dark:hover:bg-[#252525] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#171717] dark:focus-visible:ring-[#ffffff] cursor-pointer"
@@ -45,7 +43,6 @@ const formatCellValue = (val: string) => {
           </div>
         </button>
   
-     
         <div 
           v-show="isExpanded" 
           class="px-2 py-8 border-t border-[#dfdfdf] dark:border-[#2e2e2e] bg-white dark:bg-[#1c1c1c] space-y-8"
@@ -56,49 +53,56 @@ const formatCellValue = (val: string) => {
 
           <div class="space-y-4 pt-2">
             <div class="border border-[#dfdfdf] dark:border-[#2e2e2e]  overflow-hidden bg-white dark:bg-[#1c1c1c] shadow-xs">
-              <div class="overflow-x-auto">
-                <table class="w-full text-xs md:text-sm text-center whitespace-nowrap border-collapse">
-                  <thead class="bg-[#fafafa] dark:bg-[#242424] border-b border-[#dfdfdf] dark:border-[#2e2e2e] text-[#171717] dark:text-[#ffffff]">
-                    <tr>
-                      <th colspan="14" class="py-3.5 px-4 text-xs md:text-sm font-semibold tracking-wider text-[oklch(0.497_0.18_26.815)] dark:text-red-400 border-b border-[#dfdfdf] dark:border-[#2e2e2e] text-left">
-                        <span class="sticky left-4 inline-block">
-                          Climate Data for San Francisco, Agusan del Sur
-                        </span>
-                      </th>
-                    </tr>
-                    <tr class="text-[#707070] dark:text-[#9a9a9a]">
-                      <th class="py-3 px-4 font-medium text-left sticky left-0 z-10 bg-[#fafafa] dark:bg-[#242424] border-r border-[#dfdfdf] dark:border-[#2e2e2e] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Month</th>
-                      <th v-for="month in months" :key="month" class="py-3 px-4 bg-background font-medium">{{ month }}</th>
-                      <th class="py-3 px-4 font-semibold text-[#171717] dark:text-[#ffffff] bg-[#f0f0f0] dark:bg-[#2a2a2a]">Year</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-[#dfdfdf] dark:divide-[#2e2e2e]">
-                    <tr v-for="(row, idx) in climateData" :key="idx" class="hover:bg-[#fafafa] dark:hover:bg-[#222222] transition-colors">
-                      <td class="py-3.5 px-4 text-left font-medium sticky left-0 z-10 bg-[#fafafa] dark:bg-[#242424] border-r border-[#dfdfdf] dark:border-[#2e2e2e] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">{{ row.label }}</td>
-                      <td v-for="(val, vIdx) in row.values" :key="vIdx" class="py-3.5 px-3 text-[#171717] dark:text-[#e0e0e0] tabular-nums">
-                        <span v-html="formatCellValue(val)"></span>
-                      </td>
-                      <td class="py-3.5 px-4 font-semibold text-[#171717] dark:text-[#ffffff] bg-[#fafafa] dark:bg-[#242424] tabular-nums">
-                        <span v-html="formatCellValue(row.year)"></span>
-                      </td>
-                    </tr>
-                  </tbody>
-                  <tfoot class="bg-[#fafafa] dark:bg-[#242424] border-t border-[#dfdfdf] dark:border-[#2e2e2e]">
-                    <tr>
-                      <td colspan="14" class="py-3 px-4 text-left text-xs text-[#707070] dark:text-[#9a9a9a]">
-                        <span class="sticky left-4 inline-block">
-                          Source: Meteoblue (calculated / modeled climate statistics for San Francisco, Agusan del Sur)
-                        </span>
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
+              <div>
+                <h1 class="text-lg md:text-xl font-medium tracking-tight text-center text-[#171717] dark:text-[#ffffff] px-4 py-3 border-b border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#fafafa] dark:bg-[#242424]">
+                  Climate data for San Francisco, Agusan del Sur
+                </h1>
+                <div class="overflow-auto">
+                  <table class="w-full text-xs md:text-sm text-center border-collapse">
+                    <thead class="sticky top-0 z-20 bg-[#fafafa] dark:bg-[#242424] border-b border-[#dfdfdf] dark:border-[#2e2e2e] text-[#171717] dark:text-[#ffffff]">
+                      <tr class="text-[#707070] dark:text-[#9a9a9a]">
+                        <th class="sticky left-0 top-0 z-30 py-3 px-4 font-medium text-left bg-[#fafafa] dark:bg-[#242424] border-r border-[#dfdfdf] dark:border-[#2e2e2e] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                          Month
+                        </th>
+                        <th v-for="month in months" :key="month" class="py-3 px-4 bg-[#fafafa] dark:bg-[#242424] font-medium">
+                          {{ month }}
+                        </th>
+                        <th class="py-3 px-4 font-semibold text-[#171717] dark:text-[#ffffff] bg-[#f0f0f0] dark:bg-[#2a2a2a]">
+                          Year
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody class="divide-y divide-[#dfdfdf] dark:divide-[#2e2e2e]">
+                      <tr v-for="(row, idx) in climateData" :key="idx" class="hover:bg-[#fafafa] dark:hover:bg-[#222222] transition-colors">
+                        <td class="sticky left-0 z-10 py-3.5 px-4 text-left font-medium bg-[#fafafa] dark:bg-[#242424] border-r border-[#dfdfdf] dark:border-[#2e2e2e] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                          {{ row.label }}
+                        </td>
+                        <td v-for="(val, vIdx) in row.values" :key="vIdx" class="py-3.5 px-3 text-[#171717] dark:text-[#e0e0e0] tabular-nums">
+                          <span v-html="formatCellValue(val)"></span>
+                        </td>
+                        <td class="py-3.5 px-4 font-semibold text-[#171717] dark:text-[#ffffff] bg-[#fafafa] dark:bg-[#242424] tabular-nums">
+                          <span v-html="formatCellValue(row.year)"></span>
+                        </td>
+                      </tr>
+                    </tbody>
+
+                    <tfoot class="bg-[#fafafa] dark:bg-[#242424] border-t border-[#dfdfdf] dark:border-[#2e2e2e]">
+                      <tr>
+                        <td colspan="14" class="py-3 px-4 text-left text-xs text-[#707070] dark:text-[#9a9a9a]">
+                          <span class="sticky left-4 inline-block">
+                            Source: Meteoblue (calculated / modeled climate statistics for San Francisco, Agusan del Sur)
+                          </span>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-
     </div>
   </div>
 </template>

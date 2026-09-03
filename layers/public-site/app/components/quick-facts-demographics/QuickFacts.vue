@@ -15,7 +15,7 @@ const displayContent = computed(() => props.content || defaultContent)
 </script>
 
 <template>
-  <section class="py-12 md:py-16  text-[#171717] bg-[#fafafa] dark:bg-[#202020] dark:text-[#ffffff] border-b border-[#dfdfdf] dark:border-[#2a2a2a]">
+  <section class="py-4 md:py-8  text-[#171717] bg-[#fafafa] dark:bg-[#202020] dark:text-[#ffffff] border-b border-[#dfdfdf] dark:border-[#2a2a2a]">
     <div class=" mx-auto px-6 lg:px-8 space-y-8 md:space-y-10">
       <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <div 
@@ -38,7 +38,9 @@ const displayContent = computed(() => props.content || defaultContent)
           
         </div>
       </div>
-
+      </div>
+   </section>
+   <section class="border-b">
       <div class="grid grid-cols-1 lg:grid-cols-12 items-stretch">
         <!-- Overview Text Container (7 cols) -->
         <div class="lg:col-span-7 p-6 md:p-8 flex flex-col justify-between">
@@ -55,7 +57,6 @@ const displayContent = computed(() => props.content || defaultContent)
           </div>
         </div>
 
-        <!-- Sample Reference Image Card (5 cols) -->
         <div class="lg:col-span-5 bg-[#fafafa] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#2e2e2e] overflow-hidden shadow-xs relative flex flex-col group min-h-[300px] md:min-h-[360px]">
           <div class="relative w-full h-full min-h-75 bg-[#1a1a1a] overflow-hidden flex-1">
             <img 
@@ -73,7 +74,6 @@ const displayContent = computed(() => props.content || defaultContent)
                 Agusan del Sur
               </span>
             </div>
-
             <!-- Floating Bottom Caption -->
             <div class="absolute bottom-4 left-4 right-4 text-white">
               <h3 class="text-lg font-medium tracking-tight">San Francisco Townscape</h3>
@@ -82,7 +82,5 @@ const displayContent = computed(() => props.content || defaultContent)
           </div>
         </div>
       </div>
-
-    </div>
   </section>
 </template>

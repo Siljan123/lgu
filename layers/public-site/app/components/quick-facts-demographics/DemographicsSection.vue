@@ -15,8 +15,6 @@ const activeTab = ref('all')
 
 <template>
   <section class="py-16 md:py-24 bg-background text-[#171717] dark:text-[#ffffff]">
-   
-    
     <div class="max-w-7xl mx-auto px-6 lg:px-8 space-y-12">
       <!-- Section Header -->
       <div class="max-w-3xl space-y-3">
@@ -101,7 +99,7 @@ const activeTab = ref('all')
 
         </div>
 
-        <div class="lg:col-span-7 bg-white dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#2c2c2c] rounded-sm p-6 md:p-8 shadow-xs space-y-6">
+        <div class="lg:col-span-7 rounded-sm space-y-6">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#dfdfdf] dark:border-[#2c2c2c] pb-5">
             <div>
               <h3 class="text-xl font-medium text-[#171717] dark:text-[#ffffff] tracking-tight">
@@ -119,11 +117,11 @@ const activeTab = ref('all')
           <!-- Table Container -->
           <div class="overflow-x-auto">
             <table class="w-full text-sm text-left">
-              <thead class="text-xs uppercase text-[#707070] dark:text-[#9a9a9a] bg-[#fafafa] dark:bg-[#242424] border-y border-[#dfdfdf] dark:border-[#2e2e2e]">
-                <tr>
-                  <th scope="col" class="py-3 px-4 font-medium">Census Year</th>
-                  <th scope="col" class="py-3 px-4 font-medium text-right">Population</th>
-                  <th scope="col" class="py-3 px-4 font-medium text-right">Growth / Yr</th>
+              <thead class="text-xs uppercase text-[#707070]  dark:text-[#9a9a9a] bg-[#fafafa] dark:bg-[#242424] border-y border-[#dfdfdf] dark:border-[#2e2e2e]">
+                <tr class="divide-x divide-[#dfdfdf] dark:divide-[#2e2e2e] items-center justify-center mx-auto">
+                  <th scope="col" class="py-3 px-4 font-medium text-center">Census Year</th>
+                  <th scope="col" class="py-3 px-4 font-medium text-center">Population</th>
+                  <th scope="col" class="py-3 px-4 font-medium text-cener">Growth / Yr</th>
                   <th scope="col" class="py-3 px-4 font-medium hidden sm:table-cell">Distribution</th>
                 </tr>
               </thead>
