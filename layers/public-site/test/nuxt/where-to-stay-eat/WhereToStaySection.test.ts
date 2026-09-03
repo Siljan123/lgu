@@ -34,5 +34,38 @@ describe('WhereToStaySection Component', () => {
     await cardsViewButton?.trigger('click')
     expect(wrapper.find('table').exists()).toBe(false)
   })
+
+  it('displays Satellite GPS or IP Network label when GPS location is acquired', async () => {
+    const originalGeo = Object.getOwnPropertyDescriptor(globalThis.navigator, 'geolocation')
+    try {
+      Object.defineProperty(globalThis.navigator, 'geolocation', {
+        value: {
+          getCurrentPosition: (success: (pos: any) => void) => {
+            success({
+              coords: { latitude: 8.5042, longitude: 125.9786, accuracy: 12 }
+            })
+          },
+          watchPosition: () => 1,
+          clearWatch: () => {}
+        },
+        configurable: true,
+        writable: true
+      })
+
+      const wrapper = await mountSuspended(WhereToStaySection)
+      const locateBtn = wrapper.findAll('button').find(b => b.text().includes('Use My Device GPS'))
+      expect(locateBtn).toBeDefined()
+
+      await locateBtn?.trigger('click')
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.text()).toContain('Satellite GPS')
+      expect(wrapper.text()).toContain('Satellite GPS Active')
+    } finally {
+      if (originalGeo) {
+        Object.defineProperty(globalThis.navigator, 'geolocation', originalGeo)
+      }
+    }
+  })
 })
 

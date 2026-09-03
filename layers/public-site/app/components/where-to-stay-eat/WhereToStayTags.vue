@@ -105,7 +105,7 @@ const selectSubCategory = (subCat: string) => {
 </script>
 
 <template>
-  <div class="w-full bg-[#ffffff] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#2e2e2e] rounded-sm p-4 sm:p-5 shadow-sm space-y-4">
+  <div class="w-full space-x-0 space-y-4">
     
     <div class="flex flex-col md:flex-row items-stretch md:items-center gap-3">
       
@@ -118,7 +118,7 @@ const selectSubCategory = (subCat: string) => {
           <input 
             type="text"
             :value="searchQuery"
-            placeholder="search hotel, restaurant, cafe, resort, homestay..."
+            placeholder="search..."
             class="w-full pl-10 pr-10 py-3 text-sm rounded-sm border border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#fafafa] dark:bg-[#1a1a1a] text-[#171717] dark:text-[#ffffff] placeholder-[#9a9a9a] dark:placeholder-[#707070] focus:outline-none focus:ring-2 focus:ring-[#85181a] dark:focus:ring-[#ef4444] transition-all font-medium shadow-2xs"
             @input="onInputSearch"
             @focus="isDropdownOpen = true"

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, shallowRef } from 'vue'
 import { type Establishment, calculateDistanceKm } from '../../composables/useWhereToStayEat'
+import type { LocationSourceInfo } from '../../composables/useEmergency'
 import { useGoogleMaps } from '../../composables/useGooglemaps'
 import { 
   Building2, 
@@ -16,6 +17,7 @@ import {
 interface Props {
   establishment: Establishment | null
   userLocation?: { lat: number; lng: number } | null
+  locationSource?: LocationSourceInfo | null
   routeDistance?: string | null
   routeDuration?: string | null
   height?: string
@@ -24,6 +26,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   height: '620px',
   userLocation: null,
+  locationSource: null,
   routeDistance: null,
   routeDuration: null
 })
@@ -130,6 +133,9 @@ watch(() => props.establishment, () => {
         <div v-if="userLocation && (routeDistance || directDistanceToUser)" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#85181a]/10 dark:bg-[#ef4444]/20 text-[#85181a] dark:text-[#ef4444] text-xs font-bold border border-[#85181a]/20 dark:border-[#ef4444]/30">
           <Route :size="13" />
           <span>{{ routeDistance || directDistanceToUser?.distanceText }} from your location</span>
+          <span v-if="locationSource" class="text-[10px] font-semibold opacity-90">
+            • {{ locationSource.type === 'satellite' ? 'Satellite GPS' : 'IP Network' }}
+          </span>
           <span v-if="routeDuration" class="text-[11px] font-normal text-[#707070] dark:text-[#cbd5e1]">
             ({{ routeDuration }})
           </span>

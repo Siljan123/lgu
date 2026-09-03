@@ -2806,15 +2806,15 @@
     "id": "pharmacy_drug_store_mercury_drug_8.500425_125.979003",
     "category": "PHARMACY_DRUG_STORE",
     "name": "Mercury Drug",
-    "short_description": "Barangay 4, San Francisco, Agusan del Sur",
+    "short_description": "Barangay 5, San Francisco, Agusan del Sur",
     "opening": "7:00 AM",
     "closing": "9:00 PM",
     "lat": 8.500425,
     "lng": 125.979003,
     "photoUrls": [
-      "https://firebasestorage.googleapis.com/v0/b/tologan-8554a.firebasestorage.app/o/place_photos%2Fpharmacy_drug_store_mercury_drug_8.500425_125.979003_photo_1_1771560259087.png?alt=media&token=ed82cadd-ae57-4835-a2ca-ae420d9a149c",
-      "https://firebasestorage.googleapis.com/v0/b/tologan-8554a.firebasestorage.app/o/place_photos%2Fpharmacy_drug_store_mercury_drug_8.500425_125.979003_photo_2_1771560268932.png?alt=media&token=6fe91cf3-1dc1-4ba8-b668-ee519baf9dd8",
-      "https://firebasestorage.googleapis.com/v0/b/tologan-8554a.firebasestorage.app/o/place_photos%2Fpharmacy_drug_store_mercury_drug_8.500425_125.979003_photo_3_1771560277193.png?alt=media&token=79b8dedc-1c7b-409d-8151-239051a29cc1"
+           "https://firebasestorage.googleapis.com/v0/b/tologan-8554a.firebasestorage.app/o/place_photos%2Fpharmacy_drug_store_mercury_drug_8.506374_125.976674_photo_1_1771560613929.png?alt=media&token=70b8b9ee-743b-4536-a156-fa66f622c3bf",
+      "https://firebasestorage.googleapis.com/v0/b/tologan-8554a.firebasestorage.app/o/place_photos%2Fpharmacy_drug_store_mercury_drug_8.506374_125.976674_photo_2_1771560623282.png?alt=media&token=05df3104-fb68-400e-85bc-e7ec9afb4254",
+       "https://firebasestorage.googleapis.com/v0/b/tologan-8554a.firebasestorage.app/o/place_photos%2Fpharmacy_drug_store_mercury_drug_8.500425_125.979003_photo_1_1771560259087.png?alt=media&token=ed82cadd-ae57-4835-a2ca-ae420d9a149c"
     ],
     "updatedAt": "2026-03-17T09:16:09.756"
   },
@@ -2822,14 +2822,15 @@
     "id": "pharmacy_drug_store_mercury_drug_8.506374_125.976674",
     "category": "PHARMACY_DRUG_STORE",
     "name": "Mercury Drug",
-    "short_description": "Barangay 5, San Francisco, Agusan del Sur",
+    "short_description": "Barangay 4, San Francisco, Agusan del Sur",
     "opening": "7:00 AM",
     "closing": "9:00 PM",
     "lat": 8.506374455538015,
     "lng": 125.97667362165312,
     "photoUrls": [
-      "https://firebasestorage.googleapis.com/v0/b/tologan-8554a.firebasestorage.app/o/place_photos%2Fpharmacy_drug_store_mercury_drug_8.506374_125.976674_photo_1_1771560613929.png?alt=media&token=70b8b9ee-743b-4536-a156-fa66f622c3bf",
-      "https://firebasestorage.googleapis.com/v0/b/tologan-8554a.firebasestorage.app/o/place_photos%2Fpharmacy_drug_store_mercury_drug_8.506374_125.976674_photo_2_1771560623282.png?alt=media&token=05df3104-fb68-400e-85bc-e7ec9afb4254"
+
+      "https://firebasestorage.googleapis.com/v0/b/tologan-8554a.firebasestorage.app/o/place_photos%2Fpharmacy_drug_store_mercury_drug_8.500425_125.979003_photo_2_1771560268932.png?alt=media&token=6fe91cf3-1dc1-4ba8-b668-ee519baf9dd8",
+      "https://firebasestorage.googleapis.com/v0/b/tologan-8554a.firebasestorage.app/o/place_photos%2Fpharmacy_drug_store_mercury_drug_8.500425_125.979003_photo_3_1771560277193.png?alt=media&token=79b8dedc-1c7b-409d-8151-239051a29cc1"
     ],
     "updatedAt": "2026-03-17T09:16:20.288"
   },

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { type Establishment, calculateDistanceKm } from '../../composables/useWhereToStayEat'
+import type { LocationSourceInfo } from '../../composables/useEmergency'
 import { 
   Phone, 
   MapPin, 
@@ -11,9 +12,10 @@ import {
   Utensils, 
   ExternalLink, 
   Clock, 
-  Navigation,
+  Navigation, 
   Route,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Building2Icon
 } from '@lucide/vue'
 
 import {
@@ -36,12 +38,14 @@ interface Props {
   activeId?: string | null
   currentCategory?: string
   userLocation?: { lat: number; lng: number } | null
+  locationSource?: LocationSourceInfo | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
   activeId: null,
   currentCategory: 'All',
-  userLocation: null
+  userLocation: null,
+  locationSource: null
 })
 
 const emit = defineEmits<{
@@ -75,7 +79,7 @@ const getItemDistance = (item: Establishment) => {
   <div class="w-full space-y-6">
     <div 
       v-if="establishments.length === 0" 
-      class="flex flex-col items-center justify-center p-12 text-center bg-[#ffffff] dark:bg-[#202020] rounded-xl border border-[#dfdfdf] dark:border-[#2e2e2e]"
+      class="flex flex-col items-center justify-center p-12 text-center bg-[#ffffff] dark:bg-[#202020] rounded-md border border-[#dfdfdf] dark:border-[#2e2e2e]"
     >
       <div class="p-4 rounded-full bg-[#fafafa] dark:bg-[#1a1a1a] text-[#707070] dark:text-[#a3a3a3] mb-4">
         <Building2 :size="32" />
@@ -91,13 +95,14 @@ const getItemDistance = (item: Establishment) => {
         v-for="item in establishments"
         :key="item.id"
         class="group relative flex flex-col h-full bg-[#ffffff] dark:bg-[#202020] rounded-md border border-[#dfdfdf] dark:border-[#2e2e2e] overflow-hidden transition-all duration-300 hover:shadow-md hover:border-[#85181a] dark:hover:border-[#ef4444] cursor-pointer"
-        :class="[activeId === item.id ? 'ring-1 ring-[#85181a] dark:ring-[#ef4444] shadow-md border-transparent' : '']"
+        :class="[activeId === item.id ? 'ring-1 ring-[#85181a] dark:ring-[#ef4444] border-transparent' : '']"
         @click="emit('select', item)"
       >
         <div class="relative w-full aspect-video overflow-hidden bg-[#18181b] flex flex-col items-center justify-center border-b border-[#dfdfdf] dark:border-[#2e2e2e]">
           <div 
             v-if="userLocation && getItemDistance(item)"
             class="absolute top-2.5 right-2.5 z-10 inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#171717]/85 backdrop-blur-md text-[#ffffff] text-[11px] font-bold shadow-md border border-white/10"
+            :title="locationSource ? (locationSource.type === 'satellite' ? 'Distance measured from Satellite GPS' : 'Distance measured from IP Network') : undefined"
           >
             <Route :size="12" class="text-[#facc15]" />
             <span>{{ getItemDistance(item)?.distanceText }} away</span>
@@ -141,10 +146,9 @@ const getItemDistance = (item: Establishment) => {
               <span>Hours: {{ item.operatingHours }}</span>
             </div>
           </div>
-          <!-- Action Button -->
           <button
             type="button"
-            class="mt-4 w-full py-2.5 px-3 rounded-lg text-xs font-semibold text-[#ffffff] bg-[#171717] dark:bg-[#181616] group-hover:bg-[#85181a] dark:group-hover:bg-[#ef4444] dark:group-hover:text-[#ffffff] transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+            class="mt-4 w-full py-2.5 px-3 rounded-lg text-xs font-semibold text-[#ffffff] bg-[#171717] dark:bg-[#181616] group-hover:bg-[#85181a] dark:group-hover:bg-[#ef4444] dark:group-hover:text-[#ffffff] transition-all flex items-center justify-center gap-2 cursor-pointer"
             @click.stop="emit('select', item)"
           >
             <Navigation :size="13" />
@@ -155,32 +159,27 @@ const getItemDistance = (item: Establishment) => {
     </div>
 
     <div v-else class="w-full overflow-hidden rounded-sm border border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#ffffff] dark:bg-[#202020] shadow-sm">
-      <div 
-        class="w-full py-4 px-6 bg-[#171717] dark:bg-[#171717] text-[#ffffff] flex items-center justify-between"
-      >
-        <div class="flex items-center gap-3">
-          <div>
-            <h2 class="text-lg font-bold uppercase tracking-wider text-[#ffffff]">
-              {{ currentCategory && currentCategory !== 'All' ? currentCategory : 'Where to Stay & Eat Directory' }}
-            </h2>
-            <p class="text-xs text-[#dfdfdf]/80">San Francisco, Agusan del Sur</p>
-          </div>
-        </div>
-        <span class="text-xs font-semibold px-3 py-1 rounded-full bg-[#ffffff]/15 text-[#ffffff] border border-[#ffffff]/20">
-          {{ totalCount }} Listed
-        </span>
-      </div>
-
-      <!-- Responsive Table Container -->
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm border-collapse">
           <thead>
-            <tr class="bg-[#243048] dark:bg-[#1a2333] text-[#ffffff] font-bold text-xs uppercase tracking-wider border-b border-[#dfdfdf] dark:border-[#2e2e2e]">
+            <tr class="bg-gray-200 dark:bg-gray-950 divide-x  font-bold text-xs uppercase tracking-wider border-b border-[#dfdfdf] dark:border-[#2e2e2e]">
               <th scope="col" class="py-4 px-6 text-center w-1/3 min-w-50">
-                Name / Category
+                <div class="flex items-center justify-center gap-2">
+                  <Building2Icon :size="15" />
+                  <span>Name / Establishment</span>
+                </div>
               </th>
               <th scope="col" class="py-4 px-6 text-center w-1/3 min-w-50">
-                Address
+                <div class="flex items-center justify-center gap-2">
+                  <MapPin :size="15" />
+                  <span>Address</span>
+                </div>
+              </th>
+               <th scope="col" class="py-4 px-6 text-center w-1/3 min-w-50">
+                <div class="flex items-center justify-center gap-2">
+                  <Clock :size="10" />
+                  <span>Time</span>
+                </div>
               </th>
               <th scope="col" class="py-4 px-6 text-center w-1/3 min-w-50">
                 Contact #
@@ -191,14 +190,13 @@ const getItemDistance = (item: Establishment) => {
             <tr 
               v-for="(item, index) in establishments" 
               :key="item.id"
-              class="group transition-colors duration-150 cursor-pointer hover:bg-[#fafafa] dark:hover:bg-[#262626]"
+              class="group transition-colors duration-150 divide-x cursor-pointer hover:bg-[#fafafa] dark:hover:bg-[#262626]"
               :class="[
-                activeId === item.id ? 'bg-[#85181a]/5 dark:bg-[#ef4444]/10 font-medium' : index % 2 === 0 ? 'bg-[#ffffff] dark:bg-[#202020]' : 'bg-[#fafafa]/60 dark:bg-[#1c1c1c]/60'
+                activeId === item.id ? 'bg-[#85181a]/5 dark:bg-[#ef4444]/10 font-medium' : index % 2 === 0 ? 'bg-gray-100 dark:bg-[#202020]' : 'bg-[#fafafa]/60 dark:bg-[#1c1c1c]/60'
               ]"
               @click="emit('select', item)"
             >
-              <!-- Name Column -->
-              <td class="py-4 px-6 align-middle">
+              <td class="py-2 px-6 align-middle">
                 <div class="flex gap-3">
                   <template v-if="item.image && !failedImages.has(item.id)">
                     <img 
@@ -219,17 +217,6 @@ const getItemDistance = (item: Establishment) => {
                       {{ item.name }}
                     </div>
                     <div class="mt-1 flex items-center gap-1.5 flex-wrap">
-                      <span class="inline-block text-[11px] font-semibold text-[#85181a] dark:text-[#ef4444] bg-[#85181a]/10 dark:bg-[#ef4444]/20 px-2 py-0.5 rounded">
-                        {{ item.subCategory || item.category }}
-                      </span>
-                      <span v-if="item.operatingHours" class="inline-flex items-center gap-1 text-[10px] text-[#707070] dark:text-[#a3a3a3]">
-                        <Clock :size="10" />
-                        {{ item.operatingHours }}
-                      </span>
-                      <span v-if="userLocation && getItemDistance(item)" class="inline-flex items-center gap-1 text-[10px] font-bold text-[#85181a] dark:text-[#ef4444] bg-[#85181a]/10 dark:bg-[#ef4444]/20 px-1.5 py-0.5 rounded">
-                        <Route :size="10" />
-                        {{ getItemDistance(item)?.distanceText }}
-                      </span>
                     </div>
                   </div>
                 </div>
@@ -237,11 +224,21 @@ const getItemDistance = (item: Establishment) => {
 
               <td class="py-4 px-6 text-sm text-[#212121] dark:text-[#d4d4d4] font-medium leading-snug">
                 <div class="flex gap-1.5">
-                  <MapPin :size="15" class="text-[#85181a] dark:text-[#ef4444] shrink-0" />
                   <span>{{ item.address }}</span>
                 </div>
               </td>
 
+              <td class="py-4 px-6 text-sm text-[#212121] dark:text-[#d4d4d4] font-medium leading-snug">
+                <div class="flex gap-1.5">
+                 <span v-if="item.operatingHours" class="inline-flex items-center gap-1 text-[10px] text-[#707070] dark:text-[#a3a3a3]">
+                        {{ item.operatingHours }}
+                      </span>
+                      <span v-if="userLocation && getItemDistance(item)" class="inline-flex items-center gap-1 text-[10px] font-bold text-[#85181a] dark:text-[#ef4444] bg-[#85181a]/10 dark:bg-[#ef4444]/20 px-1.5 py-0.5 rounded">
+                        <Route :size="10" />
+                        {{ getItemDistance(item)?.distanceText }}
+                      </span>
+                </div>
+              </td>
               <td class="py-4 px-6 text-center align-middle font-bold text-base tracking-wide">
                 <template v-if="item.contactNo">
                   <div class="flex items-center justify-center gap-2">
