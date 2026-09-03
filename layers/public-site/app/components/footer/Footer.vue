@@ -44,7 +44,7 @@ import { Phone, Mail } from '@lucide/vue';
           <ul class="space-y-2">
             <li>
               <a
-                href="https://www.facebook.com/civilservicegovph/"
+                href="https://www.facebook.com/gugmasalungsod?fref=nf&ref=embed_page"
                 target="_blank"
                 class="flex items-center gap-2 text-foreground/80 hover:text-foreground transition-colors text-sm"
               >
@@ -53,7 +53,7 @@ import { Phone, Mail } from '@lucide/vue';
             </li>
             <li>
               <a
-                href="https://www.csc.gov.ph/"
+                href="https://www.sfads.gov.ph/"
                 target="_blank"
                 class="flex items-center gap-2 text-foreground/80 hover:text-foreground transition-colors text-sm"
               >
