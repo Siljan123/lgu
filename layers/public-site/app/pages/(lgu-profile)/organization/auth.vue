@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import {
   Building2,
-  ListFilter,
 } from '@lucide/vue'
 
 useHead({
@@ -16,8 +14,9 @@ useHead({
 })
 
 definePageMeta({
-  layout:'guest'
+  layout: 'sidebar-test',
 })
+
 const {
   activeTreeData,
   positions,
@@ -32,54 +31,45 @@ const {
   editNode,
   deleteNode,
 } = useMunicipalOrganization()
-
-const isMobileSidebarOpen = ref(false)
-
-function handleAddSubNodeFromSidebar(officeId: string) {
-  selectOffice(officeId)
-}
 </script>
 
 <template>
-  
-  <div class="w-full bg-[#fafafa] dark:bg-[#121212] min-h-[85vh] py-6 sm:py-8">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6  space-y-4">
-      <div class="flex items-center justify-between lg:hidden bg-white dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#333333] rounded-xl p-3 shadow-xs">
-        <div class="flex items-center space-x-2 min-w-0">
-          <Building2 class="size-4 text-[#dc2626] shrink-0" />
-          <span class="text-xs font-bold text-neutral-900 dark:text-white truncate">Municipal Organization</span>
+  <div class="space-y-4 min-h-[85vh]">
+    <div class="p-4 rounded-xl bg-white dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#333333] shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div class="flex items-center space-x-3 min-w-0">
+        <div class="size-10 rounded-lg bg-[#dc2626]/10 dark:bg-[#dc2626]/20 flex items-center justify-center text-[#dc2626] shrink-0">
+          <Building2 class="size-5" />
         </div>
-        <button
-          type="button"
-          @click="isMobileSidebarOpen = !isMobileSidebarOpen"
-          class="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 rounded-lg cursor-pointer shrink-0"
-        >
-          <ListFilter class="size-3.5 text-[#dc2626]" />
-          <span>{{ isMobileSidebarOpen ? 'Close' : 'Offices (' + flatDepartments.length + ')' }}</span>
-        </button>
+        <div class="min-w-0">
+          <h2 class="text-sm sm:text-base font-bold text-neutral-900 dark:text-white truncate">
+            Municipal Organizational Structure
+          </h2>
+          <p class="text-xs text-neutral-500 dark:text-neutral-400 truncate">
+            Manage municipal department hierarchy, offices, personnel, and organizational units.
+          </p>
+        </div>
       </div>
-
-      <div class="flex mx-auto gap-4">
-
-        <main class="max-w-7xl space-y-3 min-w-7xl">
-          <div class="w-full overflow-x-auto">
-            <OrganizationAuthMunicipalOrgChart
-              :tree-root="activeTreeData"
-              :positions="positions"
-              :label-options="labelOptions"
-              :selected-office-id="selectedOfficeId"
-              :view-mode="viewMode"
-              :pending="pending"
-              :error="error"
-              @select-office="selectOffice"
-              @add-node="addNode"
-              @edit-node="editNode"
-              @delete-node="deleteNode"
-            />
-          </div>
-        </main>
+      <div class="flex items-center space-x-2 shrink-0">
+        <span class="text-xs font-medium text-neutral-600 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 px-3 py-1.5 rounded-lg">
+          {{ flatDepartments.length }} Total Units
+        </span>
       </div>
-
+    </div>
+    <!-- Chart Canvas -->
+    <div class="w-full">
+      <OrganizationAuthMunicipalOrgChart
+        :tree-root="activeTreeData"
+        :positions="positions"
+        :label-options="labelOptions"
+        :selected-office-id="selectedOfficeId"
+        :view-mode="viewMode"
+        :pending="pending"
+        :error="error"
+        @select-office="selectOffice"
+        @add-node="addNode"
+        @edit-node="editNode"
+        @delete-node="deleteNode"
+      />
     </div>
   </div>
 </template>

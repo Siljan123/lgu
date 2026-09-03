@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import OrganizationChart from 'organization-chart-vue3'
 import 'organization-chart-vue3/style.css'
 import { getInitials } from '../../../utils/string'
@@ -226,12 +226,19 @@ function toggleFullscreen() {
   isFullscreen.value = !isFullscreen.value
 }
 
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && isFullscreen.value) {
+    isFullscreen.value = false
+  }
+}
+
 onUnmounted(() => {
   window.removeEventListener('mousemove', handleMouseMove)
   window.removeEventListener('mouseup', handleMouseUp)
   window.removeEventListener('touchmove', handleTouchMove)
   window.removeEventListener('touchend', handleTouchEnd)
   window.removeEventListener('resize', scheduleMeasure)
+  window.removeEventListener('keydown', handleKeydown)
   if (measureFrame !== null && typeof cancelAnimationFrame !== 'undefined') {
     cancelAnimationFrame(measureFrame)
   }
@@ -459,7 +466,10 @@ function measureMiniMapNodes() {
 
   const list: MiniMapNode[] = []
   cards.forEach((el) => {
-    const box = el.getBoundingClientRect()
+    const target = el.dataset.miniNodeLabel === 'true'
+      ? (el.closest('.org-node') as HTMLElement) || el
+      : el
+    const box = target.getBoundingClientRect()
     list.push({
       id: el.dataset.miniNodeId || '',
       isLabel: el.dataset.miniNodeLabel === 'true',
@@ -503,6 +513,7 @@ onMounted(() => {
   observeCanvas()
   scheduleMeasure()
   window.addEventListener('resize', scheduleMeasure)
+  window.addEventListener('keydown', handleKeydown)
 })
 
 // The canvas lives behind a v-if, so the refs arrive after pending/error resolve.
@@ -518,7 +529,7 @@ watch([displayedTreeList, isFullscreen], async () => {
 </script>
 
 <template>
-  <div
+   <div
     ref="containerRef"
     class="w-full transition-all duration-300"
     :class="[
@@ -530,7 +541,7 @@ watch([displayedTreeList, isFullscreen], async () => {
     <div class="mb-3 flex flex-wrap items-center justify-between gap-2.5 bg-white dark:bg-[#1c1c1c] border border-[#dfdfdf] dark:border-[#333333] rounded-xl px-3 py-2 shadow-xs">
       <div class="flex items-center space-x-2 text-xs font-semibold text-neutral-800 dark:text-neutral-200">
        
-        <div v-if="labelNodes.length > 0" class="flex items-center space-x-1.5 mr-2 border-r border-neutral-200 dark:border-neutral-700 pr-2">
+        <div v-if="labelNodes.length > 0" class="flex items-center space-x-1.5 mr-1 sm:mr-2 border-r border-neutral-200 dark:border-neutral-700 pr-2">
           <Filter class="size-3.5 text-neutral-500" />
           <select
             v-model="selectedLabelFilter"
@@ -542,15 +553,14 @@ watch([displayedTreeList, isFullscreen], async () => {
             </option>
           </select>
         </div>
-
-        <div class="flex items-center space-x-1.5 text-neutral-500 dark:text-neutral-400 mr-2 border-r border-neutral-200 dark:border-neutral-700 pr-2">
+        <div class="flex items-center space-x-1.5 text-neutral-500 dark:text-neutral-400 mr-1 sm:mr-2 border-r border-neutral-200 dark:border-neutral-700 pr-2">
           <Move class="size-3.5 text-[#dc2626]" />
           <span class="text-[11px] select-none font-medium hidden sm:inline">Drag • Scroll</span>
         </div>
         <button
           type="button"
           @click="zoomOut"
-          class="interactive-btn p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-200 transition-colors"
+          class="interactive-btn p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-200 transition-colors cursor-pointer"
           title="Zoom Out (-)"
         >
           <ZoomOut class="size-4" />
@@ -561,7 +571,7 @@ watch([displayedTreeList, isFullscreen], async () => {
         <button
           type="button"
           @click="zoomIn"
-          class="interactive-btn p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-200 transition-colors"
+          class="interactive-btn p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-200 transition-colors cursor-pointer"
           title="Zoom In (+)"
         >
           <ZoomIn class="size-4" />
@@ -570,7 +580,7 @@ watch([displayedTreeList, isFullscreen], async () => {
         <button
           type="button"
           @click="resetZoom"
-          class="interactive-btn p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-200 transition-colors flex items-center space-x-1"
+          class="interactive-btn p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-200 transition-colors flex items-center space-x-1 cursor-pointer"
           title="Reset Zoom & Pan"
         >
           <RotateCcw class="size-3.5" />
@@ -580,7 +590,7 @@ watch([displayedTreeList, isFullscreen], async () => {
         <button
           type="button"
           @click="showMinimap = !showMinimap"
-          class="interactive-btn p-1.5 rounded-md transition-colors"
+          class="interactive-btn p-1.5 rounded-md transition-colors cursor-pointer"
           :class="showMinimap
             ? 'bg-[#dc2626]/10 text-[#dc2626] dark:bg-[#dc2626]/20 dark:text-[#f87171]'
             : 'hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-200'"
@@ -605,7 +615,7 @@ watch([displayedTreeList, isFullscreen], async () => {
 
     <div
       class="relative w-full border border-[#dfdfdf] dark:border-[#333333] rounded-xl bg-[#fafafa]/60 dark:bg-[#141414]/60 overflow-hidden shadow-sm flex-1 flex flex-col"
-      :class="[isFullscreen ? 'min-h-0' : 'min-h-[72vh] h-[75vh]']"
+      :class="[isFullscreen ? 'min-h-0 h-full' : 'min-h-[72vh] h-[75vh']"
     >
       
       <!-- Visualizer Minimap Navigator  -->
@@ -644,7 +654,7 @@ watch([displayedTreeList, isFullscreen], async () => {
       <div
         v-else
         ref="chartCanvasRef"
-        class="relative w-full h-full cursor-grab active:cursor-grabbing select-none overflow-hidden"
+        class="relative w-full h-full cursor-grab active:cursor-grabbing select-none overflow-hidden flex-1 min-h-0"
         @mousedown="handleMouseDown"
         @touchstart.passive="handleTouchStart"
         @wheel.prevent="handleWheel"
@@ -652,7 +662,7 @@ watch([displayedTreeList, isFullscreen], async () => {
       >
         <div
           ref="chartContentRef"
-          class="w-full min-w-max flex flex-wrap items-start justify-center gap-12 sm:gap-16 py-12 px-8 transition-transform duration-75 ease-out origin-top"
+          class="w-full flex justify-center py-12 px-8 transition-transform duration-75 ease-out origin-top"
           :style="{
             transform: `translate3d(${panX}px, ${panY}px, 0) scale(${scale})`,
             transformOrigin: 'top center'
@@ -671,47 +681,47 @@ watch([displayedTreeList, isFullscreen], async () => {
               <template #node-title="{ node }">
                 <div v-if="!(node as MunicipalDepartmentNode).hideTitle" class="w-full flex flex-col items-center text-center">
                   
-                  <div class="flex justify-end w-full px-2 bg-gray-700 py-1 gap-1.5 overflow-hidden">
-                    <div class="flex justify-start w-full px-2 bg-gray-700 py-1 gap-1.5 overflow-hidden">
-                    <span
-                      v-if="(node as MunicipalDepartmentNode).acronym"
-                      class="shrink-0 whitespace-nowrap px-2  bg-[#dc2626] text-white text-[10px] font-mono font-extrabold "
-                    >
-                      {{ (node as MunicipalDepartmentNode).acronym  }}
-                    </span>
-                    <span
-                      v-else
-                      class="shrink-0 whitespace-nowrap px-2 py-0.5 text-neutral-500 font-mono font-extrabold text-center mx-auto"
-                    >
-                    N/A
-                    </span>
-                  </div>
-                    <div class="flex items-center justify-center gap-1.5 opacity-90 group-hover:opacity-100 transition-opacity">
+                  <div class="flex justify-between items-center w-full px-2 bg-gray-700 dark:bg-gray-800 py-1 gap-1.5 overflow-hidden">
+                    <div class="flex items-center min-w-0">
+                      <span
+                        v-if="(node as MunicipalDepartmentNode).acronym"
+                        class="shrink-0 whitespace-nowrap px-1.5 py-0.5 bg-[#dc2626] text-white text-[10px] font-mono font-extrabold rounded-xs"
+                      >
+                        {{ (node as MunicipalDepartmentNode).acronym }}
+                      </span>
+                      <span
+                        v-else
+                        class="shrink-0 whitespace-nowrap px-1.5 py-0.5 text-neutral-400 font-mono font-bold text-[10px]"
+                      >
+                        N/A
+                      </span>
+                    </div>
+                    <div class="flex items-center justify-end gap-1 shrink-0 opacity-90 group-hover:opacity-100 transition-opacity">
                       <button
                         type="button"
                         @click.stop="openAddChildModal(node as MunicipalDepartmentNode)"
-                        class="interactive-btn p-1.5 rounded-md bg-[#dc2626]/10 hover:bg-[#dc2626] text-[#dc2626] hover:text-white dark:bg-[#dc2626]/20 dark:text-[#f87171] dark:hover:text-white transition-colors cursor-pointer"
+                        class="interactive-btn p-1 rounded bg-[#dc2626]/20 hover:bg-[#dc2626] text-[#f87171] hover:text-white transition-colors cursor-pointer"
                         title="Add Child / Sub-Unit under this label"
                       >
-                        <Plus class="size-3.5" />
+                        <Plus class="size-3" />
                       </button>
 
                       <button
                         type="button"
                         @click.stop="openEditModal(node as MunicipalDepartmentNode)"
-                        class="interactive-btn p-1.5 rounded-md bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 transition-colors cursor-pointer"
+                        class="interactive-btn p-1 rounded bg-neutral-600 hover:bg-neutral-500 text-neutral-200 transition-colors cursor-pointer"
                         title="Edit section label"
                       >
-                        <Edit3 class="size-3.5" />
+                        <Edit3 class="size-3" />
                       </button>
 
                       <button
                         type="button"
                         @click.stop="openDeleteModal(node as MunicipalDepartmentNode)"
-                        class="interactive-btn p-1.5 rounded-md bg-destructive/10 hover:bg-destructive text-destructive hover:text-white transition-colors cursor-pointer"
+                        class="interactive-btn p-1 rounded bg-destructive/20 hover:bg-destructive text-red-300 hover:text-white transition-colors cursor-pointer"
                         title="Delete section label"
                       >
-                        <Trash2 class="size-3.5" />
+                        <Trash2 class="size-3" />
                       </button>
                     </div>
                   </div>

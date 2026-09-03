@@ -16,19 +16,13 @@ import type {
 } from '../../../types/organization'
 import {
   Building2,
-  Plus,
-  Tag,
-  Trash2,
-  Edit3,
   ZoomIn,
   ZoomOut,
   RotateCcw,
   Move,
   Maximize2,
   Minimize2,
-  Phone,
   AlertCircle,
-  Info,
   Map as MapIcon,
 } from '@lucide/vue'
 
@@ -60,8 +54,7 @@ const emit = defineEmits<{
   (e: 'select-office', nodeId: string): void
 }>()
 
-// Pan & Zoom state
-const scale = ref(0.9)
+const scale = ref(1)
 const panX = ref(0)
 const panY = ref(0)
 const isDragging = ref(false)
@@ -69,11 +62,7 @@ const startX = ref(0)
 const startY = ref(0)
 const isFullscreen = ref(false)
 
-// Template refs — the minimap needs the real geometry of these two boxes.
-const containerRef = ref<HTMLElement | null>(null)
-/** The fixed-size viewport (what the user can actually see). */
 const chartCanvasRef = ref<HTMLElement | null>(null)
-/** The CSS-transformed chart layer living inside the viewport. */
 const chartContentRef = ref<HTMLElement | null>(null)
 
 const highlightedNodeId = ref<string | null>(null)
@@ -98,15 +87,15 @@ const treeList = computed<MunicipalDepartmentNode[]>(() => {
 })
 
 function zoomIn() {
-  scale.value = Math.min(2.5, Number((scale.value + 0.15).toFixed(2)))
+  scale.value = Math.min(2.5, Number((scale.value + 0.10).toFixed(2)))
 }
 
 function zoomOut() {
-  scale.value = Math.max(0.25, Number((scale.value - 0.15).toFixed(2)))
+  scale.value = Math.max(0.25, Number((scale.value - 0.10).toFixed(2)))
 }
 
 function resetZoom() {
-  scale.value = 0.9
+  scale.value = 1
   panX.value = 0
   panY.value = 0
 }
@@ -180,46 +169,9 @@ onUnmounted(() => {
   canvasObserver = null
 })
 
-function openAddChildModal(parentNode: MunicipalDepartmentNode) {
-  selectedTargetNode.value = parentNode
-  selectedParentId.value = parentNode.id
-  isAddModalOpen.value = true
-}
-
-function openEditModal(node: MunicipalDepartmentNode) {
-  selectedTargetNode.value = node
-  isEditModalOpen.value = true
-}
-
-function openDeleteModal(node: MunicipalDepartmentNode) {
-  selectedTargetNode.value = node
-  isDeleteConfirmOpen.value = true
-}
-
 function openDetailsModal(node: MunicipalDepartmentNode) {
   selectedTargetNode.value = node
   isDetailsModalOpen.value = true
-}
-
-function handleAddNode(payload: AddNodePayload) {
-  emit('add-node', payload)
-  isAddModalOpen.value = false
-}
-
-function handleEditNode(payload: EditNodePayload) {
-  emit('edit-node', payload)
-  isEditModalOpen.value = false
-}
-
-function handleDeleteNode(nodeId: string) {
-  emit('delete-node', nodeId)
-  isDeleteConfirmOpen.value = false
-  selectedTargetNode.value = null
-}
-
-function handleResetDefaults() {
-  emit('reset-default')
-  isResetConfirmOpen.value = false
 }
 
 function handleSelect(payload: OrganizationChartSelectPayload) {
@@ -229,7 +181,6 @@ function handleSelect(payload: OrganizationChartSelectPayload) {
   }
 }
 
-// Watch selectedOfficeId prop to update highlight
 watch(
   () => props.selectedOfficeId,
   (newId) => {
@@ -305,9 +256,8 @@ const fallbackMiniMapNodes = computed<MiniMapNode[]>(() => {
       title: node.title,
       acronym: node.acronym,
       isLabel,
-      // measured and fallback nodes can share a single rendering path.
-      x: x - 9,
-      y: y - 7,
+      x: x - 10,
+      y: y - 8,
       w: 18,
       h: 14
     }
@@ -330,9 +280,7 @@ const fallbackMiniMapNodes = computed<MiniMapNode[]>(() => {
   return result
 })
 
-// Minimap geometry navigator
-
-const miniW = 180
+const miniW = 160
 const miniH = 120
 
 function clamp(value: number, min: number, max: number): number {
@@ -392,7 +340,6 @@ function measureMiniMapNodes() {
   }
 
   // getBoundingClientRect() IS affected by the transform, so divide the deltas
-  // by the current scale to get back to untransformed content pixels.
   const s = scale.value || 1
   const contentBox = content.getBoundingClientRect()
   const cw = Math.max(1, contentSize.value.w)
@@ -400,13 +347,16 @@ function measureMiniMapNodes() {
 
   const list: MiniMapNode[] = []
   cards.forEach((el) => {
-    const box = el.getBoundingClientRect()
+    const target = el.dataset.miniNodeLabel === 'true'
+      ? (el.closest('.org-node') as HTMLElement) || el
+      : el
+    const box = target.getBoundingClientRect()
     list.push({
       id: el.dataset.miniNodeId || '',
       isLabel: el.dataset.miniNodeLabel === 'true',
       x: ((box.left - contentBox.left) / s / cw) * miniW,
       y: ((box.top - contentBox.top) / s / ch) * miniH,
-      w: Math.max(3, (box.width / s / cw) * miniW),
+      w: Math.max(2, (box.width / s / cw) * miniW),
       h: Math.max(2.5, (box.height / s / ch) * miniH),
     })
   })
@@ -532,10 +482,9 @@ watch([treeList, isFullscreen], async () => {
     </div>
 
     <div
-      class="relative w-full border border-[#dfdfdf] dark:border-[#333333] rounded-xl bg-[#fafafa]/60 dark:bg-[#141414]/60 overflow-hidden shadow-sm flex-1 flex flex-col"
+      class="relative w-full border border-[#dfdfdf] dark:border-[#333333] rounded-md bg-[#fafafa]/60 dark:bg-[#141414]/60 overflow-hidden shadow-sm flex-1 flex flex-col"
       :class="[isFullscreen ? 'min-h-0' : 'min-h-[72vh] h-[75vh]']"
     >
-      
       <!-- Visualizer Minimap Navigator  -->
       <OrganizationOrgChartMinimapNavigator
         v-if="treeRoot && showMinimap"
@@ -689,7 +638,6 @@ watch([treeList, isFullscreen], async () => {
         </div>
       </div>
     </div>
-
     <OrganizationMunicipalOrgDetailsModal
       :open="isDetailsModalOpen"
       :node="selectedTargetNode"

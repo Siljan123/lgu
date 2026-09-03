@@ -49,7 +49,7 @@ onMounted(async () => {
 
 <template>
   <section class="w-full p-4 sm:p-6 lg:p-8 transition-colors min-h-screen">
-    <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8">
       <!-- Loading Skeleton (when initially loading list) -->
       <div v-if="isLoading && barangays.length === 0" class="animate-pulse space-y-6">
         <div class="h-20 bg-neutral-200 dark:bg-neutral-800 rounded-2xl w-full"></div>
