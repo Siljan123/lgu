@@ -106,38 +106,38 @@ TRUNCATE TABLE governance.employees, governance.positions, governance.department
   insert into governance.officials (id, label_name, first_name, middle_name, last_name, position_id, parent_id, contact, avatar_url, is_label) values
     -- Municipal Mayor
     ('22222222-2222-4000-8000-000000000001', null, 'Grace', 'A.', 'Rodriguez',
-      '11111111-1111-4000-8000-000000000001', null, '0917-234-5601', null, false),
-    -- Municipal Vice Mayor
-    ('22222222-2222-4000-8000-000000000002', null, 'Roberto', 'M.', 'Plaza',
-      '11111111-1111-4000-8000-000000000002', '22222222-2222-4000-8000-000000000001', '0917-234-5602', null, false),
-    -- Sangguniang Bayan Members (Label Node)
-    ('22222222-2222-4000-8000-000000000010', 'Sangguniang Bayan Members', null, null, null,
-      '11111111-1111-4000-8000-000000000003', '22222222-2222-4000-8000-000000000002', null, null, true),
-    -- SB Members & Ex-Officio Councilors (under SB Members Label)
-    ('22222222-2222-4000-8000-000000000003', null, 'Pedro', 'S.', 'Reyes',
-      '11111111-1111-4000-8000-000000000004', '22222222-2222-4000-8000-000000000010', '0917-234-5611', null, false),
-    ('22222222-2222-4000-8000-000000000004', null, 'Ana', 'M.', 'Villanueva',
-      '11111111-1111-4000-8000-000000000004', '22222222-2222-4000-8000-000000000010', '0917-234-5612', null, false),
-    ('22222222-2222-4000-8000-000000000005', null, 'Ramon', 'T.', 'Cruz',
-      '11111111-1111-4000-8000-000000000004', '22222222-2222-4000-8000-000000000010', '0917-234-5613', null, false),
-    ('22222222-2222-4000-8000-000000000006', null, 'Liza', 'K.', 'Santos',
-      '11111111-1111-4000-8000-000000000004', '22222222-2222-4000-8000-000000000010', '0917-234-5614', null, false),
-    ('22222222-2222-4000-8000-000000000007', null, 'Eduardo', 'D.', 'Flores',
-      '11111111-1111-4000-8000-000000000004', '22222222-2222-4000-8000-000000000010', '0917-234-5615', null, false),
-    ('22222222-2222-4000-8000-000000000008', null, 'Rodrigo', 'L.', 'Tan',
-      '11111111-1111-4000-8000-000000000005', '22222222-2222-4000-8000-000000000010', '0917-234-5616', null, false),
-    ('22222222-2222-4000-8000-000000000009', null, 'Kristine Joy', 'B.', 'Ramos',
-      '11111111-1111-4000-8000-000000000006', '22222222-2222-4000-8000-000000000010', '0917-234-5617', null, false)
-  on conflict (id) do update set
-    label_name = excluded.label_name,
-    first_name = excluded.first_name,
-    middle_name = excluded.middle_name,
-    last_name = excluded.last_name,
-    position_id = excluded.position_id,
-    parent_id = excluded.parent_id,
-    is_label = excluded.is_label,
-    contact = excluded.contact,
-    avatar_url = excluded.avatar_url;
+    '11111111-1111-4000-8000-000000000001', null, '0917-234-5601', null, false),
+  -- Municipal Vice Mayor
+  ('22222222-2222-4000-8000-000000000002', null, 'Roberto', 'M.', 'Plaza',
+    '21111111-1111-4000-8000-000000000002', '22222222-2222-4000-8000-000000000001', '0917-234-5602', null, false),
+  -- Sangguniang Bayan Members (Label Node)
+  ('22222222-2222-4000-8000-000000000010', 'Sangguniang Bayan Members', null, null, null,
+    '31111111-1111-4000-8000-000000000004', '22222222-2222-4000-8000-000000000002', null, null, true),
+  -- SB Members & Ex-Officio Councilors (under SB Members Label)
+  ('22222222-2222-4000-8000-000000000003', null, 'Pedro', 'S.', 'Reyes',
+    '31111111-1111-4000-8000-000000000004', '22222222-2222-4000-8000-000000000010', '0917-234-5611', null, false),
+  ('22222222-2222-4000-8000-000000000004', null, 'Ana', 'M.', 'Villanueva',
+    '31111111-1111-4000-8000-000000000004', '22222222-2222-4000-8000-000000000010', '0917-234-5612', null, false),
+  ('22222222-2222-4000-8000-000000000005', null, 'Ramon', 'T.', 'Cruz',
+    '31111111-1111-4000-8000-000000000004', '22222222-2222-4000-8000-000000000010', '0917-234-5613', null, false),
+  ('22222222-2222-4000-8000-000000000006', null, 'Liza', 'K.', 'Santos',
+    '31111111-1111-4000-8000-000000000004', '22222222-2222-4000-8000-000000000010', '0917-234-5614', null, false),
+  ('22222222-2222-4000-8000-000000000007', null, 'Eduardo', 'D.', 'Flores',
+    '31111111-1111-4000-8000-000000000004', '22222222-2222-4000-8000-000000000010', '0917-234-5615', null, false),
+  ('22222222-2222-4000-8000-000000000008', null, 'Rodrigo', 'L.', 'Tan',
+    '41111111-1111-4000-8000-000000000005', '22222222-2222-4000-8000-000000000010', '0917-234-5616', null, false),
+  ('22222222-2222-4000-8000-000000000009', null, 'Kristine Joy', 'B.', 'Ramos',
+    '51111111-1111-4000-8000-000000000006', '22222222-2222-4000-8000-000000000010', '0917-234-5617', null, false)
+on conflict (id) do update set
+  label_name = excluded.label_name,
+  first_name = excluded.first_name,
+  middle_name = excluded.middle_name,
+  last_name = excluded.last_name,
+  position_id = excluded.position_id,
+  parent_id = excluded.parent_id,
+  is_label = excluded.is_label,
+  contact = excluded.contact,
+  avatar_url = excluded.avatar_url;
 
 commit;
 -- barangay_directory seed
