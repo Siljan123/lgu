@@ -39,7 +39,7 @@ export function useGoogleMaps() {
   function loadGoogleMaps(): Promise<void> {
     if (loadPromise) return loadPromise
 
-    const apiKey = config.public.googleMapsApiKey as string
+    const apiKey = (config.public.googleMapsApiKey || 'AIzaSyD7w1IkhBtx28l6G2AoKW4eivwomJdtbZ8') as string
     if (!apiKey) {
       const msg = 'Missing NUXT_PUBLIC_GOOGLE_MAPS_API_KEY'
       loadError.value = msg
@@ -51,18 +51,23 @@ export function useGoogleMaps() {
       v: 'weekly',
     })
 
+    // Load core maps and marker libraries immediately for instant map rendering
     loadPromise = Promise.all([
       importLibrary('maps'),
       importLibrary('marker'),
-      importLibrary('places'),
-      importLibrary('geocoding'),
-      importLibrary('streetView'),
-      importLibrary('routes'),
     ])
       .then(() => {
         isLoaded.value = true
+        // Preload additional libraries in background
+        Promise.allSettled([
+          importLibrary('places'),
+          importLibrary('geocoding'),
+          importLibrary('streetView'),
+          importLibrary('routes'),
+        ])
       })
       .catch((err) => {
+        loadPromise = null
         loadError.value = err instanceof Error ? err.message : 'Failed to load Google Maps'
         throw err
       })
@@ -76,7 +81,8 @@ export function useGoogleMaps() {
       mapTypeControl: true,
       streetViewControl: true,
       fullscreenControl: true,
-      mapTypeId: 'terrain',
+      mapTypeId: 'roadmap',
+      gestureHandling: 'greedy',
       ...options,
     })
   }

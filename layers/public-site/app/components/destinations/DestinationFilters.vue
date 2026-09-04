@@ -67,34 +67,40 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('click', handleClickOutside)
 })
+
+const handleClearOrClose = () => {
+  if (props.searchQuery) {
+    emit('update:searchQuery', '')
+  }
+  isSearchFocused.value = false
+}
 </script>
 
 <template>
   <div 
     ref="filterContainerRef"
-    class="w-full space-y-5 bg-[#fafafa] dark:bg-[#181818] p-5 md:p-6 rounded-xl border border-[#e5e5e5] dark:border-[#282828] shadow-xs relative z-30"
+    class="w-full space-y-5 bg-[#fafafa] dark:bg-[#181818] p-4 rounded-md border border-[#e5e5e5] dark:border-[#282828] relative z-30"
   >
     <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-      
       <div class="relative flex-1 max-w-lg">
         <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#707070] dark:text-[#a3a3a3]">
           <Search :size="18"/>
         </div>
-        
         <input 
           type="text"
           :value="searchQuery"
-          placeholder="Search destinations, landmarks, or barangays…"
-          class="w-full pl-10 pr-9 py-2.5 text-sm rounded-xl border border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#ffffff] dark:bg-[#202020] text-[#171717] dark:text-[#ffffff] placeholder-[#9a9a9a] dark:placeholder-[#707070] focus:outline-none focus:ring-2 focus:ring-[#85181a] dark:focus:ring-[#ef4444] transition-all"
+          placeholder="Search…"
+          class="w-full pl-10 pr-9 py-2.5 text-sm rounded-md border border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#ffffff] dark:bg-[#202020] text-[#171717] dark:text-[#ffffff] placeholder-[#9a9a9a] dark:placeholder-[#707070] focus:outline-none focus:ring-2 focus:ring-[#85181a] dark:focus:ring-[#ef4444] transition-all"
           @focus="isSearchFocused = true"
           @input="emit('update:searchQuery', ($event.target as HTMLInputElement).value); isSearchFocused = true"
         />
         
         <button 
-          v-if="searchQuery" 
+          v-if="searchQuery || isSearchFocused" 
           type="button"
           class="absolute inset-y-0 right-0 pr-3 flex items-center text-[#9a9a9a] hover:text-[#171717] dark:hover:text-[#ffffff]"
           @click="emit('update:searchQuery', ''); isSearchFocused = false"
+          @mousedown.prevent="handleClearOrClose"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -122,7 +128,6 @@ onUnmounted(() => {
       </div>
 
       <div class="flex flex-wrap items-center justify-between md:justify-end gap-3">
-        
         <div class="relative">
           <button
             type="button"
@@ -132,7 +137,6 @@ onUnmounted(() => {
             <span>Category: <strong>{{ selectedCategory }}</strong></span>
             <ChevronDown :size="14" class="transition-transform duration-200" :class="{ 'rotate-180': isCategoryDropdownOpen }" />
           </button>
-
           <div
             v-if="isCategoryDropdownOpen"
             class="absolute right-0 mt-2 w-56 py-2 bg-[#ffffff] dark:bg-[#202020] rounded-xl border border-[#dfdfdf] dark:border-[#303030] shadow-xl z-50 divide-y divide-[#f0f0f0] dark:divide-[#2a2a2a]"
@@ -191,10 +195,6 @@ onUnmounted(() => {
           Showing <strong class="text-[#171717] dark:text-[#ffffff]">{{ filteredCount }}</strong> of {{ totalCount }}
         </div>
       </div>
-    </div>
-
-    <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-[#ededed] dark:border-[#282828]">
-   
     </div>
   </div>
 </template>

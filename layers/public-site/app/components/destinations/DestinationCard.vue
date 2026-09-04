@@ -27,7 +27,7 @@ const onCardClick = () => {
         v-if="!hasImageError && destination.image"
         :src="destination.image" 
         :alt="destination.name"
-        class="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700 ease-out"
+        class="w-full h-full object-cover group-hover:scale-115 transition-transform duration-700 ease-out"
         loading="lazy"
         format="webp"
         @error="hasImageError = true"
@@ -57,7 +57,7 @@ const onCardClick = () => {
     </div>
 
     <div class="flex flex-col flex-1 p-6 md:p-7">
-      <NuxtLink :to="`/destinations/${destination.id}`" class="group-hover:text-[#85181a] dark:group-hover:text-[#ef4444]">
+      <NuxtLink :to="`/destinations/${(destination.id)}`" class="group-hover:text-[#85181a] dark:group-hover:text-[#ef4444]">
         <h3 class="text-xl font-medium tracking-tight text-[#171717] dark:text-[#ffffff] transition-colors duration-200 line-clamp-2">
           {{ destination.name }}
         </h3>
@@ -72,7 +72,7 @@ const onCardClick = () => {
 
       <div class="mt-6 pt-5 border-t border-[#f0f0f0] dark:border-[#262626] flex items-center justify-between gap-4">
         <NuxtLink
-          :to="`/destinations/${destination.id}`"
+          :to="`/destinations/${(destination.id)}`"
           class="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-lg text-[#ffffff] bg-[#171717] hover:bg-[#85181a] dark:bg-[#ffffff] dark:text-[#171717] dark:hover:bg-[#ef4444] dark:hover:text-[#ffffff] active:scale-[0.98] transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-[#85181a] focus:ring-offset-2"
           @click="onCardClick"
         >

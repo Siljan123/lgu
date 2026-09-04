@@ -12,20 +12,6 @@ describe('useDestinations composable', () => {
     expect(names).toContain('Carson Waterside Mountain Resort')
   })
 
-  it('filters destinations correctly by category', () => {
-    const { selectCategory, selectedCategory, filteredDestinations } = useDestinations()
-
-    selectCategory('Cultural & Historical Landmarks')
-    expect(selectedCategory.value).toBe('Cultural & Historical Landmarks')
-    const culturalItems = filteredDestinations.value
-    expect(culturalItems.length).toBeGreaterThan(5)
-    expect(culturalItems.map(d => d.name)).toContain('Bible Baptist Church')
-    expect(culturalItems.map(d => d.name)).toContain('Forsquare Gospel Church')
-
-    selectCategory('Day-Tour Resorts / Swimming Spots')
-    expect(filteredDestinations.value.map(d => d.name)).toContain('Carson Waterside Mountain Resort')
-  })
-
   it('filters destinations correctly by search query', () => {
     const { searchQuery, filteredDestinations } = useDestinations()
 

@@ -32,7 +32,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   center: () => ({ lat: 8.5042, lng: 125.9786 }),
-  zoom: 20,
+  zoom: 15,
   markers: () => [],
   height: '300px',
   showSearch: false,
@@ -44,7 +44,7 @@ const props = withDefaults(defineProps<Props>(), {
   routeDestinationTitle: '',
   travelMode: 'DRIVING',
   showRouteSummary: true,
-  mapTypeId: 'terrain',
+  mapTypeId: 'roadmap',
 })
 
 const emit = defineEmits<{
@@ -231,6 +231,7 @@ async function renderRoutePath() {
       directionsRenderer.value = new google.maps.DirectionsRenderer({
         map: map.value,
         suppressMarkers: true,
+        preserveViewport: Boolean(result.distanceMeters && result.distanceMeters > 100000),
         polylineOptions: {
           strokeColor: '#85181a',
           strokeWeight: 5,
@@ -290,7 +291,12 @@ async function renderRoutePath() {
       if (typeof google !== 'undefined' && google.maps && google.maps.LatLngBounds) {
         const bounds = new google.maps.LatLngBounds()
         result.path.forEach(p => bounds.extend(p))
-        map.value.fitBounds(bounds)
+        if (!result.distanceMeters || result.distanceMeters <= 100000) {
+          map.value.fitBounds(bounds)
+        } else if (destPt) {
+          map.value.panTo(destPt)
+          map.value.setZoom(15)
+        }
       }
     }
 
@@ -409,6 +415,23 @@ onMounted(async () => {
     if (props.showSearch) {
       nextTick(() => initAutocomplete())
     }
+    if (typeof ResizeObserver !== 'undefined' && mapContainer.value) {
+      resizeObserver = new ResizeObserver(() => {
+        if (map.value && typeof google !== 'undefined' && google.maps) {
+          google.maps.event.trigger(map.value, 'resize')
+        }
+      })
+      resizeObserver.observe(mapContainer.value)
+    }
+
+    // Trigger an additional resize tick to guarantee full tile rendering on mobile viewports
+    setTimeout(() => {
+      if (map.value && typeof google !== 'undefined' && google.maps) {
+        google.maps.event.trigger(map.value, 'resize')
+        if (mapCenter) map.value.panTo(mapCenter)
+      }
+    }, 200)
+
     emit('ready', map.value)
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load Google Maps'
@@ -416,6 +439,8 @@ onMounted(async () => {
     pending.value = false
   }
 })
+
+let resizeObserver: ResizeObserver | null = null
 
 watch(() => props.markers, renderMarkers, { deep: true })
 watch(() => props.center, (c) => { if (c) map.value?.panTo(c) })
@@ -426,12 +451,17 @@ watch(() => props.centerAddress, async (addr) => {
   }
 })
 watch(() => props.zoom, (z) => { if (typeof z === 'number') map.value?.setZoom(z) })
+watch(() => props.mapOptions, (options) => { if (map.value && options) map.value.setOptions(options) }, { deep: true })
 
 watch([() => props.routeOrigin, () => props.routeDestination], () => {
   renderRoutePath()
 })
 
 onBeforeUnmount(() => {
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
   mapMarkers.value.forEach(m => m.setMap(null))
   if (searchMarker.value) searchMarker.value.setMap(null)
   clearRouteGraphics()
@@ -439,8 +469,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="relative w-full overflow-hidden rounded-md border border-[#dfdfdf] dark:border-[#2e2e2e] shadow-md bg-[#ffffff] dark:bg-[#202020]" :style="{ height }">
-    <div ref="mapContainer" class="h-full w-full" />
+  <div class="relative w-full min-h-[320px] overflow-hidden rounded-xl border border-[#dfdfdf] dark:border-[#2e2e2e] shadow-md bg-[#fafafa] dark:bg-[#202020]" :style="{ height }">
+    <div ref="mapContainer" class="h-full w-full min-h-[320px]" />
 
     <div v-if="pending || routeLoading" class="absolute inset-0 flex items-center justify-center bg-[#ffffff]/60 dark:bg-[#171717]/60 backdrop-blur-xs z-20">
       <span class="text-sm font-semibold text-[#707070] dark:text-[#a3a3a3] animate-pulse">
@@ -448,8 +478,17 @@ onBeforeUnmount(() => {
       </span>
     </div>
 
-    <div v-if="error" class="absolute inset-0 flex items-center justify-center bg-red-500/10 px-4 text-center z-20">
+    <div v-if="error" class="absolute inset-0 flex flex-col items-center justify-center bg-red-500/10 p-4 text-center z-20 space-y-2">
       <span class="text-sm text-red-600 font-medium">{{ error }}</span>
+      <a
+        v-if="center"
+        :href="`https://www.google.com/maps/search/?api=1&query=${center.lat},${center.lng}`"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#85181a] hover:bg-[#a01e21] transition-colors shadow-sm"
+      >
+        Open in Google Maps App
+      </a>
     </div>
   </div>
 </template>

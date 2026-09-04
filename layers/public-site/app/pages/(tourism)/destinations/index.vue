@@ -58,7 +58,7 @@ const handleResetFilters = () => {
     <UiHeroSection 
       title="Destinations & Landmarks" 
       description="Discover the natural wonders, sacred mountains, inland resorts, and rich cultural traditions of the Municipality of San Francisco, Agusan del Sur."
-      image="https://firebasestorage.googleapis.com/v0/b/tologan-8554a.firebasestorage.app/o/place_photos%2Findland_resorts_carson_waterside_mountain_resort_8.489293_125.984219_photo_1_1771539863241.jpg?alt=media&token=167a0b54-bd82-418f-bc22-cc70fe5774ce"
+      image="images/bg/terminal.jpg"
       image-alt="San Francisco Agusan del Sur landscape"
     />
 

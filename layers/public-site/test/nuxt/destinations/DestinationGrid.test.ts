@@ -123,4 +123,33 @@ describe('DestinationGrid Component', () => {
     expect(wrapper.emitted('select')).toBeTruthy()
     expect(wrapper.emitted('select')?.[0]).toEqual([sampleDestinations[0]])
   })
+
+  it('does not render landmark markers initially and places marker when landmark is clicked in sidebar', async () => {
+    const wrapper = await mountSuspended(DestinationGrid, {
+      props: {
+        destinations: sampleDestinations,
+        viewMode: 'map'
+      },
+      global: {
+        stubs: {
+          GoogleMap: {
+            name: 'GoogleMap',
+            props: ['markers', 'center', 'zoom'],
+            template: '<div data-testid="google-map" :data-markers-count="markers?.length || 0"></div>'
+          }
+        }
+      }
+    })
+
+    const mapEl = wrapper.find('[data-testid="google-map"]')
+    expect(mapEl.attributes('data-markers-count')).toBe('0')
+    expect(wrapper.text()).toContain('Click a landmark in the list to place its marker')
+
+    // Click the first landmark card in sidebar
+    const firstCard = wrapper.findAll('.cursor-pointer').find(el => el.text().includes('Toog Tree of Alegria'))
+    await firstCard?.trigger('click')
+
+    expect(mapEl.attributes('data-markers-count')).toBe('1')
+    expect(wrapper.text()).toContain('Selected: Toog Tree of Alegria')
+  })
 })

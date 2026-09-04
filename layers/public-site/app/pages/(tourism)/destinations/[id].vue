@@ -1,8 +1,17 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search, X, MapPin, MoveLeft } from '@lucide/vue'
-import { useDestinations, type LandmarkOption } from '../../../composables/useDestinations'
+import { 
+  MapPin,
+  MoveLeft, 
+  Locate, 
+  LocateFixed, 
+  Navigation, 
+  Globe, 
+  AlertCircle, 
+  X 
+} from '@lucide/vue'
+import { useDestinations } from '../../../composables/useDestinations'
 import GoogleMap from '../../../components/GoogleMap.vue'
 
 definePageMeta({
@@ -10,9 +19,14 @@ definePageMeta({
 })
 
 const route = useRoute()
-const { getDestinationById, destinationsData, allLandmarkOptions } = useDestinations()
+const { getDestinationById } = useDestinations()
 
-const destinationId = computed(() => route.params.id as string)
+// Read route parameter by id
+const destinationId = computed<string>(() => {
+  const p = route.params.id ?? (route.params as Record<string, any>).name
+  if (Array.isArray(p)) return p[0] ?? ''
+  return (p as string) ?? ''
+})
 const destination = computed(() => getDestinationById(destinationId.value))
 
 if (!destination.value) {
@@ -21,41 +35,215 @@ if (!destination.value) {
 
 const activePhotoIndex = ref(0)
 const hasImageError = ref(false)
-const originLandmarkId = ref<string>('')
-const pageSearchQuery = ref<string>('')
-const isPageDropdownOpen = ref(false)
-const sectionRef = ref<HTMLElement | null>(null)
+
+// GPS Device Tracking State
+const userLocation = ref<{ lat: number; lng: number } | null>(null)
+const locationAccuracy = ref<number | null>(null)
+const userHeading = ref<number | null>(null)
+const isLocating = ref(false)
+const isLiveTracking = ref(false)
+const locationError = ref<string | null>(null)
+const showLocationError = ref(true)
+const watchId = ref<number | null>(null)
+const mapCenter = ref<{ lat: number; lng: number } | undefined>(undefined)
+const mapZoom = ref(15)
+const routeSummary = ref<{ distance?: string; duration?: string } | null>(null)
+
+onMounted(() => {
+  if (destination.value?.coordinates) {
+    mapCenter.value = { ...destination.value.coordinates }
+  }
+  // Automatically initiate device GPS tracking upon landing on the page
+  startGpsTracking(true)
+})
 
 watch(destinationId, () => {
   activePhotoIndex.value = 0
   hasImageError.value = false
-  originLandmarkId.value = ''
-  pageSearchQuery.value = ''
-  isPageDropdownOpen.value = false
+  routeSummary.value = null
+  if (destination.value?.coordinates) {
+    mapCenter.value = { ...destination.value.coordinates }
+  }
 })
 
-const originLandmark = computed(() => {
-  if (!originLandmarkId.value) return null
-  return allLandmarkOptions.find(l => l.id === originLandmarkId.value) || null
+// Location source detection based on accuracy radius
+const locationSource = computed(() => {
+  if (!userLocation.value || locationAccuracy.value === null) return null
+  const acc = Math.round(locationAccuracy.value)
+  const accText = acc < 1000 ? `±${acc}m` : `±${(acc / 1000).toFixed(1)}km`
+
+  if (acc <= 20) {
+    return {
+      type: 'satellite',
+      shortLabel: 'Satellite GPS',
+      accuracyRadiusText: accText,
+      description: 'Locked onto orbital GPS satellites (precise street-level accuracy)'
+    }
+  }
+  if (acc <= 150) {
+    return {
+      type: 'wifi',
+      shortLabel: 'Wi-Fi Network',
+      accuracyRadiusText: accText,
+      description: 'Estimated via nearby Wi-Fi network beacons (neighborhood accuracy)'
+    }
+  }
+  return {
+    type: 'network',
+    shortLabel: 'IP Network',
+    accuracyRadiusText: accText,
+    description: 'Estimated via ISP / Network gateway'
+  }
 })
 
-const filteredPageOrigins = computed(() => {
-  const q = pageSearchQuery.value.toLowerCase().trim()
-  return allLandmarkOptions.filter(l => {
-    return !q || l.name.toLowerCase().includes(q) || l.barangay.toLowerCase().includes(q) || l.category.toLowerCase().includes(q)
-  }).slice(0, 10)
-})
+function startGpsTracking(isAuto = false) {
+  if (typeof window === 'undefined') return
 
-function selectPageOrigin(item: LandmarkOption) {
-  originLandmarkId.value = item.id
-  pageSearchQuery.value = item.name
-  isPageDropdownOpen.value = false
+  if (!navigator?.geolocation) {
+    if (!isAuto) {
+      locationError.value = 'Geolocation is not supported by your browser or device.'
+      showLocationError.value = true
+    }
+    return
+  }
+
+  isLocating.value = true
+  locationError.value = null
+  showLocationError.value = !isAuto
+
+  const updatePosition = (pos: GeolocationPosition) => {
+    const coords = {
+      lat: pos.coords.latitude,
+      lng: pos.coords.longitude
+    }
+    userLocation.value = coords
+    locationAccuracy.value = pos.coords.accuracy
+    userHeading.value = pos.coords.heading !== null && !isNaN(pos.coords.heading) ? pos.coords.heading : null
+    isLocating.value = false
+    isLiveTracking.value = true
+    locationError.value = null
+  }
+
+  const handleError = (err: GeolocationPositionError) => {
+    isLocating.value = false
+    let msg = 'Failed to obtain your device GPS coordinates.'
+    if (err.code === err.PERMISSION_DENIED) {
+      if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        msg = 'Location blocked: Mobile browsers require HTTPS (or localhost) to access device GPS.'
+      } else {
+        msg = 'Location permission was denied. Tap "Track My Device GPS" to enable route directions.'
+      }
+    } else if (err.code === err.POSITION_UNAVAILABLE) {
+      msg = 'GPS location is unavailable. Please verify that device location/GPS is enabled.'
+    } else if (err.code === err.TIMEOUT) {
+      msg = 'GPS request timed out. Please check your signal and tap to retry.'
+    }
+    locationError.value = msg
+    showLocationError.value = !isAuto || err.code !== err.PERMISSION_DENIED
+  }
+
+  // Quick initial location lock
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      updatePosition(pos)
+    },
+    (err) => {
+      handleError(err)
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  )
+
+  // Continuous live GPS device tracking
+  if (watchId.value !== null) {
+    navigator.geolocation.clearWatch(watchId.value)
+  }
+
+  watchId.value = navigator.geolocation.watchPosition(
+    (pos) => {
+      updatePosition(pos)
+    },
+    (err) => {
+      if (!userLocation.value) {
+        handleError(err)
+      }
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
+  )
 }
 
-function clearPageOrigin() {
-  originLandmarkId.value = ''
-  pageSearchQuery.value = ''
+function stopGpsTracking() {
+  if (typeof window !== 'undefined' && watchId.value !== null && navigator?.geolocation) {
+    navigator.geolocation.clearWatch(watchId.value)
+    watchId.value = null
+  }
+  isLiveTracking.value = false
+  isLocating.value = false
 }
+
+function centerOnUser() {
+  if (userLocation.value) {
+    mapCenter.value = { ...userLocation.value }
+    mapZoom.value = 16
+  }
+}
+
+function centerOnDestination() {
+  if (destination.value?.coordinates) {
+    mapCenter.value = { ...destination.value.coordinates }
+    mapZoom.value = 15
+  }
+}
+
+function clearGpsTracking() {
+  stopGpsTracking()
+  userLocation.value = null
+  locationAccuracy.value = null
+  userHeading.value = null
+  routeSummary.value = null
+  locationError.value = null
+  if (destination.value?.coordinates) {
+    mapCenter.value = { ...destination.value.coordinates }
+    mapZoom.value = 15
+  }
+}
+
+function scrollToMap() {
+  if (typeof document === 'undefined') return
+  const el = document.getElementById('map-section')
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
+
+const googleMapsNavUrl = computed(() => {
+  if (!destination.value?.coordinates) return '#'
+  const { lat, lng } = destination.value.coordinates
+  if (userLocation.value) {
+    return `https://www.google.com/maps/dir/?api=1&origin=${userLocation.value.lat},${userLocation.value.lng}&destination=${lat},${lng}`
+  }
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
+})
+
+function handleRouteCalculated(result: any) {
+  if (result?.directionsResult?.routes?.[0]?.legs?.[0]) {
+    const leg = result.directionsResult.routes[0].legs[0]
+    routeSummary.value = {
+      distance: leg.distance?.text,
+      duration: leg.duration?.text
+    }
+  } else if (result?.distanceText) {
+    routeSummary.value = {
+      distance: result.distanceText,
+      duration: result.durationText
+    }
+  } else {
+    routeSummary.value = null
+  }
+}
+
+onUnmounted(() => {
+  stopGpsTracking()
+})
 
 const currentImage = computed(() => {
   if (destination.value?.photoUrls && destination.value.photoUrls.length > activePhotoIndex.value) {
@@ -64,16 +252,58 @@ const currentImage = computed(() => {
   return destination.value?.image || ''
 })
 
+
 const mapMarkers = computed(() => {
+  const markers: Array<{
+    position: { lat: number; lng: number }
+    title?: string
+    isUserLocation?: boolean
+    heading?: number | null
+    infoWindowContent?: string
+  }> = []
+
   if (destination.value?.coordinates?.lat && destination.value?.coordinates?.lng) {
-    return [
-      {
-        position: destination.value.coordinates,
-        title: destination.value.name
-      }
-    ]
+    markers.push({
+      position: destination.value.coordinates,
+      title: destination.value.name,
+      isUserLocation: false,
+      infoWindowContent: `
+        <div style="padding: 8px 10px; min-width: 180px; max-width: 240px; font-family: system-ui, -apple-system, sans-serif;">
+          <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 4px;">
+            <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #85181a; letter-spacing: 0.05em;">Destination Landmark</div>
+          </div>
+          <h4 style="font-size: 13px; font-weight: 700; color: #171717; margin: 0 0 2px 0; line-height: 1.25;">${destination.value.name}</h4>
+          <p style="font-size: 11px; color: #64748b; margin: 0 0 8px 0;">Brgy. ${destination.value.barangay}</p>
+          <button type="button" onclick="if(window.closeGoogleMapInfoWindow)window.closeGoogleMapInfoWindow()" style="display: inline-flex; align-items: center; justify-content: center; width: 100%; padding: 4px 8px; font-size: 11px; font-weight: 600; color: #ffffff; background-color: #85181a; border: none; border-radius: 6px; cursor: pointer;">
+            Close
+          </button>
+        </div>
+      `
+    })
   }
-  return []
+
+  if (userLocation.value) {
+    markers.push({
+      position: userLocation.value,
+      title: 'Your Device GPS Location',
+      isUserLocation: true,
+      heading: userHeading.value,
+      infoWindowContent: `
+        <div style="padding: 8px 10px; min-width: 180px; max-width: 240px; font-family: system-ui, -apple-system, sans-serif;">
+          <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 4px;">
+            <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: #10b981; letter-spacing: 0.05em;">Your GPS Location</div>
+          </div>
+          <h4 style="font-size: 13px; font-weight: 700; color: #171717; margin: 0 0 2px 0; line-height: 1.25;">Tracked Device</h4>
+          <p style="font-size: 11px; color: #64748b; margin: 0 0 8px 0;">${locationAccuracy.value ? `Accuracy: ±${Math.round(locationAccuracy.value)}m` : 'Tracking'}</p>
+          <button type="button" onclick="if(window.closeGoogleMapInfoWindow)window.closeGoogleMapInfoWindow()" style="display: inline-flex; align-items: center; justify-content: center; width: 100%; padding: 4px 8px; font-size: 11px; font-weight: 600; color: #ffffff; background-color: #10b981; border: none; border-radius: 6px; cursor: pointer;">
+            Close
+          </button>
+        </div>
+      `
+    })
+  }
+
+  return markers
 })
 
 useHead({
@@ -85,79 +315,33 @@ useHead({
     }
   ]
 })
+const displayDescription = computed(() => {
+  if (!destination.value) return ''
+  switch (destination.value.category) {
+    case 'Churches & Religious Landmarks':
+      return destination.value.churchfullDescription
+    case 'Day-Tour Resorts / Swimming Spots':
+      return destination.value.resortfullDescription
+    case 'Sports & Recreation Facilities':
+      return destination.value.sportsfullDescription
+    case 'Malls/Business establishments':
+      return destination.value.mallsfullDescription
 
-function handleClickOutsideSection(e: MouseEvent) {
-  if (sectionRef.value && !sectionRef.value.contains(e.target as Node)) {
-    isPageDropdownOpen.value = false
   }
-}
-
-onMounted(() => {
-  window.addEventListener('click', handleClickOutsideSection)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('click', handleClickOutsideSection)
 })
 </script>
 
 <template>
   <div v-if="destination" class="bg-[#ffffff] dark:bg-[#141414] min-h-dvh flex flex-col">
-    
-    <!-- Top Banner / Hero -->
-    <section class="relative w-full bg-[#141414] dark:bg-[#0d0d0d] border-b border-[#dfdfdf] dark:border-[#282828] pt-24 pb-16 lg:pt-32 lg:pb-24 overflow-hidden">
-      <div class="absolute inset-0 opacity-25 dark:opacity-35 pointer-events-none">
-        <NuxtImg 
-          :src="currentImage" 
-          alt="Background overlay" 
-          class="w-full h-full object-cover blur-lg scale-110"
-        />
-      </div>
-      
-      <div class="relative max-w-7xl mx-auto px-6 lg:px-8">
-        <!-- Breadcrumbs -->
-        <nav class="flex items-center gap-2 text-xs font-medium text-[#b2b2b2] mb-6">
-          <NuxtLink to="/" class="hover:text-[#ffffff] transition-colors">Home</NuxtLink>
-          <span>/</span>
-          <NuxtLink to="/destinations" class="hover:text-[#ffffff] transition-colors">Destinations</NuxtLink>
-          <span>/</span>
-          <span class="text-[#ffffff] truncate max-w-50 sm:max-w-none">{{ destination.name }}</span>
-        </nav>
-
-        <div class="max-w-3xl space-y-4">
-          <div class="flex flex-wrap items-center gap-2">
-         
-            <Badge class="px-3 py-1 rounded-full text-xs font-medium bg-[#ffffff]/20 text-[#ffffff] backdrop-blur-md border border-[#ffffff]/20">
-              Brgy. {{ destination.barangay }}
-            </Badge>
-            <Badge v-if="destination.opening" class="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300 backdrop-blur-md border border-emerald-400/20 flex items-center gap-1.5">
-             
-              {{ destination.opening }} - {{ destination.closing }}
-            </Badge>
-          </div>
-
-          <h1 class="text-3xl md:text-5xl lg:text-6xl font-medium tracking-tight text-[#ffffff] leading-[1.15]">
-            {{ destination.name }}
-          </h1>
-
-          <p class="text-base md:text-lg text-[#dfdfdf] leading-relaxed">
-            {{ destination.shortDescription }}
-          </p>
-        </div>
-      </div>
-    </section>
-
     <main class="flex-1 w-full max-w-7xl mx-auto px-6 lg:px-8 py-12 md:py-16 space-y-12">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-        
-        <!-- Left Photo Section & Gallery -->
         <div class="lg:col-span-7 space-y-4">
-          <div class="rounded-2xl overflow-hidden border border-[#dfdfdf] dark:border-[#2e2e2e] shadow-xl bg-[#fafafa] dark:bg-[#202020] aspect-4/3 relative">
+          <div class="rounded-sm overflow-hidden border group border-[#dfdfdf] dark:border-[#2e2e2e] shadow-xl bg-[#fafafa] dark:bg-[#202020] aspect-4/3 relative">
             <NuxtImg 
               v-if="!hasImageError && currentImage"
               :src="currentImage" 
               :alt="destination.name"
-              class="w-full h-full object-cover transition-all duration-500"
+              class="w-full h-full object-cover group-hover:scale-115 transition-transform duration-700 ease-out"
               loading="eager"
               format="webp"
               @error="hasImageError = true"
@@ -206,93 +390,133 @@ onUnmounted(() => {
             </h3>
           </div>
           <p class="text-base text-[#707070] dark:text-[#a3a3a3] leading-relaxed">
-            {{ destination.fullDescription }}
+            {{ displayDescription }}
           </p>
-          <div class="pt-4 border-t border-[#ededed] dark:border-[#2e2e2e]">
+          <div class="pt-4 border-t border-[#ededed] dark:border-[#2e2e2e] flex flex-wrap items-center justify-between gap-4">
             <NuxtLink 
               to="/destinations" 
               class="inline-flex items-center gap-2 text-sm font-semibold text-[#85181a] dark:text-[#ef4444] hover:underline"
             >
-           <MoveLeft :size="24"/>
+              <MoveLeft :size="24" />
               Back to all destinations
             </NuxtLink>
           </div>
         </div>
       </div>
     </main>
-      <!-- Google Map Pin & Route Line Path Widget -->
-      <section ref="sectionRef" v-if="destination.coordinates?.lat && destination.coordinates?.lng" class="bg-gray-50 dark:bg-background relative z-30 flex-1 w-full mx-auto px-6 lg:px-8 py-12 md:py-16 space-y-1">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 max-w-7xl mx-auto">
-          <div>
-            <h2 class="text-xl md:text-2xl font-medium text-[#171717] dark:text-[#ffffff]">
-              Map Location & Interactive Route Line Path
-            </h2>
-            <p class="text-xs text-[#707070] dark:text-[#a3a3a3] mt-0.5">
-              Exact GPS: {{ destination.coordinates.lat.toFixed(6) }}, {{ destination.coordinates.lng.toFixed(6) }}
-            </p>
-          </div>
-
-          <div class="relative min-w-65 sm:min-w-[320px]">
-            <div class="relative">
-              <input
-                type="text"
-                v-model="pageSearchQuery"
-                placeholder="Going to? Search here..."
-                class="w-full pl-9 pr-8 py-2 rounded-xl border border-[#dfdfdf] dark:border-[#333333] bg-[#fafafa] dark:bg-[#202020] text-xs font-medium text-[#171717] dark:text-[#ffffff] focus:outline-none focus:ring-2 focus:ring-[#85181a] dark:focus:ring-[#ef4444]"
-                @focus="isPageDropdownOpen = true"
-              />
-              <Search class="w-4 h-4 text-[#85181a] dark:text-[#ef4444] absolute left-2.5 top-2.5 pointer-events-none" />
-              <button
-                v-if="pageSearchQuery"
-                type="button"
-                @click="clearPageOrigin"
-                class="absolute right-2.5 top-2.5 text-[#9a9a9a] hover:text-[#171717] dark:hover:text-[#ffffff]"
-              >
-                <X class="w-4 h-4" />
-              </button>
-            </div>
-
-            <div
-              v-if="isPageDropdownOpen && filteredPageOrigins.length > 0"
-              class="absolute top-full left-0 right-0 mt-1 bg-[#ffffff] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#303030] rounded-xl shadow-xl z-50 max-h-56 overflow-y-auto divide-y divide-[#f0f0f0] dark:divide-[#2a2a2a]"
-            >
-              <div class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#888888] dark:text-[#777777] bg-[#fafafa] dark:bg-[#1a1a1a]">
-                Select Starting Point
-              </div>
-              <button
-                v-for="l in filteredPageOrigins"
-                :key="l.id"
-                type="button"
-                class="w-full text-left px-3.5 py-2 text-xs font-medium text-[#171717] dark:text-[#ffffff] hover:bg-[#fafafa] dark:hover:bg-[#282828] hover:text-[#85181a] dark:hover:text-[#ef4444] flex items-center justify-between transition-colors"
-                @mousedown.prevent="selectPageOrigin(l)"
-              >
-                <div class="truncate">
-                  <div class="font-semibold">{{ l.name }}</div>
-                  <div class="text-[10px] text-[#707070] dark:text-[#a3a3a3]">Brgy. {{ l.barangay }}</div>
-                </div>
-                <span class="px-2 py-0.5 rounded text-[9px] uppercase font-bold tracking-wider shrink-0 ml-2" :class="[l.type === 'bank' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-gray-500/10 text-gray-600 dark:text-gray-400']">
-                  {{ l.category }}
-                </span>
-              </button>
-            </div>
+    <section 
+      v-if="destination.coordinates?.lat && destination.coordinates?.lng" 
+      id="map-section"
+      class="bg-gray-50 dark:bg-background relative z-30 flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 md:py-16 space-y-4"
+    >
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 max-w-7xl mx-auto">
+        <div>
+          <div class="flex items-center gap-2 font-semibold">
+            <Navigation :size="15" class="text-emerald-600 dark:text-emerald-400 animate-pulse shrink-0" />
+            <span>Route from your GPS location to {{ destination.name }}</span>
           </div>
         </div>
-        <div class=" max-w-7xl mx-auto">
-          <GoogleMap
-          :center="destination.coordinates"
-          :zoom="15"
-          :markers="mapMarkers"
-          :route-origin="originLandmark?.coordinates || null"
-          :route-destination="destination.coordinates"
-          height="380px"
-          :show-street-view-btn="true"
-        />
-        </div>
+
+        <!-- GPS Device Controls Toolbar -->
+        <div class="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            class="inline-flex items-center gap-2 px-4 py-2.5 rounded-md text-xs font-semibold shadow-xs transition-all cursor-pointer select-none"
+            :class="[
+              isLiveTracking
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20'
+                : isLocating
+                  ? 'bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30'
+                  : 'bg-[#85181a] hover:bg-[#6e1315] text-white dark:bg-[#ef4444] dark:hover:bg-[#dc2626] shadow-[#85181a]/20'
+            ]"
+            :disabled="isLocating"
+            @click="isLiveTracking ? stopGpsTracking() : startGpsTracking()"
+          >
+            <div v-if="isLocating" class="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            <LocateFixed v-else-if="isLiveTracking" :size="15" class="animate-pulse" />
+            <Locate v-else :size="15" />
+
+            <span>
+              {{ isLocating ? 'Acquiring GPS Signal…' : isLiveTracking ? 'GPS Tracking Active' : 'Track My Device GPS' }}
+            </span>
+          </button>
         
-      </section>
+          <button
+            v-if="userLocation"
+            type="button"
+            class="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-md text-xs font-medium text-[#171717] dark:text-[#ffffff] bg-white dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#333333] hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-colors cursor-pointer select-none"
+            title="Center map on your current location"
+            @click="centerOnUser"
+          >
+            <Locate :size="14" class="text-emerald-600 dark:text-emerald-400" />
+            <span>Center on Me</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="max-w-7xl mx-auto space-y-2">
+        <!-- Active Route Info -->
+        <div 
+          v-if="userLocation && routeSummary" 
+          class="flex flex-wrap items-center justify-between gap-3 p-3 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-900 dark:text-emerald-200"
+        >
+        
+          <div class="flex items-center gap-4 font-medium">
+            <span v-if="routeSummary.distance"><strong>Distance:</strong> {{ routeSummary.distance }}</span>
+            <span v-if="routeSummary.duration"><strong>Est. Driving Time:</strong> {{ routeSummary.duration }}</span>
+          </div>
+        </div>
+
+        <div 
+          v-if="userLocation && locationSource && locationSource.type === 'network'"
+          class="flex items-start gap-2 p-2.5  text-xs text-red-800 dark:text-blue-300"
+        >
+          <Globe :size="14" class="shrink-0" />
+          <span>
+            <strong>Using Network Positioning:</strong> Device location estimated via network IP, it may not be accurate.
+          </span>
+        </div>
+        <div
+          v-if="locationError && showLocationError"
+          class="flex items-center justify-between gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs"
+        >
+          <div class="flex items-center gap-2">
+            <AlertCircle :size="16" class="shrink-0 text-amber-600 dark:text-amber-400" />
+            <span>{{ locationError }}</span>
+          </div>
+          <button
+            type="button"
+            class="text-amber-800 dark:text-amber-300 hover:text-amber-950 dark:hover:text-white shrink-0 cursor-pointer p-1"
+            @click="showLocationError = false"
+          >
+            <X :size="14" />
+          </button>
+        </div>
+      </div>
+
+      <div class="max-w-7xl mx-auto">
+        <ClientOnly>
+          <GoogleMap
+            :center="mapCenter || destination.coordinates"
+            :zoom="mapZoom"
+            :markers="mapMarkers"
+            :route-origin="userLocation"
+            :route-destination="destination.coordinates"
+            :route-origin-title="'Your Device GPS Location'"
+            :route-destination-title="destination.name"
+            height="420px"
+            :show-street-view-btn="true"
+            :show-route-summary="true"
+            @route-calculated="handleRouteCalculated"
+          />
+          <template #fallback>
+            <div class="w-full h-105 rounded-xl border border-[#dfdfdf] dark:border-[#2e2e2e] bg-gray-100 dark:bg-[#202020] flex items-center justify-center text-sm font-semibold text-gray-500 animate-pulse">
+              Loading Google Maps…
+            </div>
+          </template>
+        </ClientOnly>
+      </div>
+    </section>
     <Footer />
   </div>
 </template>
-
-
-

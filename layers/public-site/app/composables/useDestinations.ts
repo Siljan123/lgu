@@ -8,7 +8,10 @@ export interface Destination {
   secondaryCategory?: string
   barangay: string
   shortDescription: string
-  fullDescription: string
+  churchfullDescription: string
+  sportsfullDescription: string
+  resortfullDescription: string
+  mallsfullDescription: string
   highlights: string[]
   howToGetThere: string
   bestTimeToVisit: string
@@ -96,11 +99,6 @@ export const useDestinations = () => {
       }
     })
 
-  // Specific tourism destination categories:
-  // - Natural attractions (caves, springs, viewpoints, natural parks)
-  // - Cultural/historical landmarks (old structures, monuments, churches, heritage markers)
-  // - Craft/livelihood spots (artisans, local crafts)
-  // - Day-tour resorts / swimming spots (spring/river resorts)
   const destinationCategories = [
     'INDLAND_RESORTS',
     'Church',
@@ -113,9 +111,9 @@ export const useDestinations = () => {
     .map(item => {
       let mappedCategory = 'Natural Attractions'
       if (item.category === 'INDLAND_RESORTS') mappedCategory = 'Day-Tour Resorts / Swimming Spots'
-      else if (item.category === 'Church') mappedCategory = 'Cultural & Historical Landmarks'
-      else if (item.category === 'PALARONG_PAMBANSA') mappedCategory = 'Natural Attractions'
-      else if (item.category === 'MALLS') mappedCategory = 'Crafts & Livelihood Spots'
+      else if (item.category === 'Church') mappedCategory = 'Churches & Religious Landmarks'
+      else if (item.category === 'PALARONG_PAMBANSA') mappedCategory = 'Sports & Recreation Facilities'
+      else if (item.category === 'MALLS') mappedCategory = 'Malls/Business establishments'
 
       const brgyMatch = item.short_description.match(/(?:Barangay|Brgy\.?|Purok)\s+([A-Za-z0-9\s]+?)(?:,|$)/i)
       const barangay = brgyMatch ? brgyMatch[1]!.trim() : 'San Francisco'
@@ -133,7 +131,10 @@ export const useDestinations = () => {
         secondaryCategory: item.category,
         barangay,
         shortDescription: item.short_description,
-        fullDescription: `${item.name} is an official tourism attraction and landmark in San Francisco, Agusan del Sur, located at ${item.short_description}. Sourced directly from the LGU dataset with exact coordinates at ${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}.`,
+        churchfullDescription: `${item.name} is a religious and cultural landmark in San Francisco, Agusan del Sur, located at ${item.short_description}. It holds spiritual and historical significance for the local community, with exact coordinates at ${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}.`,
+        resortfullDescription: `${item.name} is a day-tour resort and swimming spot in San Francisco, Agusan del Sur, located at ${item.short_description}. Ideal for leisure and recreation, with exact coordinates at ${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}.`,
+        sportsfullDescription: `${item.name} is a sports and recreation facility in San Francisco, Agusan del Sur, located at ${item.short_description}. It serves as a venue for athletic events and community activities, with exact coordinates at ${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}.`,
+        mallsfullDescription: `${item.name} is a commercial and shopping establishment in San Francisco, Agusan del Sur, located at ${item.short_description}. It serves as a retail and business hub for the local community, with exact coordinates at ${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}.`,
         highlights: [
           `Verified coordinates (${item.lat.toFixed(4)}, ${item.lng.toFixed(4)})`,
           `Located in ${item.short_description}`,
@@ -153,9 +154,9 @@ export const useDestinations = () => {
 
   const categories = [
     'All',
-    'Natural Attractions',
-    'Cultural & Historical Landmarks',
-    'Crafts & Livelihood Spots',
+    'Sports & Recreation Facilities',
+    'Churches & Religious Landmarks',
+    'Malls/Business establishments',
     'Day-Tour Resorts / Swimming Spots'
   ]
 
@@ -190,13 +191,13 @@ export const useDestinations = () => {
   const setRouteOrigin = (landmarkOrId: LandmarkOption | string | null) => {
     if (!landmarkOrId) routeOriginId.value = null
     else if (typeof landmarkOrId === 'string') routeOriginId.value = landmarkOrId
-    else routeOriginId.value = landmarkOrId.id
+    else routeOriginId.value = landmarkOrId.name
   }
 
   const setRouteDestination = (landmarkOrId: LandmarkOption | string | null) => {
     if (!landmarkOrId) routeDestinationId.value = null
     else if (typeof landmarkOrId === 'string') routeDestinationId.value = landmarkOrId
-    else routeDestinationId.value = landmarkOrId.id
+    else routeDestinationId.value = landmarkOrId.name
   }
 
   const swapRoutePoints = () => {
@@ -285,9 +286,56 @@ export const useDestinations = () => {
     }
   }
 
-  const getDestinationById = (id: string): Destination | undefined => {
-    return destinationsData.find(d => d.id === id)
+  const getDestinationById = (idOrName?: string | null): Destination | undefined => {
+    if (!idOrName) return undefined
+    const normalized = decodeURIComponent(idOrName).toLowerCase().trim()
+    const found = destinationsData.find(d => 
+      d.id === idOrName || 
+      d.name.toLowerCase().trim() === normalized ||
+      d.name.toLowerCase().replace(/\s+/g, '-').trim() === normalized
+    )
+    if (found) return found
+
+    // Fallback search in rawCoordinates for any landmark in San Francisco, Agusan del Sur
+    const raw = (rawCoordinates as CoordinateItem[]).find(item =>
+      item.id === idOrName ||
+      item.name.toLowerCase().trim() === normalized ||
+      item.name.toLowerCase().replace(/\s+/g, '-').trim() === normalized
+    )
+    if (raw) {
+      const brgyMatch = raw.short_description.match(/(?:Barangay|Brgy\.?|Purok)\s+([A-Za-z0-9\s]+?)(?:,|$)/i)
+      const barangay = brgyMatch ? brgyMatch[1]!.trim() : 'San Francisco'
+      const photoList = raw.photoUrls && raw.photoUrls.length > 0 ? raw.photoUrls : []
+      const image = photoList[0] || ''
+      return {
+        id: raw.id,
+        name: raw.name,
+        category: raw.category,
+        secondaryCategory: raw.category,
+        barangay,
+        shortDescription: raw.short_description,
+        churchfullDescription: raw.short_description,
+        resortfullDescription: raw.short_description,
+        sportsfullDescription: raw.short_description,
+        mallsfullDescription: raw.short_description,
+        highlights: [
+          `Verified coordinates (${raw.lat.toFixed(4)}, ${raw.lng.toFixed(4)})`,
+          `Located in ${raw.short_description}`,
+          `Operating Hours: ${raw.opening || '8:00 AM'} - ${raw.closing || '5:00 PM'}`,
+        ],
+        howToGetThere: `Accessible via local transport in ${raw.short_description}. Head toward GPS location ${raw.lat.toFixed(4)}, ${raw.lng.toFixed(4)}.`,
+        bestTimeToVisit: raw.opening ? `During operational hours (${raw.opening} - ${raw.closing})` : 'Daytime visits recommended.',
+        accessNotes: `Open to visitors. Operating hours: ${raw.opening || '8:00 AM'} to ${raw.closing || '5:00 PM'}.`,
+        image,
+        photoUrls: photoList.length > 0 ? photoList : [image],
+        coordinates: { lat: raw.lat, lng: raw.lng },
+        opening: raw.opening || '8:00 AM',
+        closing: raw.closing || '5:00 PM'
+      }
+    }
+    return undefined
   }
+
 
   const selectCategory = (cat: string) => {
     selectedCategory.value = cat

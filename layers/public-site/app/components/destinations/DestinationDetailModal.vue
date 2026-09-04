@@ -200,7 +200,7 @@ onUnmounted(() => {
                   Overview & Heritage
                 </h3>
                 <p class="text-base md:text-lg text-[#171717] dark:text-[#d4d4d4] leading-relaxed">
-                  {{ destination.fullDescription }}
+                  {{ destination.churchfullDescription }}
                 </p>
               </div>
 

@@ -85,14 +85,14 @@ function selectDestination(landmark: LandmarkOption) {
   isDestinationOpen.value = false
 }
 
-function handleClearOrigin() {
+const handleClearOrigin = () => {
   originSearch.value = ''
-  emit('update:origin', null)
+  isOriginOpen.value = false
 }
 
 function handleClearDestination() {
   destinationSearch.value = ''
-  emit('update:destination', null)
+  isDestinationOpen.value = false
 }
 
 function setQuickPreset(originId: string, destId: string) {
@@ -117,6 +117,7 @@ onUnmounted(() => {
   window.removeEventListener('click', handleClickOutside)
 })
 
+
 const googleMapsExternalUrl = computed(() => {
   if (!props.originLandmark?.coordinates || !props.destinationLandmark?.coordinates) return '#'
   const orig = `${props.originLandmark.coordinates.lat},${props.originLandmark.coordinates.lng}`
@@ -128,13 +129,12 @@ const googleMapsExternalUrl = computed(() => {
 <template>
   <div
     ref="plannerContainerRef"
-    class="w-full bg-[#ffffff] dark:bg-[#1a1a1a] rounded-xl border border-[#dfdfdf] dark:border-[#2e2e2e] p-4 sm:p-5 shadow-lg space-y-4 relative z-30"
+    class="w-full bg-[#ffffff] dark:bg-[#1a1a1a] rounded-md border border-[#dfdfdf] dark:border-[#2e2e2e] p-4 sm:p-5 space-y-4"
   >
-    <!-- Header -->
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2 text-[#85181a] dark:text-[#ef4444] font-semibold text-xs uppercase tracking-wider">
         <Navigation class="w-4 h-4 shrink-0" />
-        <span>Google Maps Route & Line Path</span>
+        <span>Google Maps with Route Path</span>
       </div>
       <button
         v-if="originLandmark || destinationLandmark"
@@ -148,32 +148,7 @@ const googleMapsExternalUrl = computed(() => {
       </button>
     </div>
 
-    <div class="space-y-2">
-      <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-none">
-        <span class="shrink-0 text-[11px] font-semibold uppercase tracking-wider text-[#707070] dark:text-[#a3a3a3] mr-1">Filter Search Tags:</span>
-        <button
-          v-for="tag in categoryTags"
-          :key="tag.id"
-          type="button"
-          @click="activeTag = tag.id as any"
-          class="shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-medium transition-all"
-          :class="[
-            activeTag === tag.id
-              ? 'border-[#85181a] bg-[#85181a] text-[#ffffff] dark:border-[#ef4444] dark:bg-[#ef4444] shadow-xs'
-              : 'border-[#dfdfdf] dark:border-[#333333] bg-[#fafafa] dark:bg-[#202020] text-[#707070] dark:text-[#a3a3a3] hover:text-[#171717] dark:hover:text-[#ffffff]'
-          ]"
-        >
-          <component :is="tag.icon" class="w-3 h-3" />
-          <span>{{ tag.label }}</span>
-        </button>
-      </div>
-
-    </div>
-
-    <!-- Searchable Origin & Destination Inputs -->
-    <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start relative">
-      
-      <!-- Start Landmark (Origin Search) -->
+  <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start relative">
       <div class="sm:col-span-5 space-y-1 relative">
             <label class=" text-[11px] font-semibold uppercase tracking-wider flex text-[#707070] dark:text-[#a3a3a3]">
            <MapPin :size="16" class="mr-1"  /> Starting Point   
@@ -186,11 +161,11 @@ const googleMapsExternalUrl = computed(() => {
             class="w-full pl-9 pr-8 py-2.5 rounded-xl border border-[#dfdfdf] dark:border-[#333333] bg-[#fafafa] dark:bg-[#222222] text-xs font-medium text-[#171717] dark:text-[#ffffff] focus:outline-none focus:ring-2 focus:ring-[#85181a] dark:focus:ring-[#ef4444] transition-all"
             @focus="isOriginOpen = true; isDestinationOpen = false"
           />
-         <Search :size="16" class="absolute left-3 z-10 top-3 "/>
+          <Search :size="16" class="absolute left-3 z-10 top-3"/>
           <button
-            v-if="originSearch"
+            v-if="originSearch || isOriginOpen"
             type="button"
-            @click="handleClearOrigin"
+            @mousedown.prevent="handleClearOrigin"
             class="absolute right-2.5 top-2.5 text-[#9a9a9a] hover:text-[#171717] dark:hover:text-[#ffffff]"
           >
             <X class="w-4 h-4" />
@@ -219,6 +194,15 @@ const googleMapsExternalUrl = computed(() => {
               {{ l.category }}
             </span>
           </button>
+        </div>
+
+        <div
+          v-else-if="isOriginOpen && originSearch.trim().length > 0 && filteredOriginLandmarks.length === 0"
+          class="absolute top-full left-0 right-0 mt-1 bg-[#ffffff] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#303030] rounded-xl shadow-xl z-50 px-3.5 py-4 text-center"
+        >
+          <p class="text-xs font-medium text-[#9a9a9a] dark:text-[#666666]">
+            No landmark found for "<span class="font-semibold text-[#707070] dark:text-[#999999]">{{ originSearch }}</span>"
+          </p>
         </div>
       </div>
 
@@ -249,7 +233,7 @@ const googleMapsExternalUrl = computed(() => {
           />
          <Search class="w-4 h-4 text-emerald-600 dark:text-emerald-400 absolute left-2.5 top-3 pointer-events-none"/>
           <button
-            v-if="destinationSearch"
+            v-if="destinationSearch  || isDestinationOpen"
             type="button"
             @click="handleClearDestination"
             class="absolute right-2.5 top-2.5 text-[#9a9a9a] hover:text-[#171717] dark:hover:text-[#ffffff]"
@@ -258,7 +242,6 @@ const googleMapsExternalUrl = computed(() => {
           </button>
         </div>
 
-        <!-- Filtered Destination Dropdown Menu -->
         <div
           v-if="isDestinationOpen && filteredDestinationLandmarks.length > 0"
           class="absolute top-full left-0 right-0 mt-1 bg-[#ffffff] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#303030] rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto divide-y divide-[#f0f0f0] dark:divide-[#2a2a2a]"
@@ -282,10 +265,20 @@ const googleMapsExternalUrl = computed(() => {
             </span>
           </button>
         </div>
+
+        <!-- Destination: no match found -->
+        <div
+          v-else-if="isDestinationOpen && destinationSearch.trim().length > 0 && filteredDestinationLandmarks.length === 0"
+          class="absolute top-full left-0 right-0 mt-1 bg-[#ffffff] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#303030] rounded-xl shadow-xl z-50 px-3.5 py-4 text-center"
+        >
+          <p class="text-xs font-medium text-[#9a9a9a] dark:text-[#666666]">
+            No landmark found for "<span class="font-semibold text-[#707070] dark:text-[#999999]">{{ destinationSearch }}</span>"
+          </p>
+        </div>
       </div>
 
     </div>
-
+ 
     <!-- Mode Selector & External Link -->
     <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
       <div v-if="originLandmark && destinationLandmark" class="flex items-center gap-2">
