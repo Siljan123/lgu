@@ -300,16 +300,6 @@ watch(() => props.establishment, () => {
               <template v-else>Use My Device GPS</template>
             </span>
           </button>
-          <button
-            v-if="userLocation"
-            type="button"
-            class="px-3 py-2 rounded-sm text-xs font-semibold text-[#707070] dark:text-[#a3a3a3] hover:text-[#171717] dark:hover:text-[#ffffff] bg-[#fafafa] dark:bg-[#1a1a1a] border border-[#dfdfdf] dark:border-[#2e2e2e] transition-colors cursor-pointer"
-            title="Recenter map on your location"
-            @click="centerOnUser"
-          >
-            <span>Center on Me</span>
-          </button>
-
           <!-- If Location Source Badge (Satellite vs IP Network) -->
           <div
             v-if="userLocation && locationSource"
