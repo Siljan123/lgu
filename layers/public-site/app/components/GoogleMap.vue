@@ -216,12 +216,17 @@ async function renderRoutePath() {
 
   routeLoading.value = true
   try {
-    clearRouteGraphics()
-    const result = await calculateDirections(props.routeOrigin, props.routeDestination)
+      const result = await calculateDirections(
+      props.routeOrigin,
+      props.routeDestination
+    )
+
     if (!result || !map.value) {
-      emit('route-calculated', null)
       return
     }
+
+  // Only remove old route AFTER the new route has successfully calculated
+  clearRouteGraphics()
 
     lastCalculatedOrigin.value = props.routeOrigin
     lastCalculatedDestination.value = props.routeDestination
