@@ -14,26 +14,5 @@ export default defineNuxtConfig({
       supabaseKey: process.env.SUPABASE_KEY 
     },
   },
-  routeRules: {
-    '/**': {
-      headers: {
-        'Content-Security-Policy':
-          "default-src 'self'; " +
-          "script-src 'self' 'unsafe-inline' https://maps.googleapis.com https://maps.gstatic.com; " +
-          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-          "img-src 'self' data: https:; " +
-          "font-src 'self' data: https://fonts.gstatic.com; " +
-          "connect-src 'self' https://giahufasbtwabypywene.supabase.co https://maps.googleapis.com https://maps.gstatic.com; " +
-          "frame-src 'self' https://www.google.com; " +
-          "frame-ancestors 'none'; " +
-          "base-uri 'self'; " +
-          "form-action 'self'; " +
-          "object-src 'none';",
-        'X-Frame-Options': 'DENY',
-        'X-Content-Type-Options': 'nosniff',
-        'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
-        'Referrer-Policy': 'strict-origin-when-cross-origin',
-      }
-    }
-  }
+
 })
