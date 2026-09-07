@@ -5,14 +5,14 @@ export default defineNuxtConfig({
     './layers/base',
     './layers/public-site'
   ],
-    runtimeConfig: {
-    supabaseUrl: process.env.SUPABASE_URL,
-    supabaseKey: process.env.SUPABASE_KEY ,
-    public: {
-      googleMapsApiKey: process.env.NUXT_PUBLIC_GOOGLE_MAPS_API_KEY,
-      supabaseUrl: process.env.SUPABASE_URL ,
-      supabaseKey: process.env.SUPABASE_KEY 
-    },
+  runtimeConfig: {
+  supabaseKey: '',
+  supabaseServiceRoleKey: '',
+  public: {
+    googleMapsApiKey: '',
+    supabaseUrl: '',
+    supabaseKey: '',
   },
+},
 
 })
