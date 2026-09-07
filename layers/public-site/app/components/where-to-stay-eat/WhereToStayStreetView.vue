@@ -300,18 +300,6 @@ watch(() => props.establishment, () => {
               <template v-else>Use My Device GPS</template>
             </span>
           </button>
-          <!-- If Location Source Badge (Satellite vs IP Network) -->
-          <div
-            v-if="userLocation && locationSource"
-            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-semibold border transition-all"
-            :class="[
-              locationSource.type === 'satellite'
-                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20'
-                : 'bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/20'
-            ]"
-            :title="locationSource.description"
-          >
-          </div>
         </div>
       </div>
 
