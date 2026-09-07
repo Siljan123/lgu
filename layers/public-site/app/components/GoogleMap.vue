@@ -99,6 +99,7 @@ function getUserLocationSymbol(heading?: number | null): google.maps.Symbol | un
   }
 }
 
+
 async function renderMarkers() {
   if (!map.value) return
 
@@ -225,8 +226,7 @@ async function renderRoutePath() {
       return
     }
 
-  // Only remove old route AFTER the new route has successfully calculated
-  clearRouteGraphics()
+    clearRouteGraphics()
 
     lastCalculatedOrigin.value = props.routeOrigin
     lastCalculatedDestination.value = props.routeDestination
@@ -314,6 +314,41 @@ async function renderRoutePath() {
   }
 }
 
+let routeCalculationInProgress = false
+function getDistanceMeters(
+  a: google.maps.LatLngLiteral,
+  b: google.maps.LatLngLiteral
+): number {
+  const R = 6371000
+  const lat1 = (a.lat * Math.PI) / 180
+  const lat2 = (b.lat * Math.PI) / 180
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180
+
+  const x =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) *
+      Math.cos(lat2) *
+      Math.sin(dLng / 2) ** 2
+
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x))
+}
+
+function sameLocation(
+  a: google.maps.LatLngLiteral | string | null,
+  b: google.maps.LatLngLiteral | string | null
+): boolean {
+  if (!a || !b) return false
+
+  if (typeof a === 'string' || typeof b === 'string') {
+    return a === b
+  }
+
+  return (
+    Math.abs(a.lat - b.lat) < 0.000001 &&
+    Math.abs(a.lng - b.lng) < 0.000001
+  )
+}
 function initAutocomplete() {
   if (!searchInput.value || !map.value || typeof google === 'undefined' || !google.maps.places) return
   try {
@@ -458,9 +493,13 @@ watch(() => props.centerAddress, async (addr) => {
 watch(() => props.zoom, (z) => { if (typeof z === 'number') map.value?.setZoom(z) })
 watch(() => props.mapOptions, (options) => { if (map.value && options) map.value.setOptions(options) }, { deep: true })
 
-watch([() => props.routeOrigin, () => props.routeDestination], () => {
-  renderRoutePath()
-})
+watch(
+  [() => props.routeOrigin, () => props.routeDestination],
+  () => {
+    renderRoutePath()
+  },
+  { deep: true }
+)
 
 onBeforeUnmount(() => {
   if (resizeObserver) {
@@ -474,12 +513,21 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="relative w-full min-h-[320px] overflow-hidden rounded-xl border border-[#dfdfdf] dark:border-[#2e2e2e] shadow-md bg-[#fafafa] dark:bg-[#202020]" :style="{ height }">
-    <div ref="mapContainer" class="h-full w-full min-h-[320px]" />
+  <div class="relative w-full min-h-80 overflow-hidden rounded-xl border border-[#dfdfdf] dark:border-[#2e2e2e] shadow-md bg-[#fafafa] dark:bg-[#202020]" :style="{ height }">
+    <div ref="mapContainer" class="h-full w-full min-h-80" />
 
-    <div v-if="pending || routeLoading" class="absolute inset-0 flex items-center justify-center bg-[#ffffff]/60 dark:bg-[#171717]/60 backdrop-blur-xs z-20">
-      <span class="text-sm font-semibold text-[#707070] dark:text-[#a3a3a3] animate-pulse">
-        {{ routeLoading ? 'Calculating Route …' : 'Loading Map…' }}
+    <div
+      v-if="pending"
+      class="absolute inset-0 flex items-center justify-center
+            bg-[#ffffff]/60 dark:bg-[#171717]/60
+            backdrop-blur-xs z-20"
+    >
+      <span
+        class="text-sm font-semibold
+              text-[#707070] dark:text-[#a3a3a3]
+              animate-pulse"
+      >
+        Loading Map…
       </span>
     </div>
 
