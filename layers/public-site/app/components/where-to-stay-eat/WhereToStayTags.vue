@@ -6,14 +6,6 @@ import {
   X, 
   Hotel, 
   Utensils, 
-  Layers,
-  Bed,
-  Coffee,
-  Store,
-  Home,
-  Palmtree,
-  ChefHat,
-  Compass
 } from '@lucide/vue'
 
 interface Props {
@@ -65,16 +57,6 @@ const searchDropdownResults = computed(() => {
   ).slice(0, 8)
 })
 
-const activeMainCategory = computed(() => {
-  if (props.selectedMainCategory && props.selectedMainCategory !== 'All') {
-    return props.selectedMainCategory
-  }
-  if (props.selectedCategory === 'Where to Stay' || props.selectedCategory === 'Where to Eat') {
-    return props.selectedCategory
-  }
-  return 'All'
-})
-
 const onInputSearch = (e: Event) => {
   const val = (e.target as HTMLInputElement).value
   emit('update:searchQuery', val)
@@ -92,12 +74,6 @@ const clearSearch = () => {
   isDropdownOpen.value = false
 }
 
-const selectMainCategory = (mainCat: string) => {
-  emit('update:selectedMainCategory', mainCat)
-  emit('update:selectedCategory', mainCat)
-  emit('update:selectedSubCategory', 'All')
-}
-
 const selectSubCategory = (subCat: string) => {
   emit('update:selectedSubCategory', subCat)
   emit('update:selectedCategory', subCat)
@@ -105,11 +81,8 @@ const selectSubCategory = (subCat: string) => {
 </script>
 
 <template>
-  <div class="w-full space-x-0 space-y-4">
-    
+  <div class="w-full space-y-4">
     <div class="flex flex-col md:flex-row items-stretch md:items-center gap-3">
-      
-      <!-- Search Input -->
       <div class="relative flex-1">
         <div class="relative">
           <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#85181a] dark:text-[#ef4444]">
@@ -132,7 +105,6 @@ const selectSubCategory = (subCat: string) => {
             <X :size="18" />
           </button>
         </div>
-
         <div 
           v-if="isDropdownOpen && searchQuery.trim() && searchDropdownResults.length > 0"
           class="absolute left-0 right-0 top-full mt-2 z-50 bg-[#ffffff] dark:bg-[#202020] border border-[#dfdfdf] dark:border-[#333333] rounded-sm  overflow-hidden max-h-80 overflow-y-auto divide-y divide-[#ededed] dark:divide-[#2e2e2e]"
@@ -168,10 +140,10 @@ const selectSubCategory = (subCat: string) => {
       <div class="md:w-64 shrink-0">
         <select 
           :value="selectedSubCategory !== 'All' ? selectedSubCategory : (selectedCategory !== 'All' && selectedCategory !== 'Where to Stay' && selectedCategory !== 'Where to Eat' ? selectedCategory : 'All')" 
-          class="w-full py-3 px-3.5 text-sm rounded-sm border border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#fafafa] dark:bg-[#1a1a1a] text-[#171717] dark:text-[#ffffff] focus:outline-none focus:ring-2 focus:ring-[#85181a] dark:focus:ring-[#ef4444] transition-all cursor-pointer font-semibold shadow-2xs"
+          class="w-full py-3 px-4 text-sm rounded-sm border border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#fafafa] dark:bg-[#1a1a1a] text-[#171717] dark:text-[#ffffff] focus:outline-none focus:ring-2 focus:ring-[#85181a] dark:focus:ring-[#ef4444] transition-all cursor-pointer font-semibold shadow-xs"
           @change="selectSubCategory(($event.target as HTMLSelectElement).value)"
         >
-          <option value="All">All categories</option>
+          <option value="All" >All categories</option>
           <option 
             v-for="cat in categories" 
             :key="cat" 

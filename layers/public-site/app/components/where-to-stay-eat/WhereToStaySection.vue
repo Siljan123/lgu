@@ -7,15 +7,8 @@ import WhereToStayStreetView from './WhereToStayStreetView.vue'
 import GoogleMap from '../GoogleMap.vue'
 import { 
   MapPin, 
-  X, 
   Table,
   LayoutGrid,
-  Locate,
-  LocateFixed,
-  AlertCircle,
-  Satellite,
-  Globe,
-  Info
 } from '@lucide/vue'
 
 const {
@@ -43,6 +36,7 @@ const {
   locationSource,
   isLocating,
   locationError,
+  isLiveTracking,
   travelMode,
   routeCalculationResult,
   selectMainCategory,
@@ -51,6 +45,8 @@ const {
   selectBarangay,
   selectEstablishment,
   requestUserLocation,
+  toggleLiveTracking,
+  stopTracking,
 } = useWhereToStayEat()
 
 const mapCenter = ref({ lat: 8.5042, lng: 125.9786 })
@@ -65,6 +61,18 @@ onMounted(() => {
     if (filteredEstablishments.value[0]?.coordinates) {
       mapCenter.value = filteredEstablishments.value[0].coordinates!
     }
+  }
+
+  // Auto-start GPS device tracking — no button needed
+  if (!isLiveTracking.value && !userLocation.value) {
+    requestUserLocation({ enableHighAccuracy: true, watch: true })
+      .then((coords) => {
+        mapCenter.value = coords
+        mapZoom.value = 16
+      })
+      .catch(() => {
+        // Permission denied or unavailable — silently ignore
+      })
   }
 })
 
@@ -149,7 +157,7 @@ const activeDestinationCoords = computed(() => {
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div>
         <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#171717] dark:text-[#ffffff]">
-          <span>Interactive Directory Map & Street View </span>
+          <span>Interactive Directory Map </span>
         </h2>
         <p class="text-xs sm:text-sm text-[#707070] dark:text-[#a3a3a3] mt-1">
           Discover places to stay (Hotels, Inns, Homestays, Resorts) and places to eat (Restaurants, Eateries, Cafes, Local Food Stalls) across San Francisco, Agusan del Sur with GPS route line directions.
@@ -182,125 +190,20 @@ const activeDestinationCoords = computed(() => {
           @route-calculated="handleRouteCalculated"
         />
       </div>
-
-    <div class="lg:col-span-6 lg:sticky lg:top-20 space-y-3">
+      <div class="lg:col-span-6 lg:sticky lg:top-20 space-y-3">
         <WhereToStayStreetView 
           :establishment="selectedEstablishment"
           :user-location="userLocation"
           :location-source="locationSource"
           :route-distance="routeCalculationResult?.distanceText"
           :route-duration="routeCalculationResult?.durationText"
+          :is-live-tracking="isLiveTracking"
+          :is-locating="isLocating"
           height="580px"
         />
       </div>
     </div>
-    <div class="space-y-3 mt-8">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            class="px-4 py-2.5 rounded-sm text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-xs"
-            :class="[
-              userLocation 
-                ? (locationSource?.type === 'satellite' ? 'bg-[#10b981] text-[#ffffff] hover:bg-[#059669]' : 'bg-amber-600 text-[#ffffff] hover:bg-amber-700')
-                : isLocating 
-                  ? 'bg-[#85181a]/20 text-[#85181a] dark:text-[#ef4444]' 
-                  : 'bg-[#85181a] text-[#ffffff] hover:bg-[#a11e20] dark:bg-[#ef4444] dark:hover:bg-[#dc2626]'
-            ]"
-            :disabled="isLocating"
-            title="Detect your device GPS location and draw route line to chosen destination"
-            @click="onLocateMeClick"
-          >
-            <div v-if="isLocating" class="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-            <Satellite v-else-if="userLocation && locationSource?.type === 'satellite'" :size="15" class="animate-pulse" />
-            <Globe v-else-if="userLocation && locationSource?.type !== 'satellite'" :size="15" class="animate-pulse" />
-            <LocateFixed v-else-if="userLocation" :size="15" class="animate-pulse" />
-            <Locate v-else :size="15" />
-
-            <span>
-              <template v-if="isLocating">Detecting GPS…</template>
-              <template v-else-if="userLocation">
-                <span v-if="locationSource?.type === 'satellite'">Satellite GPS Active</span>
-                <span v-else>IP Network Active</span>
-              </template>
-              <template v-else>Use My Device GPS</template>
-            </span>
-          </button>
-          <button
-            v-if="userLocation"
-            type="button"
-            class="px-3 py-2 rounded-sm text-xs font-semibold text-[#707070] dark:text-[#a3a3a3] hover:text-[#171717] dark:hover:text-[#ffffff] bg-[#fafafa] dark:bg-[#1a1a1a] border border-[#dfdfdf] dark:border-[#2e2e2e] transition-colors cursor-pointer"
-            title="Recenter map on your location"
-            @click="centerOnUser"
-          >
-            <span>Center on Me</span>
-          </button>
-
-          <!-- If Location Source Badge (Satellite vs IP Network) -->
-          <div
-            v-if="userLocation && locationSource"
-            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-semibold border transition-all"
-            :class="[
-              locationSource.type === 'satellite'
-                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20'
-                : 'bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/20'
-            ]"
-            :title="locationSource.description"
-          >
-            <span v-if="locationSource.type === 'satellite'" class="inline-flex items-center gap-1.5">
-              <Satellite :size="13" class="text-emerald-600 dark:text-emerald-400" />
-              <span>Satellite GPS </span>
-            </span>
-            <span v-else class="inline-flex items-center gap-1.5">
-              <Globe :size="13" class="text-amber-600 dark:text-amber-400" />
-              <span>IP Network </span>
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Info note: IP Network vs Satellite -->
-      <div 
-        v-if="userLocation && locationSource && locationSource.type !== 'satellite'"
-        class="flex items-start gap-2 p-2.5 rounded-sm bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/20 text-xs text-amber-900 dark:text-amber-200"
-      >
-        <Info :size="15" class="shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
-        <div>
-          <span class="font-bold">Using IP Network Positioning:</span>
-          <span> Desktops and laptops lack dedicated satellite GPS hardware, so location is estimated via network gateways (approximate area). For pinpoint turn-by-turn satellite GPS navigation, open this site on a GPS-enabled mobile device.</span>
-        </div>
-      </div>
-
-      <div 
-        v-else-if="userLocation && locationSource && locationSource.type === 'satellite'"
-        class="flex items-start gap-2 p-2.5 rounded-sm bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-xs text-emerald-900 dark:text-emerald-200"
-      >
-        <Satellite :size="15" class="shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
-        <div>
-          <span class="font-bold">Satellite GPS Locked:</span>
-          <span> Accurate street-level satellite positioning is active ({{ locationSource.accuracyRadiusText }} accuracy). Directions and distance calculations are calibrated to your exact device location.</span>
-        </div>
-      </div>
-
-   
-      <div 
-        v-if="locationError && showLocationBanner" 
-        class="flex flex-row items-center justify-between gap-3 p-3 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs"
-      >
-        <div class="flex items-center gap-2">
-          <AlertCircle :size="16" class="shrink-0 text-amber-600 dark:text-amber-400" />
-          <span>{{ locationError }}</span>
-        </div>
-        <button 
-          type="button" 
-          class="text-amber-800 dark:text-amber-300 hover:text-amber-950 dark:hover:text-white shrink-0 cursor-pointer"
-          @click="showLocationBanner = false"
-        >
-          <X :size="14" />
-        </button>
-      </div>
-    </div>
-
+ 
       <WhereToStayTags 
         :categories="categories"
         :main-categories="mainCategories"

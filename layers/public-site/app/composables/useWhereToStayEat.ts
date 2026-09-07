@@ -366,14 +366,14 @@ export const useWhereToStayEat = () => {
     if (!userLocation.value || locationAccuracy.value === null) return null
 
     const acc = Math.round(locationAccuracy.value)
-    const accText = acc < 1000 ? `±${acc}m` : `±${(acc / 1000).toFixed(1)}km`
+    const accText = acc < 1000 ? `` : ``
 
     if (acc <= 20) {
       return {
         type: 'satellite',
         label: 'Satellite GPS',
         shortLabel: 'Satellite GPS',
-        description: 'Locked onto orbital satellites (precise street-level accuracy)',
+        description: 'Locked onto orbital satellites ',
         accuracyMeters: acc,
         accuracyRadiusText: accText,
         isHighPrecision: true,
@@ -386,7 +386,7 @@ export const useWhereToStayEat = () => {
         type: 'wifi',
         label: 'Wi-Fi Positioning',
         shortLabel: 'Wi-Fi Network',
-        description: 'Estimated via nearby Wi-Fi network beacons (neighborhood-level accuracy)',
+        description: 'Estimated via nearby Wi-Fi network beacons',
         accuracyMeters: acc,
         accuracyRadiusText: accText,
         isHighPrecision: false,

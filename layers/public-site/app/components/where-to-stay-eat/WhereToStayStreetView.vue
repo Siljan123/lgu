@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, shallowRef } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, shallowRef } from 'vue'
 import { type Establishment, calculateDistanceKm } from '../../composables/useWhereToStayEat'
 import type { LocationSourceInfo } from '../../composables/useEmergency'
 import { useGoogleMaps } from '../../composables/useGooglemaps'
@@ -20,6 +20,8 @@ interface Props {
   locationSource?: LocationSourceInfo | null
   routeDistance?: string | null
   routeDuration?: string | null
+  isLiveTracking?: boolean
+  isLocating?: boolean
   height?: string
 }
 
@@ -28,7 +30,9 @@ const props = withDefaults(defineProps<Props>(), {
   userLocation: null,
   locationSource: null,
   routeDistance: null,
-  routeDuration: null
+  routeDuration: null,
+  isLiveTracking: false,
+  isLocating: false,
 })
 
 const emit = defineEmits<{
@@ -41,11 +45,24 @@ const loading = ref(true)
 const noPanoramaFound = ref(false)
 const copiedState = ref(false)
 
+// Live distance ticker — updates reactively as userLocation changes
+const liveDistanceText = ref<string | null>(null)
+let distanceUpdateTimer: ReturnType<typeof setInterval> | null = null
+
 const { loadGoogleMaps, getNearestPanorama } = useGoogleMaps()
 
 const directDistanceToUser = computed(() => {
   if (!props.userLocation || !props.establishment?.coordinates) return null
   return calculateDistanceKm(props.userLocation, props.establishment.coordinates)
+})
+
+// Displayed distance: prefer route distance (from Directions API), fall back to Haversine
+const displayDistance = computed(() => {
+  return props.routeDistance || directDistanceToUser.value?.distanceText || null
+})
+
+const displayDuration = computed(() => {
+  return props.routeDuration || null
 })
 
 const directionsUrl = computed(() => {
@@ -56,6 +73,22 @@ const directionsUrl = computed(() => {
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(props.establishment.name + ' ' + (props.establishment.address || 'San Francisco Agusan del Sur'))}`
   }
   return 'https://www.google.com/maps'
+})
+
+// GPS source icon & label for the tracking badge
+const trackingSourceLabel = computed(() => {
+  if (props.isLocating) return 'Acquiring Signal…'
+  if (!props.locationSource) return 'GPS'
+  if (props.locationSource.type === 'satellite') return 'Satellite GPS'
+  if (props.locationSource.type === 'wifi') return 'Wi-Fi'
+  return 'IP Network'
+})
+
+const trackingBadgeColor = computed(() => {
+  if (props.isLocating) return 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/25'
+  if (!props.locationSource) return 'bg-[#85181a]/10 text-[#85181a] dark:text-[#ef4444] border-[#85181a]/20'
+  if (props.locationSource.type === 'satellite') return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/25'
+  return 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/25'
 })
 
 async function updateStreetViewPosition() {
@@ -107,9 +140,78 @@ function copyPhone(phone?: string) {
   }, 2000)
 }
 
+
 onMounted(() => {
   updateStreetViewPosition()
 })
+
+onUnmounted(() => {
+  if (distanceUpdateTimer) {
+    clearInterval(distanceUpdateTimer)
+    distanceUpdateTimer = null
+  }
+})
+const {
+  selectedEstablishment,
+  filteredEstablishments,
+  userLocation,
+  locationSource,
+  isLocating,
+  locationError,
+  isLiveTracking,
+  selectEstablishment,
+  requestUserLocation,
+} = useWhereToStayEat()
+
+const mapCenter = ref({ lat: 8.5042, lng: 125.9786 })
+const mapZoom = ref(15)
+const showLocationBanner = ref(true)
+
+onMounted(() => {
+  if (!selectedEstablishment.value && filteredEstablishments.value.length > 0) {
+    selectEstablishment(filteredEstablishments.value[0]!)
+    if (filteredEstablishments.value[0]?.coordinates) {
+      mapCenter.value = filteredEstablishments.value[0].coordinates!
+    }
+  }
+
+  // Auto-start GPS device tracking — no button needed
+  if (!isLiveTracking.value && !userLocation.value) {
+    requestUserLocation({ enableHighAccuracy: true, watch: true })
+      .then((coords) => {
+        mapCenter.value = coords
+        mapZoom.value = 16
+      })
+      .catch(() => {
+      })
+  }
+})
+
+watch(filteredEstablishments, (newList) => {
+  if (newList.length > 0 && (!selectedEstablishment.value || !newList.some(e => e.id === selectedEstablishment.value?.id))) {
+    selectEstablishment(newList[0]!)
+    if (newList[0]?.coordinates) {
+      mapCenter.value = newList[0].coordinates!
+    }
+  }
+})
+
+const onLocateMeClick = async () => {
+  showLocationBanner.value = true
+  try {
+    const coords = await requestUserLocation({ enableHighAccuracy: true, watch: true })
+    mapCenter.value = coords
+    mapZoom.value = 16
+  } catch {
+  }
+}
+
+const centerOnUser = () => {
+  if (userLocation.value) {
+    mapCenter.value = userLocation.value
+    mapZoom.value = 17
+  }
+}
 
 watch(() => props.establishment, () => {
   updateStreetViewPosition()
@@ -117,7 +219,7 @@ watch(() => props.establishment, () => {
 </script>
 
 <template>
-  <div class="w-full overflow-hidden flex flex-col" :style="{ height }">
+  <div class="w-full overflow-hidden flex flex-col" >
      <div v-if="establishment" class="z-20 py-4 sm:py-5 space-y-3 text-[#171717] dark:text-[#ffffff]">
       <div class="flex items-start justify-between gap-3 flex-wrap">
         <div>
@@ -130,14 +232,20 @@ watch(() => props.establishment, () => {
           </div>
         </div>
 
-        <div v-if="userLocation && (routeDistance || directDistanceToUser)" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#85181a]/10 dark:bg-[#ef4444]/20 text-[#85181a] dark:text-[#ef4444] text-xs font-bold border border-[#85181a]/20 dark:border-[#ef4444]/30">
+        <!-- Live distance badge — auto-updates as GPS position changes -->
+        <div v-if="userLocation && displayDistance" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold border transition-all duration-300" :class="trackingBadgeColor">
           <Route :size="13" />
-          <span>{{ routeDistance || directDistanceToUser?.distanceText }} from your location</span>
+          <span>{{ displayDistance }} from your location</span>
           <span v-if="locationSource" class="text-[10px] font-semibold opacity-90">
-            • {{ locationSource.type === 'satellite' ? 'Satellite GPS' : 'IP Network' }}
+            • {{ locationSource.type === 'satellite' ? 'Satellite GPS' : locationSource.type === 'wifi' ? 'Wi-Fi' : 'IP Network' }}
           </span>
-          <span v-if="routeDuration" class="text-[11px] font-normal text-[#707070] dark:text-[#cbd5e1]">
-            ({{ routeDuration }})
+          <span v-if="displayDuration" class="text-[11px] font-normal text-[#707070] dark:text-[#cbd5e1]">
+            ({{ displayDuration }})
+          </span>
+          <!-- Live tracking pulse indicator -->
+          <span v-if="isLiveTracking" class="relative flex h-2 w-2 ml-1" title="Auto-tracking active — distance updates in real-time">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" :class="locationSource?.type === 'satellite' ? 'bg-emerald-500' : 'bg-amber-500'"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2" :class="locationSource?.type === 'satellite' ? 'bg-emerald-600' : 'bg-amber-600'"></span>
           </span>
         </div>
       </div>
@@ -158,49 +266,114 @@ watch(() => props.establishment, () => {
         <div v-else class="text-xs italic text-[#94a3b8]">
           {{ 'No contact number' }}
         </div>
-
-        <!-- Directions CTA -->
-        <div class="flex items-center gap-2">
-          <a
-            :href="directionsUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#ffffff] bg-[#85181a] hover:bg-[#a11e20] dark:bg-[#ef4444] dark:hover:bg-[#dc2626] transition-all shadow-xs"
+      </div>
+    </div>
+   <div class="space-y-3 mt-8">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            class="px-4 py-2.5 rounded-sm text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-xs"
+            :class="[
+              userLocation 
+                ? (locationSource?.type === 'satellite' ? 'bg-[#10b981] text-[#ffffff] hover:bg-[#059669]' : 'bg-amber-600 text-[#ffffff] hover:bg-amber-700')
+                : isLocating 
+                  ? 'bg-[#85181a]/20 text-[#85181a] dark:text-[#ef4444]' 
+                  : 'bg-[#85181a] text-[#ffffff] hover:bg-[#a11e20] dark:bg-[#ef4444] dark:hover:bg-[#dc2626]'
+            ]"
+            :disabled="isLocating"
+            title="Detect your device GPS location and draw route line to chosen destination"
+            @click="onLocateMeClick"
           >
-            <Navigation :size="13" />
-            <span>{{ userLocation ? 'Navigate from My Location' : 'Open in Google Maps' }}</span>
-            <ExternalLink :size="12" />
-          </a>
-        </div>
+            <div v-if="isLocating" class="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+            <Satellite v-else-if="userLocation && locationSource?.type === 'satellite'" :size="15" class="animate-pulse" />
+            <Globe v-else-if="userLocation && locationSource?.type !== 'satellite'" :size="15" class="animate-pulse" />
+            <LocateFixed v-else-if="userLocation" :size="15" class="animate-pulse" />
+            <Locate v-else :size="15" />
 
+            <span>
+              <template v-if="isLocating">Detecting GPS…</template>
+              <template v-else-if="userLocation">
+                <span v-if="locationSource?.type === 'satellite'">Satellite GPS Active</span>
+                <span v-else>IP Network Active</span>
+              </template>
+              <template v-else>Use My Device GPS</template>
+            </span>
+          </button>
+          <button
+            v-if="userLocation"
+            type="button"
+            class="px-3 py-2 rounded-sm text-xs font-semibold text-[#707070] dark:text-[#a3a3a3] hover:text-[#171717] dark:hover:text-[#ffffff] bg-[#fafafa] dark:bg-[#1a1a1a] border border-[#dfdfdf] dark:border-[#2e2e2e] transition-colors cursor-pointer"
+            title="Recenter map on your location"
+            @click="centerOnUser"
+          >
+            <span>Center on Me</span>
+          </button>
+
+          <!-- If Location Source Badge (Satellite vs IP Network) -->
+          <div
+            v-if="userLocation && locationSource"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm text-xs font-semibold border transition-all"
+            :class="[
+              locationSource.type === 'satellite'
+                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20'
+                : 'bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/20'
+            ]"
+            :title="locationSource.description"
+          >
+            <span v-if="locationSource.type === 'satellite'" class="inline-flex items-center gap-1.5">
+              <Satellite :size="13" class="text-emerald-600 dark:text-emerald-400" />
+              <span>Satellite GPS </span>
+            </span>
+            <span v-else class="inline-flex items-center gap-1.5">
+              <Globe :size="13" class="text-amber-600 dark:text-amber-400" />
+              <span>IP Network </span>
+            </span>
+          </div>
+        </div>
       </div>
 
-    </div>
+      <!-- Info note: IP Network vs Satellite -->
+      <div 
+        v-if="userLocation && locationSource && locationSource.type !== 'satellite'"
+        class="flex items-start gap-2 p-2.5 rounded-sm bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/20 text-xs text-amber-900 dark:text-amber-200"
+      >
+        <Info :size="15" class="shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+        <div>
+          <span class="font-bold">Using IP Network Positioning:</span>
+          <span> Desktops and laptops lack dedicated satellite GPS hardware, so location is estimated via network gateways (approximate area). For pinpoint turn-by-turn satellite GPS navigation, open this site on a GPS-enabled mobile device.</span>
+        </div>
+      </div>
 
-    <div class="bg-[#1e293b] text-[#ffffff] px-4 py-3 flex items-center justify-between z-10 border-b border-[#334155]">
-      <span v-if="establishment" class="text-xs font-semibold px-2.5 py-0.5 rounded-sm bg-[#334155] text-[#e2e8f0]">
-        {{ establishment.category }}
-      </span>
-    </div>
-    <div class="relative flex-1 w-full bg-[#0f172a]">
-      <div ref="containerRef" class="w-full h-full" />
-      <div v-if="loading" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#0f172a]/90 text-[#ffffff] p-6 text-center space-y-3">
-        <div class="w-8 h-8 border-3 border-[#85181a] border-t-transparent rounded-full animate-spin"></div>
-        <p class="text-xs font-medium text-[#94a3b8]">Loading Street View 360° panorama for destination...</p>
-      </div>
-      <div v-if="!establishment" class="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#0f172a] text-[#ffffff] p-8 text-center space-y-4">
-        <div class="p-4 rounded-full bg-[#1e293b] text-[#94a3b8]">
-          <Building2 :size="36" />
-        </div>
-        <div class="space-y-1 max-w-sm">
-          <h4 class="text-base font-bold text-[#f8fafc]">Select an Establishment</h4>
-          <p class="text-xs text-[#94a3b8]">
-            Click any hotel, resort, restaurant, or cafe from the directory below to view its 360° Street View and navigation route.
-          </p>
+      <div 
+        v-else-if="userLocation && locationSource && locationSource.type === 'satellite'"
+        class="flex items-start gap-2 p-2.5 rounded-sm bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-xs text-emerald-900 dark:text-emerald-200"
+      >
+        <Satellite :size="15" class="shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
+        <div>
+          <span class="font-bold">Satellite GPS Locked:</span>
+          <span> Accurate street-level satellite positioning is active ({{ locationSource.accuracyRadiusText }} accuracy). Directions and distance calculations are calibrated to your exact device location.</span>
         </div>
       </div>
-    </div>
 
    
+      <div 
+        v-if="locationError && showLocationBanner" 
+        class="flex flex-row items-center justify-between gap-3 p-3 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs"
+      >
+        <div class="flex items-center gap-2">
+          <AlertCircle :size="16" class="shrink-0 text-amber-600 dark:text-amber-400" />
+          <span>{{ locationError }}</span>
+        </div>
+        <button 
+          type="button" 
+          class="text-amber-800 dark:text-amber-300 hover:text-amber-950 dark:hover:text-white shrink-0 cursor-pointer"
+          @click="showLocationBanner = false"
+        >
+          <X :size="14" />
+        </button>
+      </div>
+    </div>
+  
   </div>
 </template>
