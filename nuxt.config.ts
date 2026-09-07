@@ -17,7 +17,12 @@ export default defineNuxtConfig({
   routeRules: {
     '/**': {
       headers: {
-        'Content-Security-Policy': "default-src 'self'",
+        'Content-Security-Policy':
+          "default-src 'self'; " +
+          "frame-ancestors 'none'; " +
+          "base-uri 'self'; " +
+          "form-action 'self'; " +
+          "object-src 'none';",
         'X-Frame-Options': 'DENY',
         'X-Content-Type-Options': 'nosniff',
         'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
