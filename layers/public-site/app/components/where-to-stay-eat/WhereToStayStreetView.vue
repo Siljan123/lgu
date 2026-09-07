@@ -311,14 +311,6 @@ watch(() => props.establishment, () => {
             ]"
             :title="locationSource.description"
           >
-            <span v-if="locationSource.type === 'satellite'" class="inline-flex items-center gap-1.5">
-              <Satellite :size="13" class="text-emerald-600 dark:text-emerald-400" />
-              <span>Satellite GPS </span>
-            </span>
-            <span v-else class="inline-flex items-center gap-1.5">
-              <Globe :size="13" class="text-amber-600 dark:text-amber-400" />
-              <span>IP Network </span>
-            </span>
           </div>
         </div>
       </div>
@@ -331,7 +323,7 @@ watch(() => props.establishment, () => {
         <Info :size="15" class="shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
         <div>
           <span class="font-bold">Using IP Network Positioning:</span>
-          <span> Desktops and laptops lack dedicated satellite GPS hardware, so location is estimated via network gateways (approximate area). For pinpoint turn-by-turn satellite GPS navigation, open this site on a GPS-enabled mobile device.</span>
+          <span>Location is estimated via network gateways (approximate area). For pinpoint turn-by-turn satellite GPS navigation, open this site on a GPS-enabled mobile device.</span>
         </div>
       </div>
 
@@ -342,7 +334,7 @@ watch(() => props.establishment, () => {
         <Satellite :size="15" class="shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
         <div>
           <span class="font-bold">Satellite GPS Locked:</span>
-          <span> Accurate street-level satellite positioning is active ({{ locationSource.accuracyRadiusText }} accuracy). Directions and distance calculations are calibrated to your exact device location.</span>
+          <span> Accurate street-level satellite positioning is active. Directions and distance calculations are calibrated to your exact device location.</span>
         </div>
       </div>
 
