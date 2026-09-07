@@ -131,10 +131,10 @@ export const useDestinations = () => {
         secondaryCategory: item.category,
         barangay,
         shortDescription: item.short_description,
-        churchfullDescription: `${item.name} is a religious and cultural landmark in San Francisco, Agusan del Sur, located at ${item.short_description}. It holds spiritual and historical significance for the local community, with exact coordinates at ${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}.`,
-        resortfullDescription: `${item.name} is a day-tour resort and swimming spot in San Francisco, Agusan del Sur, located at ${item.short_description}. Ideal for leisure and recreation, with exact coordinates at ${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}.`,
-        sportsfullDescription: `${item.name} is a sports and recreation facility in San Francisco, Agusan del Sur, located at ${item.short_description}. It serves as a venue for athletic events and community activities, with exact coordinates at ${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}.`,
-        mallsfullDescription: `${item.name} is a commercial and shopping establishment in San Francisco, Agusan del Sur, located at ${item.short_description}. It serves as a retail and business hub for the local community, with exact coordinates at ${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}.`,
+        churchfullDescription: `${item.name} is a notable religious and cultural landmark located in ${item.short_description}. It serves as a place of worship, reflection, and community gatherings, while also representing an important part of the area's local heritage and traditions. The landmark is situated at the exact coordinates ${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}.`,
+        resortfullDescription: `${item.name} is a popular resort and swimming destination located in ${item.short_description}. It provides a relaxing environment for visitors, families, and groups to enjoy swimming, recreation, and leisure activities. With its recreational facilities and welcoming atmosphere, it offers an ideal place for relaxation and outdoor fun. The resort is located at the exact coordinates ${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}.`,
+        sportsfullDescription: `${item.name} is a sports and recreation facility located in ${item.short_description}. It provides a space for residents and visitors to participate in sports, physical activities, training, and community events. The facility contributes to promoting an active lifestyle and serves as a venue for athletic activities and local gatherings. It is located at the exact coordinates ${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}.`,
+        mallsfullDescription: `${item.name} is a commercial and shopping establishment located in ${item.short_description}. It serves as a convenient destination for shopping, dining, services, and other commercial activities, providing residents and visitors with access to a variety of businesses and establishments. As part of the local commercial area, it contributes to the economic activity and convenience of the community. The establishment is located at the exact coordinates ${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}.`,
         highlights: [
           `Verified coordinates (${item.lat.toFixed(4)}, ${item.lng.toFixed(4)})`,
           `Located in ${item.short_description}`,
@@ -382,7 +382,3 @@ export const useDestinations = () => {
     goToPage
   }
 }
-
-
-
-

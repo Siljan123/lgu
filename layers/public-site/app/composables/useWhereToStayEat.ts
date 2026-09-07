@@ -189,6 +189,11 @@ export const useWhereToStayEat = () => {
   const routeCalculationResult = ref<any | null>(null)
   const watchId = ref<number | null>(null)
 
+  // GPS stabilization: tracks the timestamp of the last accepted position update
+  // to debounce rapid interleaved fixes from different sources (IP/Wi-Fi/satellite).
+  let lastPositionUpdateTime = 0
+  const POSITION_UPDATE_COOLDOWN_MS = 2000
+
   // Map coordinates.json entries belonging to Where to Stay or Where to Eat
   const establishmentsData: Establishment[] = (rawCoordinatesData as any[]).reduce<Establishment[]>((acc, item) => {
     const classification = classifyEstablishment(item.category || '', item.name || '')
@@ -540,8 +545,30 @@ export const useWhereToStayEat = () => {
           lat: position.coords.latitude,
           lng: position.coords.longitude
         }
+        const accuracy = position.coords.accuracy
+        const now = Date.now()
+        const isFirstFix = userLocation.value === null
+
+        // GPS stabilization: reject severely degraded accuracy and debounce rapid updates
+        if (!isFirstFix && locationAccuracy.value !== null) {
+          const accuracyDegradationLimit = locationAccuracy.value * 3
+          if (accuracy > accuracyDegradationLimit && accuracy > 100) {
+            isLocating.value = false
+            resolve(coords)
+            return
+          }
+          const elapsed = now - lastPositionUpdateTime
+          const isMoreAccurate = accuracy < locationAccuracy.value
+          if (elapsed < POSITION_UPDATE_COOLDOWN_MS && !isMoreAccurate) {
+            isLocating.value = false
+            resolve(coords)
+            return
+          }
+        }
+
         userLocation.value = coords
-        locationAccuracy.value = position.coords.accuracy
+        locationAccuracy.value = accuracy
+        lastPositionUpdateTime = now
         isLocating.value = false
         locationError.value = null
         resolve(coords)
@@ -573,14 +600,27 @@ export const useWhereToStayEat = () => {
           watchId.value = navigator.geolocation.watchPosition(
             (p) => {
               const newAccuracy = p.coords.accuracy
-              // Always update when more accurate or when high accuracy GPS signal arrives
-              if (!locationAccuracy.value || newAccuracy <= locationAccuracy.value || newAccuracy <= 50) {
-                userLocation.value = {
-                  lat: p.coords.latitude,
-                  lng: p.coords.longitude
+              const now = Date.now()
+
+              // GPS stabilization: reject coarser readings and debounce rapid updates
+              if (locationAccuracy.value !== null) {
+                const accuracyDegradationLimit = locationAccuracy.value * 3
+                if (newAccuracy > accuracyDegradationLimit && newAccuracy > 100) {
+                  return
                 }
-                locationAccuracy.value = newAccuracy
+                const elapsed = now - lastPositionUpdateTime
+                const isMoreAccurate = newAccuracy < locationAccuracy.value
+                if (elapsed < POSITION_UPDATE_COOLDOWN_MS && !isMoreAccurate) {
+                  return
+                }
               }
+
+              userLocation.value = {
+                lat: p.coords.latitude,
+                lng: p.coords.longitude
+              }
+              locationAccuracy.value = newAccuracy
+              lastPositionUpdateTime = now
             },
             (err) => {
               console.warn('Geolocation watch update:', err)
@@ -588,7 +628,7 @@ export const useWhereToStayEat = () => {
             {
               enableHighAccuracy: true,
               timeout: 30000,
-              maximumAge: 0
+              maximumAge: 10000
             }
           )
           isLiveTracking.value = true
@@ -625,7 +665,7 @@ export const useWhereToStayEat = () => {
         {
           enableHighAccuracy: options?.enableHighAccuracy ?? true,
           timeout: 25000,
-          maximumAge: 0
+          maximumAge: 30000
         }
       )
     })

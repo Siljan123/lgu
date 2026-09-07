@@ -202,6 +202,11 @@ export const useEmergency = () => {
   const watchId = ref<number | null>(null)
   let orientationHandler: ((e: any) => void) | null = null
 
+  // GPS stabilization: tracks the timestamp of the last accepted position update
+  // to debounce rapid interleaved fixes from different sources (IP/Wi-Fi/satellite).
+  let lastPositionUpdateTime = 0
+  const POSITION_UPDATE_COOLDOWN_MS = 2000
+
   // Parse and classify medical & emergency places from coordinates.json
   const facilitiesData: MedicalFacility[] = (rawCoordinatesData as any[]).reduce<MedicalFacility[]>((acc, item) => {
     const classification = classifyMedicalFacility(item.category || '', item.name || '')
@@ -542,6 +547,26 @@ export const useEmergency = () => {
           lng: position.coords.longitude
         }
         const accuracy = position.coords.accuracy
+        const now = Date.now()
+        const isFirstFix = userLocation.value === null
+
+        // GPS stabilization: reject severely degraded accuracy and debounce rapid updates
+        if (!isFirstFix && locationAccuracy.value !== null) {
+          const accuracyDegradationLimit = locationAccuracy.value * 3
+          if (accuracy > accuracyDegradationLimit && accuracy > 100) {
+            isLocating.value = false
+            resolve(coords)
+            return
+          }
+          const elapsed = now - lastPositionUpdateTime
+          const isMoreAccurate = accuracy < locationAccuracy.value
+          if (elapsed < POSITION_UPDATE_COOLDOWN_MS && !isMoreAccurate) {
+            isLocating.value = false
+            resolve(coords)
+            return
+          }
+        }
+
         const speed = position.coords.speed !== null && !isNaN(position.coords.speed) ? position.coords.speed : null
         let heading = position.coords.heading !== null && !isNaN(position.coords.heading) && position.coords.heading >= 0
           ? Math.round(position.coords.heading)
@@ -556,6 +581,7 @@ export const useEmergency = () => {
 
         userLocation.value = coords
         locationAccuracy.value = accuracy
+        lastPositionUpdateTime = now
         userSpeed.value = speed
         if (heading !== null) {
           userHeading.value = heading
@@ -592,11 +618,26 @@ export const useEmergency = () => {
           }
           watchId.value = navigator.geolocation.watchPosition(
             (p) => {
+              const newAccuracy = p.coords.accuracy
+              const now = Date.now()
+
+              // GPS stabilization: reject coarser readings and debounce rapid updates
+              if (locationAccuracy.value !== null) {
+                const accuracyDegradationLimit = locationAccuracy.value * 3
+                if (newAccuracy > accuracyDegradationLimit && newAccuracy > 100) {
+                  return
+                }
+                const elapsed = now - lastPositionUpdateTime
+                const isMoreAccurate = newAccuracy < locationAccuracy.value
+                if (elapsed < POSITION_UPDATE_COOLDOWN_MS && !isMoreAccurate) {
+                  return
+                }
+              }
+
               const newCoords = {
                 lat: p.coords.latitude,
                 lng: p.coords.longitude
               }
-              const newAccuracy = p.coords.accuracy
               const newSpeed = p.coords.speed !== null && !isNaN(p.coords.speed) ? p.coords.speed : null
               let newHeading = p.coords.heading !== null && !isNaN(p.coords.heading) && p.coords.heading >= 0
                 ? Math.round(p.coords.heading)
@@ -611,6 +652,7 @@ export const useEmergency = () => {
 
               userLocation.value = newCoords
               locationAccuracy.value = newAccuracy
+              lastPositionUpdateTime = now
               userSpeed.value = newSpeed
               if (newHeading !== null) {
                 userHeading.value = newHeading
@@ -622,7 +664,7 @@ export const useEmergency = () => {
             {
               enableHighAccuracy: true,
               timeout: 25000,
-              maximumAge: 0
+              maximumAge: 10000
             }
           )
           isLiveTracking.value = true
@@ -647,7 +689,7 @@ export const useEmergency = () => {
               {
                 enableHighAccuracy: true,
                 timeout: 15000,
-                maximumAge: 0
+                maximumAge: 30000
               }
             )
           } else {
@@ -657,7 +699,7 @@ export const useEmergency = () => {
         {
           enableHighAccuracy: options?.enableHighAccuracy ?? true,
           timeout: 25000,
-          maximumAge: 0
+          maximumAge: 30000
         }
       )
     })

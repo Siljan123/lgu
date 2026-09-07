@@ -49,6 +49,13 @@ const mapCenter = ref<{ lat: number; lng: number } | undefined>(undefined)
 const mapZoom = ref(15)
 const routeSummary = ref<{ distance?: string; duration?: string } | null>(null)
 
+// Stabilization state to prevent GPS flickering between position sources.
+// Tracks the timestamp of the last accepted position update so rapid successive
+// callbacks from the browser (which often interleave coarse IP/Wi-Fi fixes with
+// precise satellite fixes) are debounced.
+let lastPositionUpdateTime = 0
+const POSITION_UPDATE_COOLDOWN_MS = 2000 // min ms between accepted updates
+
 onMounted(() => {
   if (destination.value?.coordinates) {
     mapCenter.value = { ...destination.value.coordinates }
@@ -111,14 +118,51 @@ function startGpsTracking(isAuto = false) {
   locationError.value = null
   showLocationError.value = !isAuto
 
+  /**
+   * Guards applied:
+   * 1. **Accuracy gate** – once it has a position, reject any new reading
+   *    whose accuracy is worse by more than 3× the current best, unless
+   *    this is the very first fix (where we accept anything).
+   * 2. **Cooldown** – ignore updates that arrive within POSITION_UPDATE_COOLDOWN_MS
+   *    of the last accepted update, unless the new reading is strictly more
+   *    accurate (better readings always bypass the cooldown).
+   */
   const updatePosition = (pos: GeolocationPosition) => {
+    const newAccuracy = pos.coords.accuracy
+    const now = Date.now()
+
+    // Always accept the very first position fix
+    const isFirstFix = userLocation.value === null
+
+    if (!isFirstFix && locationAccuracy.value !== null) {
+      // Guard 1: Reject severely degraded accuracy readings.
+     
+      const accuracyDegradationLimit = locationAccuracy.value * 3
+      if (newAccuracy > accuracyDegradationLimit && newAccuracy > 100) {
+        return
+      }
+
+      // Guard 2: Cooldown — suppress rapid-fire updates unless strictly better.
+      const elapsed = now - lastPositionUpdateTime
+      const isMoreAccurate = newAccuracy < locationAccuracy.value
+      if (elapsed < POSITION_UPDATE_COOLDOWN_MS && !isMoreAccurate) {
+        return
+      }
+    }
+
+    // Accept this position update
     const coords = {
       lat: pos.coords.latitude,
       lng: pos.coords.longitude
     }
     userLocation.value = coords
-    locationAccuracy.value = pos.coords.accuracy
-    userHeading.value = pos.coords.heading !== null && !isNaN(pos.coords.heading) ? pos.coords.heading : null
+    locationAccuracy.value = newAccuracy
+    lastPositionUpdateTime = now
+
+    if (pos.coords.heading !== null && !isNaN(pos.coords.heading)) {
+      userHeading.value = pos.coords.heading
+    }
+
     isLocating.value = false
     isLiveTracking.value = true
     locationError.value = null
@@ -142,7 +186,9 @@ function startGpsTracking(isAuto = false) {
     showLocationError.value = !isAuto || err.code !== err.PERMISSION_DENIED
   }
 
-  // Quick initial location lock
+  // Quick initial location lock — allow a cached position up to 30s old so the
+  // browser can reuse a recent satellite fix instead of forcing a fresh (often
+  // coarse IP-based) acquisition from scratch.
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       updatePosition(pos)
@@ -150,10 +196,11 @@ function startGpsTracking(isAuto = false) {
     (err) => {
       handleError(err)
     },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
   )
 
-  // Continuous live GPS device tracking
+  // Continuous live GPS device tracking — maximumAge of 10s reduces how often
+  // the browser falls back to coarse network fixes between satellite updates.
   if (watchId.value !== null) {
     navigator.geolocation.clearWatch(watchId.value)
   }
@@ -167,7 +214,7 @@ function startGpsTracking(isAuto = false) {
         handleError(err)
       }
     },
-    { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
   )
 }
 
@@ -201,6 +248,7 @@ function clearGpsTracking() {
   userHeading.value = null
   routeSummary.value = null
   locationError.value = null
+  lastPositionUpdateTime = 0
   if (destination.value?.coordinates) {
     mapCenter.value = { ...destination.value.coordinates }
     mapZoom.value = 15
