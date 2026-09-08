@@ -98,10 +98,6 @@ function copyPhone(phone?: string) {
   }, 2000)
 }
 
-function onLocateMeClick() {
-  showLocationBanner.value = true
-  emit('locate')
-}
 </script>
 
 <template>
@@ -109,10 +105,10 @@ function onLocateMeClick() {
     class="relative w-full rounded-md overflow-hidden border border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#ffffff] dark:bg-[#1a1a1a] shadow-xs flex flex-col justify-between"
     :style="{ minHeight: height }"
   >
-    <div v-if="establishment" class="flex-1 flex flex-col">
+    <div v-if="establishment" class="flex flex-col">
       <div 
         v-if="establishment.image && !imageFailed" 
-        class="relative w-full h-44 sm:h-52 bg-[#0f172a] overflow-hidden border-b border-[#dfdfdf] dark:border-[#2e2e2e]"
+        class="relative w-full h-64 sm:h-62 bg-[#0f172a] overflow-hidden border-b border-[#dfdfdf] dark:border-[#2e2e2e]"
       >
         <img 
           :src="establishment.image" 
@@ -126,25 +122,6 @@ function onLocateMeClick() {
               {{ establishment.name }}
             </h2>
           </div>
-      </div>
-      <div class="flex-1 mx-2 my-4">
-        <div class="flex p-0 justify-end">
-          <div>
-            <div class="flex items-center gap-2">
-              <a
-                :href="directionsUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-xs font-bold text-[#ffffff] bg-[#85181a] hover:bg-[#a11e20] dark:bg-[#ef4444] dark:hover:bg-[#dc2626] transition-all shadow-xs"
-                title="Open turn-by-turn navigation in official Google Maps"
-              >
-                <Navigation :size="14" />
-                <span>Navigate from My Location</span>
-                <ExternalLink :size="12" />
-              </a>
-              </div>
-            </div>
-        </div>
       </div>
     </div>
 
@@ -160,38 +137,28 @@ function onLocateMeClick() {
       </p>
     </div>
 
-    <div class="p-4 sm:p-5 pt-3 border-t border-[#dfdfdf] dark:border-[#2e2e2e] space-y-3 bg-[#fafafa] dark:bg-[#171717]/60">
+    <div class="p-4 sm:p-5 border-t border-[#dfdfdf] dark:border-[#2e2e2e] space-y-3 bg-[#fafafa] dark:bg-[#171717]/60">
       <div class="flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            class="px-4 py-2.5 rounded-sm text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-xs"
-            :class="[
-                userLocation 
-                  ? (locationSource?.type === 'satellite' ? 'bg-[#10b981] text-[#ffffff] hover:bg-[#059669]' : 'bg-amber-600 text-[#ffffff] hover:bg-amber-700')
-                  : isLocating 
-                    ? 'bg-[#85181a]/20 text-[#85181a] dark:text-[#ef4444]' 
-                    : 'bg-[#85181a] text-[#ffffff] hover:bg-[#a11e20] dark:bg-[#ef4444] dark:hover:bg-[#dc2626]'
-            ]"
-            :disabled="isLocating"
-            title="Detect your device GPS location and center map on you"
-            @click="onLocateMeClick"
-          >
-            <div v-if="isLocating" class="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin">
+        <div class="flex items-center flex-wrap">
+            <div v-if="establishment" class="flex-1 mx-2 my-4">
+              <div class="flex p-0 justify-end">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <a
+                      :href="directionsUrl"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-xs font-bold text-[#ffffff] bg-[#85181a] hover:bg-[#a11e20] dark:bg-[#ef4444] dark:hover:bg-[#dc2626] transition-all shadow-xs"
+                      title="Open turn-by-turn navigation in official Google Maps"
+                    >
+                      <Navigation :size="14" />
+                      <span>Navigate from My Location</span>
+                      <ExternalLink :size="12" />
+                    </a>
+                    </div>
+                  </div>
+              </div>
             </div>
-              <Satellite v-else-if="userLocation && locationSource?.type === 'satellite'" :size="15" class="animate-pulse" />
-              <Globe v-else-if="userLocation && locationSource?.type !== 'satellite'" :size="15" class="animate-pulse" />
-              <LocateFixed v-else-if="userLocation" :size="15" class="animate-pulse" />
-              <Locate v-else :size="15" />
-            <span>
-              <template v-if="isLocating">Detecting GPS…</template>
-              <template v-else-if="userLocation">
-                <span v-if="locationSource?.type === 'satellite'">Satellite GPS Active</span>
-                <span v-else>IP Network Active</span>
-              </template>
-              <template v-else>Use My Device GPS</template>
-            </span>
-          </button>
         </div>
       </div>
       <div 
