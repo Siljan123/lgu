@@ -222,7 +222,7 @@ const onLocateMeClick = async () => {
           :zoom="mapZoom"
           :markers="displayMarkers"
           :active-marker-index="selectedMarkerIndex"
-          height="580px"
+          height="400px"
           @marker-click="handleMarkerClick"
         />
       </div>
@@ -234,7 +234,7 @@ const onLocateMeClick = async () => {
           :is-live-tracking="isLiveTracking"
           :is-locating="isLocating"
           :location-error="locationError"
-          height="580px"
+          height="400px"
           @clear="onSelectEstablishment(null)"
           @locate="onLocateMeClick"
         />

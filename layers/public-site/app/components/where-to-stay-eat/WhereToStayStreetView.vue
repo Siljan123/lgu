@@ -109,26 +109,7 @@ function onLocateMeClick() {
     class="relative w-full rounded-md overflow-hidden border border-[#dfdfdf] dark:border-[#2e2e2e] bg-[#ffffff] dark:bg-[#1a1a1a] shadow-xs flex flex-col justify-between"
     :style="{ minHeight: height }"
   >
-    <div class="bg-[#1e293b] text-[#ffffff] px-4 py-3 flex items-center justify-between z-10 border-b border-[#334155]">
-      <div class="flex items-center gap-2">
-        <span class="text-xs font-bold uppercase tracking-wider">
-          Establishment Details
-        </span>
-      </div>
-      <div v-if="establishment" class="flex items-center gap-2">
-        <button
-          type="button"
-          class="p-1 rounded hover:bg-white/10 text-[#94a3b8] hover:text-white transition-colors cursor-pointer"
-          title="Clear selection"
-          @click="emit('clear')"
-        >
-          <X :size="14" />
-        </button>
-      </div>
-    </div>
-
     <div v-if="establishment" class="flex-1 flex flex-col">
-      <!-- Optional Establishment Photo -->
       <div 
         v-if="establishment.image && !imageFailed" 
         class="relative w-full h-44 sm:h-52 bg-[#0f172a] overflow-hidden border-b border-[#dfdfdf] dark:border-[#2e2e2e]"
@@ -140,65 +121,29 @@ function onLocateMeClick() {
           @error="imageFailed = true" 
         />
         <div class="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent"></div>
-      </div>
-      <!-- Details Content -->
-      <div class="p-4 sm:p-5 space-y-4 flex-1">
-        <div class="flex items-start justify-between gap-3 flex-wrap">
-          <div>
-            <h3 class="text-lg sm:text-xl font-extrabold text-[#171717] dark:text-[#ffffff] leading-snug">
+         <div class="absolute bottom-0 left-0 right-0 p-3">
+            <h2 class="text-white font-semibold text-lg drop-shadow-sm">
               {{ establishment.name }}
-            </h3>
-            <div class="flex items-start gap-1.5 mt-1.5 text-xs text-[#64748b] dark:text-[#94a3b8]">
-              <MapPin :size="14" class="text-[#85181a] dark:text-[#ef4444] shrink-0 mt-0.5" />
-              <span>{{ establishment.address || 'San Francisco, Agusan del Sur' }}</span>
+            </h2>
+          </div>
+      </div>
+      <div class="flex-1 mx-2 my-4">
+        <div class="flex p-0 justify-end">
+          <div>
+            <div class="flex items-center gap-2">
+              <a
+                :href="directionsUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-md text-xs font-bold text-[#ffffff] bg-[#85181a] hover:bg-[#a11e20] dark:bg-[#ef4444] dark:hover:bg-[#dc2626] transition-all shadow-xs"
+                title="Open turn-by-turn navigation in official Google Maps"
+              >
+                <Navigation :size="14" />
+                <span>Navigate from My Location</span>
+                <ExternalLink :size="12" />
+              </a>
+              </div>
             </div>
-          </div>
-          <div 
-            v-if="userLocation && displayDistance" 
-            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold border transition-all duration-300 self-start" 
-            :class="trackingBadgeColor"
-          >
-            <Route :size="13" />
-            <span>{{ displayDistance }} from your location</span>
-            <span v-if="displayDuration" class="text-[11px] font-normal opacity-85">({{ displayDuration }})</span>
-            <span v-if="isLiveTracking" class="relative flex h-2 w-2 ml-1" title="Live tracking active">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" :class="locationSource?.type === 'satellite' ? 'bg-emerald-500' : 'bg-amber-500'"></span>
-              <span class="relative inline-flex rounded-full h-2 w-2" :class="locationSource?.type === 'satellite' ? 'bg-emerald-600' : 'bg-amber-600'"></span>
-            </span>
-          </div>
-        </div>
-
-        <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[#f1f5f9] dark:border-[#2e2e2e]">
-          <div v-if="establishment.contactNo" class="flex items-center gap-2 text-xs font-bold text-[#1e293b] dark:text-[#f8fafc]">
-            <Phone :size="14" class="text-[#85181a] dark:text-[#ef4444]" />
-            <span>{{ establishment.contactNo }}</span>
-            <button 
-              type="button" 
-              class="p-1 hover:bg-[#f1f5f9] dark:hover:bg-[#334155] text-[#64748b] transition-colors rounded cursor-pointer" 
-              title="Copy phone"
-              @click="copyPhone(establishment.contactNo)"
-            >
-              <Check v-if="copiedState" :size="13" class="text-green-600" />
-              <Copy v-else :size="13" />
-            </button>
-          </div>
-          <div v-else class="text-xs italic text-[#94a3b8]">
-            No contact number recorded
-          </div>
-
-          <div class="flex items-center gap-2">
-            <a
-              :href="directionsUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold text-[#ffffff] bg-[#85181a] hover:bg-[#a11e20] dark:bg-[#ef4444] dark:hover:bg-[#dc2626] transition-all shadow-xs"
-              title="Open turn-by-turn navigation in official Google Maps"
-            >
-              <Navigation :size="14" />
-              <span>Navigate from My Location</span>
-              <ExternalLink :size="12" />
-            </a>
-          </div>
         </div>
       </div>
     </div>
@@ -232,11 +177,12 @@ function onLocateMeClick() {
             title="Detect your device GPS location and center map on you"
             @click="onLocateMeClick"
           >
-            <div v-if="isLocating" class="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-            <Satellite v-else-if="userLocation && locationSource?.type === 'satellite'" :size="15" class="animate-pulse" />
-            <Globe v-else-if="userLocation && locationSource?.type !== 'satellite'" :size="15" class="animate-pulse" />
-            <LocateFixed v-else-if="userLocation" :size="15" class="animate-pulse" />
-            <Locate v-else :size="15" />
+            <div v-if="isLocating" class="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin">
+            </div>
+              <Satellite v-else-if="userLocation && locationSource?.type === 'satellite'" :size="15" class="animate-pulse" />
+              <Globe v-else-if="userLocation && locationSource?.type !== 'satellite'" :size="15" class="animate-pulse" />
+              <LocateFixed v-else-if="userLocation" :size="15" class="animate-pulse" />
+              <Locate v-else :size="15" />
             <span>
               <template v-if="isLocating">Detecting GPS…</template>
               <template v-else-if="userLocation">
@@ -248,7 +194,6 @@ function onLocateMeClick() {
           </button>
         </div>
       </div>
-
       <div 
         v-if="userLocation && locationSource && locationSource.type !== 'satellite'"
         class="flex items-start gap-2 p-2.5 rounded-sm bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/20 text-xs text-amber-900 dark:text-amber-200"
@@ -259,12 +204,10 @@ function onLocateMeClick() {
           <span> Location is estimated via network gateways.</span>
         </div>
       </div>
-
       <div 
         v-else-if="userLocation && locationSource && locationSource.type === 'satellite'"
         class="flex items-start gap-2 p-2.5 rounded-sm bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 text-xs text-emerald-900 dark:text-emerald-200"
       >
-        <Satellite :size="15" class="shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
         <div>
           <span class="font-bold">Using Satelite Positioning:</span>
           <span> Accurate street-level satellite positioning is active. Directions and distance calculations are calibrated to your exact device location.</span>

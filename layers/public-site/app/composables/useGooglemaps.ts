@@ -41,9 +41,9 @@ export function useGoogleMaps() {
   function loadGoogleMaps(): Promise<void> {
     if (loadPromise) return loadPromise
 
-    const apiKey = (config.public.googleMapsApiKey || 'AIzaSyD7w1IkhBtx28l6G2AoKW4eivwomJdtbZ8') as string
+    const apiKey = (config.public.googleMapsApiKey ) as string
     if (!apiKey) {
-      const msg = 'Missing NUXT_PUBLIC_GOOGLE_MAPS_API_KEY'
+      const msg = 'Missing GOOGLE MAPS API KEY'
       loadError.value = msg
       return Promise.reject(new Error(msg))
     }
@@ -53,20 +53,13 @@ export function useGoogleMaps() {
       v: 'weekly',
     })
 
-    // Load core maps and marker libraries immediately for instant map rendering
+    // Load only core maps and marker libraries for free-tier interactive display
     loadPromise = Promise.all([
       importLibrary('maps'),
       importLibrary('marker'),
     ])
       .then(() => {
         isLoaded.value = true
-        // Preload additional libraries in background
-        Promise.allSettled([
-          importLibrary('places'),
-          importLibrary('geocoding'),
-          importLibrary('streetView'),
-          importLibrary('routes'),
-        ])
       })
       .catch((err) => {
         loadPromise = null
@@ -90,17 +83,28 @@ export function useGoogleMaps() {
   }
 
   async function geocodeAddress(address: string): Promise<google.maps.LatLngLiteral | null> {
-    await loadGoogleMaps()
-    const geocoder = new google.maps.Geocoder()
-    try {
-      const response = await geocoder.geocode({ address })
-      if (response.results.length > 0 && response.results[0]?.geometry?.location) {
-        const loc = response.results[0].geometry.location
-        return { lat: loc.lat(), lng: loc.lng() }
-      }
-    } catch (err) {
-      console.error(`Geocoding error for address "${address}":`, err)
+    // Known local coordinate dictionary to eliminate costly Google Geocoding API requests ($5/1k)
+    const knownCoordinates: Record<string, google.maps.LatLngLiteral> = {
+      'san francisco, agusan del sur': { lat: 8.5042, lng: 125.9786 },
+      'san francisco, agusan del sur, philippines': { lat: 8.5042, lng: 125.9786 },
+      'san francisco': { lat: 8.5042, lng: 125.9786 },
+      'alegria': { lat: 8.5056, lng: 125.9945 },
+      'hubang': { lat: 8.5132, lng: 125.9760 },
+      'karaos': { lat: 8.5201, lng: 125.9810 },
+      'barangay 1': { lat: 8.5042, lng: 125.9786 },
+      'barangay 2': { lat: 8.5050, lng: 125.9790 },
+      'barangay 3': { lat: 8.5060, lng: 125.9795 },
+      'barangay 4': { lat: 8.5070, lng: 125.9800 },
+      'barangay 5': { lat: 8.5080, lng: 125.9805 },
     }
+
+    const normalized = (address || '').toLowerCase().trim()
+    for (const [key, coords] of Object.entries(knownCoordinates)) {
+      if (normalized.includes(key)) {
+        return coords
+      }
+    }
+
     return null
   }
 
@@ -111,8 +115,8 @@ export function useGoogleMaps() {
       if (coords) position = coords
     }
     if (!position) {
-      console.warn(`Marker missing position and address could not be resolved`, cfg)
-      position = { lat: 0, lng: 0 }
+      console.warn(`Marker missing position and address could not be resolved locally`, cfg)
+      position = { lat: 8.5042, lng: 125.9786 }
     }
     const marker = new google.maps.Marker({
       map,
@@ -124,26 +128,6 @@ export function useGoogleMaps() {
     })
     if (cfg.onClick) marker.addListener('click', cfg.onClick)
     return marker
-  }
-
-  async function getNearestPanorama(
-    location: google.maps.LatLng | google.maps.LatLngLiteral,
-    radius = 2000
-  ): Promise<google.maps.LatLngLiteral | null> {
-    await loadGoogleMaps()
-    return new Promise((resolve) => {
-      const sv = new google.maps.StreetViewService()
-      sv.getPanorama(
-        { location, radius },
-        (data, status) => {
-          if (status === google.maps.StreetViewStatus.OK && data?.location?.latLng) {
-            resolve({ lat: data.location.latLng.lat(), lng: data.location.latLng.lng() })
-          } else {
-            resolve(null)
-          }
-        }
-      )
-    })
   }
 
   function calculateDirectDistance(
@@ -175,10 +159,8 @@ export function useGoogleMaps() {
   async function calculateDirections(
     origin: google.maps.LatLngLiteral | string,
     destination: google.maps.LatLngLiteral | string,
-    travelModeStr: string = 'DRIVING'
+    _travelModeStr: string = 'DRIVING'
   ): Promise<RouteCalculationResult | null> {
-    await loadGoogleMaps()
-
     let originPos: google.maps.LatLngLiteral | null = null
     let destPos: google.maps.LatLngLiteral | null = null
 
@@ -195,67 +177,11 @@ export function useGoogleMaps() {
     }
 
     if (!originPos || !destPos) {
-      console.warn('Origin or Destination coordinates could not be resolved for directions')
+      console.warn('[useGoogleMaps] Origin or Destination missing coordinates for directions')
       return null
     }
 
-    const mode =
-      typeof google !== 'undefined' && google.maps && google.maps.TravelMode
-        ? (google.maps.TravelMode as any)[travelModeStr] || google.maps.TravelMode.DRIVING
-        : ('DRIVING' as any)
-
-    if (typeof google !== 'undefined' && google.maps && google.maps.DirectionsService) {
-      try {
-        const ds = new google.maps.DirectionsService()
-        const result = await new Promise<google.maps.DirectionsResult | null>((resolve) => {
-          ds.route(
-            {
-              origin: originPos,
-              destination: destPos,
-              travelMode: mode,
-            },
-            (res, status) => {
-              if (status === google.maps.DirectionsStatus.OK && res) {
-                resolve(res)
-              } else {
-                resolve(null)
-              }
-            }
-          )
-        })
-
-        if (result && result.routes && result.routes.length > 0) {
-          const route = result.routes[0]
-          const leg = route?.legs?.[0]
-
-          const steps: RouteStep[] = (leg?.steps || []).map((s) => ({
-            instructions: s.instructions.replace(/<[^>]*>/g, ''), // strip html tags for display
-            distance: s.distance?.text || '',
-            duration: s.duration?.text || '',
-          }))
-
-          const path: google.maps.LatLngLiteral[] = (route?.overview_path || []).map((pt) => ({
-            lat: pt.lat(),
-            lng: pt.lng(),
-          }))
-
-          return {
-            directionsResult: result,
-            distanceText: leg?.distance?.text || '',
-            durationText: leg?.duration?.text || '',
-            distanceMeters: leg?.distance?.value || 0,
-            durationSeconds: leg?.duration?.value || 0,
-            steps,
-            path,
-            isFallbackPolyline: false,
-          }
-        }
-      } catch (err) {
-        console.warn('DirectionsService request failed, falling back to direct polyline:', err)
-      }
-    }
-
-    // Direct polyline fallback
+    // Free client-side Haversine direct calculation (0 API cost, no DirectionsService call)
     const directStats = calculateDirectDistance(originPos, destPos)
     return {
       directionsResult: null,
@@ -265,7 +191,7 @@ export function useGoogleMaps() {
       durationSeconds: directStats.durationSeconds,
       steps: [
         {
-          instructions: `Direct path from origin to destination`,
+          instructions: `Direct path to destination (${directStats.distanceText})`,
           distance: directStats.distanceText,
           duration: directStats.durationText,
         },
@@ -282,7 +208,7 @@ export function useGoogleMaps() {
     createMap,
     createMarker,
     geocodeAddress,
-    getNearestPanorama,
+    calculateDirectDistance,
     calculateDirections,
   }
 }
