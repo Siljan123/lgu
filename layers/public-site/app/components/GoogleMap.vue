@@ -28,6 +28,7 @@ interface Props {
   routeDestinationTitle?: string
   showRouteSummary?: boolean
   mapTypeId?: 'hybrid' | 'roadmap' | 'satellite' | 'terrain'
+  activeMarkerIndex?: number | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -45,6 +46,7 @@ const props = withDefaults(defineProps<Props>(), {
   travelMode: 'DRIVING',
   showRouteSummary: true,
   mapTypeId: 'roadmap',
+  activeMarkerIndex: null,
 })
 
 const emit = defineEmits<{
@@ -119,11 +121,14 @@ async function renderMarkers() {
       if (cfg.isUserLocation) {
         const symbol = cfg.icon || getUserLocationSymbol(cfg.heading)
         if (symbol) marker.setIcon(symbol)
-      } else if (cfg.icon) {
-        marker.setIcon(cfg.icon)
+      } else {
+        marker.setIcon(cfg.icon || null)
       }
       if (cfg.title) marker.setTitle(cfg.title)
+      if (cfg.zIndex !== undefined) marker.setZIndex(cfg.zIndex)
+      if (cfg.animation !== undefined) marker.setAnimation(cfg.animation)
     })
+    syncActiveInfoWindow(props.activeMarkerIndex)
     return
   }
 
@@ -155,6 +160,26 @@ async function renderMarkers() {
     })
   )
   mapMarkers.value = createdMarkers
+  syncActiveInfoWindow(props.activeMarkerIndex)
+}
+
+function syncActiveInfoWindow(index: number | null | undefined) {
+  if (index === null || index === undefined || index < 0 || !mapMarkers.value[index]) {
+    if (activeInfoWindow.value) {
+      activeInfoWindow.value.close()
+      activeInfoWindow.value = null
+    }
+    return
+  }
+  const marker = mapMarkers.value[index]
+  const cfg = props.markers[index]
+  if (marker && cfg?.infoWindowContent && map.value && typeof google !== 'undefined' && google.maps) {
+    if (activeInfoWindow.value) activeInfoWindow.value.close()
+    activeInfoWindow.value = new google.maps.InfoWindow({
+      content: cfg.infoWindowContent,
+    })
+    activeInfoWindow.value.open(map.value, marker)
+  }
 }
 
 function clearRouteGraphics() {
@@ -482,6 +507,9 @@ onMounted(async () => {
 let resizeObserver: ResizeObserver | null = null
 
 watch(() => props.markers, renderMarkers, { deep: true })
+watch(() => props.activeMarkerIndex, (newIdx) => {
+  syncActiveInfoWindow(newIdx)
+})
 watch(() => props.center, (c) => { if (c) map.value?.panTo(c) })
 watch(() => props.centerAddress, async (addr) => {
   if (addr) {

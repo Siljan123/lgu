@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useWhereToStayEat, type Establishment } from '../../composables/useWhereToStayEat'
+import type { MarkerConfig } from '../../composables/useGooglemaps'
 import WhereToStayTags from './WhereToStayTags.vue'
 import WhereToStayList from './WhereToStayList.vue'
 import WhereToStayStreetView from './WhereToStayStreetView.vue'
@@ -29,15 +30,11 @@ const {
   filteredEstablishments,
   paginatedEstablishments,
   establishmentsData,
-  mapMarkers,
-  allEstablishmentMarkers,
   userLocation,
   locationSource,
   isLocating,
   locationError,
   isLiveTracking,
-  travelMode,
-  routeCalculationResult,
   selectMainCategory,
   selectSubCategory,
   selectCategory,
@@ -50,46 +47,82 @@ const defaultSanFranciscoCenter = { lat: 8.5042, lng: 125.9786 }
 const mapCenter = ref(userLocation.value || defaultSanFranciscoCenter)
 const mapZoom = ref(userLocation.value ? 16 : 15)
 const mapViewContainerRef = ref<HTMLElement | null>(null)
-const showLocationBanner = ref(true)
-const userHasSelected = ref(false)
+
+// Standard SVG teardrop pin path
+const PIN_SVG_PATH = 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z'
 
 // Center the map to the device or user location as default when available
 watch(userLocation, (coords) => {
-  if (coords && !userHasSelected.value && !selectedEstablishment.value) {
+  if (coords && !selectedEstablishment.value) {
     mapCenter.value = coords
     mapZoom.value = 16
   }
 }, { immediate: true })
 
-// Show all markers initially; once user picks one, show only that marker + user location
-const displayMarkers = computed(() => {
-  if (userHasSelected.value) {
-    return mapMarkers.value
-  }
-  // All filtered establishment markers + user location marker
-  const markers = [...allEstablishmentMarkers.value]
-  if (userLocation.value) {
-    const sourceBadgeHtml = locationSource.value ? `
-      <div style="display: inline-block; font-size: 10px; font-weight: 600; color: ${locationSource.value.color}; margin-bottom: 6px; background: rgba(0,0,0,0.04); padding: 2px 6px; border-radius: 4px;">
-        ${locationSource.value.type === 'satellite' ? 'Satellite GPS' : 'IP Network'}
-      </div>
-    ` : ''
-    markers.unshift({
-      address: locationSource.value?.type === 'satellite' ? 'Your Device Satellite GPS Location' : 'Your Device IP Network Location',
-      title: locationSource.value?.type === 'satellite' ? 'Starting Point (Satellite GPS)' : 'Starting Point (IP Network)',
-      position: userLocation.value,
-      isUserLocation: true,
-      infoWindowContent: `
-        <div style="padding: 8px 12px; font-family: system-ui, -apple-system, sans-serif;">
-          <div style="font-size: 10px; font-weight: 700; color: #10b981; text-transform: uppercase; margin-bottom: 2px;">Starting Point</div>
-          <h4 style="font-size: 13px; font-weight: 700; color: #171717; margin: 0 0 2px 0;">Your Device GPS Location</h4>
-          <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Lat: ${userLocation.value.lat.toFixed(5)}, Lng: ${userLocation.value.lng.toFixed(5)}</p>
-          ${sourceBadgeHtml}
-        </div>
-      `
+// Display all filtered establishment markers; prominently highlight the selected one
+const displayMarkers = computed<MarkerConfig[]>(() => {
+  const isGoogleAvailable = typeof google !== 'undefined' && Boolean(google.maps)
+  const activeId = selectedEstablishment.value?.id
+
+  return filteredEstablishments.value
+    .filter(item => item.coordinates)
+    .map(item => {
+      const isSelected = activeId === item.id
+
+      let icon: any = undefined
+      if (isGoogleAvailable) {
+        if (isSelected) {
+          icon = {
+            path: PIN_SVG_PATH,
+            fillColor: '#ef4444',
+            fillOpacity: 1,
+            strokeColor: '#ffffff',
+            strokeWeight: 2.5,
+            scale: 2.2,
+            anchor: new google.maps.Point(12, 22),
+          }
+        } else {
+          icon = {
+            path: PIN_SVG_PATH,
+            fillColor: item.mainCategory === 'Where to Stay' ? '#85181a' : '#c2410c',
+            fillOpacity: 0.9,
+            strokeColor: '#ffffff',
+            strokeWeight: 1.5,
+            scale: 1.4,
+            anchor: new google.maps.Point(12, 22),
+          }
+        }
+      }
+
+      return {
+        id: item.id,
+        address: item.address,
+        title: `${item.name} — ${item.address}`,
+        position: { lat: item.coordinates.lat, lng: item.coordinates.lng },
+        isUserLocation: false,
+        zIndex: isSelected ? 9999 : 10,
+        icon,
+        infoWindowContent: `
+          <div style="padding: 8px 12px; max-width: 240px; font-family: system-ui, -apple-system, sans-serif;">
+            <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #85181a; margin-bottom: 2px;">${item.subCategory || item.category}</div>
+            <h4 style="font-size: 13px; font-weight: 700; color: #171717; margin: 0 0 3px 0; line-height: 1.3;">${item.name}</h4>
+            <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">${item.address}</p>
+            ${item.contactNo ? `<div style="font-size: 11px; color: #1e293b; font-weight: 600; margin-top: 4px;">${item.contactNo}</div>` : ''}
+            ${item.operatingHours ? `<div style="font-size: 11px; color: #64748b; margin-top: 2px;">${item.operatingHours}</div>` : ''}
+            <div style="margin-top: 8px; display: flex; gap: 6px;">
+              <button type="button" onclick="if(window.closeGoogleMapInfoWindow)window.closeGoogleMapInfoWindow()" style="display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px; font-size: 10px; font-weight: 600; color: #ffffff; background-color: #85181a; border: none; border-radius: 4px; cursor: pointer;">
+                Close
+              </button>
+            </div>
+          </div>
+        `
+      }
     })
-  }
-  return markers
+})
+
+const selectedMarkerIndex = computed(() => {
+  if (!selectedEstablishment.value) return -1
+  return displayMarkers.value.findIndex(m => m.id === selectedEstablishment.value?.id)
 })
 
 onMounted(() => {
@@ -116,8 +149,6 @@ onMounted(() => {
 })
 
 watch(filteredEstablishments, (newList) => {
-  // Reset to show all markers when filters change
-  userHasSelected.value = false
   if (selectedEstablishment.value && !newList.some(e => e.id === selectedEstablishment.value?.id)) {
     selectEstablishment(null)
   }
@@ -125,7 +156,6 @@ watch(filteredEstablishments, (newList) => {
 
 const onSelectEstablishment = (item: Establishment | null, shouldScroll = true) => {
   if (!item) {
-    userHasSelected.value = false
     selectEstablishment(null)
     if (userLocation.value) {
       mapCenter.value = userLocation.value
@@ -136,14 +166,13 @@ const onSelectEstablishment = (item: Establishment | null, shouldScroll = true) 
     }
     return
   }
-  userHasSelected.value = true
   selectEstablishment(item)
   if (item.coordinates) {
     mapCenter.value = item.coordinates
-    mapZoom.value = 16
+    mapZoom.value = 17
   }
 
-  // Smoothly scroll back to top Map & Street View container when Focus button is clicked
+  // Smoothly scroll back to top Map & Street View container when clicked
   if (shouldScroll && mapViewContainerRef.value) {
     mapViewContainerRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
@@ -153,59 +182,26 @@ const handleMarkerClick = (marker: any, index: number) => {
   const markerConfig = displayMarkers.value[index]
   if (!markerConfig) return
 
-  // Clicked user location marker — just center on it
-  if (markerConfig.isUserLocation) {
-    if (userLocation.value) {
-      mapCenter.value = userLocation.value
-      mapZoom.value = 17
-    }
-    return
-  }
-
-  // In "all markers" mode, find the matching establishment by position and select it
-  if (!userHasSelected.value) {
-    const match = filteredEstablishments.value.find(
-      e => e.coordinates?.lat === markerConfig.position.lat && e.coordinates?.lng === markerConfig.position.lng
+  const match = filteredEstablishments.value.find(e => e.id === markerConfig.id)
+    || filteredEstablishments.value.find(
+      e => e.coordinates?.lat === markerConfig.position?.lat && e.coordinates?.lng === markerConfig.position?.lng
     )
-    if (match) {
-      onSelectEstablishment(match, true)
-      return
-    }
-  }
 
-  if (selectedEstablishment.value) {
-    onSelectEstablishment(selectedEstablishment.value, false)
+  if (match) {
+    onSelectEstablishment(match, false)
   }
-}
-
-const handleRouteCalculated = (result: any) => {
-  routeCalculationResult.value = result
 }
 
 const onLocateMeClick = async () => {
-  showLocationBanner.value = true
   try {
     const coords = await requestUserLocation({ enableHighAccuracy: true, watch: true })
-    mapCenter.value = coords
-    mapZoom.value = 16
+    if (!selectedEstablishment.value) {
+      mapCenter.value = coords
+      mapZoom.value = 16
+    }
   } catch {
   }
 }
-
-const startPointLabel = computed(() => {
-  if (userLocation.value) {
-    return locationSource.value?.type === 'satellite'
-      ? 'Your Device Satellite GPS Location'
-      : 'Your Device IP Network Location'
-  }
-  return 'Your Starting Location'
-})
-
-const activeDestinationCoords = computed(() => {
-  return selectedEstablishment.value?.coordinates || null
-})
-
-
 </script>
 
 <template>
@@ -214,7 +210,7 @@ const activeDestinationCoords = computed(() => {
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div>
         <p class="text-xs sm:text-sm text-[#707070] dark:text-[#a3a3a3] mt-1">
-          Discover places to stay (Hotels, Inns, Homestays, Resorts) and places to eat (Restaurants, Eateries, Cafes, Local Food Stalls) across San Francisco, Agusan del Sur with GPS route line directions.
+          Discover places to stay (Hotels, Inns, Homestays, Resorts) and places to eat (Restaurants, Eateries, Cafes, Local Food Stalls) across San Francisco, Agusan del Sur with location details and direct navigation.
         </p>
       </div>
     </div>
@@ -225,15 +221,9 @@ const activeDestinationCoords = computed(() => {
           :center="mapCenter"
           :zoom="mapZoom"
           :markers="displayMarkers"
-          :route-origin="userLocation"
-          :route-destination="activeDestinationCoords"
-          :route-origin-title="startPointLabel"
-          :route-destination-title="selectedEstablishment ? `${selectedEstablishment.name} (${selectedEstablishment.address})` : 'Destination'"
-          :travel-mode="travelMode"
-          :show-route-summary="true"
+          :active-marker-index="selectedMarkerIndex"
           height="580px"
           @marker-click="handleMarkerClick"
-          @route-calculated="handleRouteCalculated"
         />
       </div>
       <div class="lg:col-span-6 lg:sticky lg:top-20 space-y-3">
@@ -241,8 +231,6 @@ const activeDestinationCoords = computed(() => {
           :establishment="selectedEstablishment"
           :user-location="userLocation"
           :location-source="locationSource"
-          :route-distance="routeCalculationResult?.distanceText"
-          :route-duration="routeCalculationResult?.durationText"
           :is-live-tracking="isLiveTracking"
           :is-locating="isLocating"
           :location-error="locationError"

@@ -11,6 +11,8 @@ export interface MarkerConfig {
   infoWindowContent?: string
   isUserLocation?: boolean
   heading?: number | null
+  zIndex?: number
+  animation?: any
   onClick?: () => void
 }
 
@@ -117,6 +119,8 @@ export function useGoogleMaps() {
       position,
       title: cfg.title || cfg.address,
       icon: cfg.icon,
+      zIndex: cfg.zIndex,
+      animation: cfg.animation,
     })
     if (cfg.onClick) marker.addListener('click', cfg.onClick)
     return marker

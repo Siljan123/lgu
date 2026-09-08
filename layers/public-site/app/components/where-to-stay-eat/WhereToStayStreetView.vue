@@ -64,12 +64,17 @@ const displayDistance = computed(() => {
 })
 
 const displayDuration = computed(() => {
-  return props.routeDuration || null
+  if (props.routeDuration) return props.routeDuration
+  if (directDistanceToUser.value) {
+    const mins = Math.max(1, Math.round((directDistanceToUser.value.distanceKm / 35) * 60))
+    return `${mins} min${mins > 1 ? 's' : ''}`
+  }
+  return null
 })
 
 const directionsUrl = computed(() => {
-  if (props.userLocation && props.establishment?.coordinates) {
-    return `https://www.google.com/maps/dir/?api=1&origin=${props.userLocation.lat},${props.userLocation.lng}&destination=${props.establishment.coordinates.lat},${props.establishment.coordinates.lng}&travelmode=driving`
+  if (props.establishment?.coordinates) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${props.establishment.coordinates.lat},${props.establishment.coordinates.lng}&travelmode=driving`
   }
   if (props.establishment) {
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(props.establishment.name + ' ' + (props.establishment.address || 'San Francisco Agusan del Sur'))}`
@@ -155,6 +160,7 @@ function onLocateMeClick() {
           >
             <Route :size="13" />
             <span>{{ displayDistance }} from your location</span>
+            <span v-if="displayDuration" class="text-[11px] font-normal opacity-85">({{ displayDuration }})</span>
             <span v-if="isLiveTracking" class="relative flex h-2 w-2 ml-1" title="Live tracking active">
               <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" :class="locationSource?.type === 'satellite' ? 'bg-emerald-500' : 'bg-amber-500'"></span>
               <span class="relative inline-flex rounded-full h-2 w-2" :class="locationSource?.type === 'satellite' ? 'bg-emerald-600' : 'bg-amber-600'"></span>
@@ -176,7 +182,7 @@ function onLocateMeClick() {
               <Copy v-else :size="13" />
             </button>
           </div>
-          <div class="text-xs italic text-[#94a3b8]">
+          <div v-else class="text-xs italic text-[#94a3b8]">
             No contact number recorded
           </div>
 
@@ -186,10 +192,10 @@ function onLocateMeClick() {
               target="_blank"
               rel="noopener noreferrer"
               class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold text-[#ffffff] bg-[#85181a] hover:bg-[#a11e20] dark:bg-[#ef4444] dark:hover:bg-[#dc2626] transition-all shadow-xs"
+              title="Open turn-by-turn navigation in official Google Maps"
             >
               <Navigation :size="14" />
-              <span v-if="userLocation">Official Google Map</span>
-              <span v-else>Open in Google Maps</span>
+              <span>Navigate from My Location</span>
               <ExternalLink :size="12" />
             </a>
           </div>
