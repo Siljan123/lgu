@@ -735,4 +735,3 @@ export const useWhereToStayEat = () => {
     clearRoute
   }
 }
-

@@ -6,7 +6,6 @@ import WhereToStayList from './WhereToStayList.vue'
 import WhereToStayStreetView from './WhereToStayStreetView.vue'
 import GoogleMap from '../GoogleMap.vue'
 import { 
-  MapPin, 
   Table,
   LayoutGrid,
 } from '@lucide/vue'
@@ -31,8 +30,8 @@ const {
   paginatedEstablishments,
   establishmentsData,
   mapMarkers,
+  allEstablishmentMarkers,
   userLocation,
-  locationAccuracy,
   locationSource,
   isLocating,
   locationError,
@@ -45,47 +44,99 @@ const {
   selectBarangay,
   selectEstablishment,
   requestUserLocation,
-  toggleLiveTracking,
-  stopTracking,
 } = useWhereToStayEat()
 
-const mapCenter = ref({ lat: 8.5042, lng: 125.9786 })
-const mapZoom = ref(15)
+const defaultSanFranciscoCenter = { lat: 8.5042, lng: 125.9786 }
+const mapCenter = ref(userLocation.value || defaultSanFranciscoCenter)
+const mapZoom = ref(userLocation.value ? 16 : 15)
 const mapViewContainerRef = ref<HTMLElement | null>(null)
 const showLocationBanner = ref(true)
+const userHasSelected = ref(false)
 
-// Auto-select first establishment in category if none is selected
+// Center the map to the device or user location as default when available
+watch(userLocation, (coords) => {
+  if (coords && !userHasSelected.value && !selectedEstablishment.value) {
+    mapCenter.value = coords
+    mapZoom.value = 16
+  }
+}, { immediate: true })
+
+// Show all markers initially; once user picks one, show only that marker + user location
+const displayMarkers = computed(() => {
+  if (userHasSelected.value) {
+    return mapMarkers.value
+  }
+  // All filtered establishment markers + user location marker
+  const markers = [...allEstablishmentMarkers.value]
+  if (userLocation.value) {
+    const sourceBadgeHtml = locationSource.value ? `
+      <div style="display: inline-block; font-size: 10px; font-weight: 600; color: ${locationSource.value.color}; margin-bottom: 6px; background: rgba(0,0,0,0.04); padding: 2px 6px; border-radius: 4px;">
+        ${locationSource.value.type === 'satellite' ? 'Satellite GPS' : 'IP Network'}
+      </div>
+    ` : ''
+    markers.unshift({
+      address: locationSource.value?.type === 'satellite' ? 'Your Device Satellite GPS Location' : 'Your Device IP Network Location',
+      title: locationSource.value?.type === 'satellite' ? 'Starting Point (Satellite GPS)' : 'Starting Point (IP Network)',
+      position: userLocation.value,
+      isUserLocation: true,
+      infoWindowContent: `
+        <div style="padding: 8px 12px; font-family: system-ui, -apple-system, sans-serif;">
+          <div style="font-size: 10px; font-weight: 700; color: #10b981; text-transform: uppercase; margin-bottom: 2px;">Starting Point</div>
+          <h4 style="font-size: 13px; font-weight: 700; color: #171717; margin: 0 0 2px 0;">Your Device GPS Location</h4>
+          <p style="font-size: 11px; color: #64748b; margin: 0 0 4px 0;">Lat: ${userLocation.value.lat.toFixed(5)}, Lng: ${userLocation.value.lng.toFixed(5)}</p>
+          ${sourceBadgeHtml}
+        </div>
+      `
+    })
+  }
+  return markers
+})
+
 onMounted(() => {
-  if (!selectedEstablishment.value && filteredEstablishments.value.length > 0) {
-    selectEstablishment(filteredEstablishments.value[0]!)
-    if (filteredEstablishments.value[0]?.coordinates) {
-      mapCenter.value = filteredEstablishments.value[0].coordinates!
-    }
+  // Center on device or user location if already acquired
+  if (userLocation.value && !selectedEstablishment.value) {
+    mapCenter.value = userLocation.value
+    mapZoom.value = 16
   }
 
-  // Auto-start GPS device tracking — no button needed
-  if (!isLiveTracking.value && !userLocation.value) {
+  // Auto-start GPS device tracking to center on user location as default
+  if (!isLiveTracking.value) {
     requestUserLocation({ enableHighAccuracy: true, watch: true })
       .then((coords) => {
-        mapCenter.value = coords
-        mapZoom.value = 16
+        // Keep map centered on user location when no establishment is selected
+        if (!selectedEstablishment.value?.coordinates) {
+          mapCenter.value = coords
+          mapZoom.value = 16
+        }
       })
       .catch(() => {
-        // Permission denied or unavailable — silently ignore
+        // Fallback gracefully to default center if permission denied/unavailable
       })
   }
 })
 
 watch(filteredEstablishments, (newList) => {
-  if (newList.length > 0 && (!selectedEstablishment.value || !newList.some(e => e.id === selectedEstablishment.value?.id))) {
-    selectEstablishment(newList[0]!)
-    if (newList[0]?.coordinates) {
-      mapCenter.value = newList[0].coordinates!
-    }
+  // Reset to show all markers when filters change
+  userHasSelected.value = false
+  if (selectedEstablishment.value && !newList.some(e => e.id === selectedEstablishment.value?.id)) {
+    selectEstablishment(null)
   }
 })
 
-const onSelectEstablishment = (item: Establishment, shouldScroll = true) => {
+const onSelectEstablishment = (item: Establishment | null, shouldScroll = true) => {
+  if (!item) {
+    userHasSelected.value = false
+    selectEstablishment(null)
+    if (userLocation.value) {
+      mapCenter.value = userLocation.value
+      mapZoom.value = 16
+    } else {
+      mapCenter.value = defaultSanFranciscoCenter
+      mapZoom.value = 15
+    }
+    return
+  }
+  userHasSelected.value = true
   selectEstablishment(item)
   if (item.coordinates) {
     mapCenter.value = item.coordinates
@@ -99,14 +150,27 @@ const onSelectEstablishment = (item: Establishment, shouldScroll = true) => {
 }
 
 const handleMarkerClick = (marker: any, index: number) => {
-  // Check if clicked marker is the user's location marker
-  const markerConfig = mapMarkers.value[index]
-  if (markerConfig?.isUserLocation) {
+  const markerConfig = displayMarkers.value[index]
+  if (!markerConfig) return
+
+  // Clicked user location marker — just center on it
+  if (markerConfig.isUserLocation) {
     if (userLocation.value) {
       mapCenter.value = userLocation.value
       mapZoom.value = 17
     }
     return
+  }
+
+  // In "all markers" mode, find the matching establishment by position and select it
+  if (!userHasSelected.value) {
+    const match = filteredEstablishments.value.find(
+      e => e.coordinates?.lat === markerConfig.position.lat && e.coordinates?.lng === markerConfig.position.lng
+    )
+    if (match) {
+      onSelectEstablishment(match, true)
+      return
+    }
   }
 
   if (selectedEstablishment.value) {
@@ -125,13 +189,6 @@ const onLocateMeClick = async () => {
     mapCenter.value = coords
     mapZoom.value = 16
   } catch {
-  }
-}
-
-const centerOnUser = () => {
-  if (userLocation.value) {
-    mapCenter.value = userLocation.value
-    mapZoom.value = 17
   }
 }
 
@@ -156,9 +213,6 @@ const activeDestinationCoords = computed(() => {
     
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div>
-        <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#171717] dark:text-[#ffffff]">
-          <span>Interactive Directory Map </span>
-        </h2>
         <p class="text-xs sm:text-sm text-[#707070] dark:text-[#a3a3a3] mt-1">
           Discover places to stay (Hotels, Inns, Homestays, Resorts) and places to eat (Restaurants, Eateries, Cafes, Local Food Stalls) across San Francisco, Agusan del Sur with GPS route line directions.
         </p>
@@ -167,25 +221,17 @@ const activeDestinationCoords = computed(() => {
 
     <div ref="mapViewContainerRef" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start scroll-mt-24">
       <div class="lg:col-span-6 space-y-3">
-        <div class="flex items-center justify-between px-1">
-          <h3 class="text-xs font-bold uppercase tracking-wider text-[#707070] dark:text-[#a3a3a3] flex items-center gap-1.5">
-            <MapPin :size="15" class="text-[#85181a] dark:text-[#ef4444]" />
-            Location Map — {{ selectedCategory !== 'All' ? selectedCategory : 'Where to Stay & Eat' }}
-          </h3>
-        </div>
-
         <GoogleMap 
           :center="mapCenter"
           :zoom="mapZoom"
-          :markers="mapMarkers"
+          :markers="displayMarkers"
           :route-origin="userLocation"
           :route-destination="activeDestinationCoords"
           :route-origin-title="startPointLabel"
           :route-destination-title="selectedEstablishment ? `${selectedEstablishment.name} (${selectedEstablishment.address})` : 'Destination'"
           :travel-mode="travelMode"
           :show-route-summary="true"
-          height="540px"
-          center-address="San Francisco, Agusan del Sur, Philippines"
+          height="580px"
           @marker-click="handleMarkerClick"
           @route-calculated="handleRouteCalculated"
         />
@@ -199,7 +245,10 @@ const activeDestinationCoords = computed(() => {
           :route-duration="routeCalculationResult?.durationText"
           :is-live-tracking="isLiveTracking"
           :is-locating="isLocating"
+          :location-error="locationError"
           height="580px"
+          @clear="onSelectEstablishment(null)"
+          @locate="onLocateMeClick"
         />
       </div>
     </div>
@@ -230,7 +279,7 @@ const activeDestinationCoords = computed(() => {
         <div>
           <h3 class="text-lg font-bold text-[#171717] dark:text-[#ffffff] flex items-center gap-2">
             <LayoutGrid :size="20" class="text-[#85181a] dark:text-[#ef4444]" />
-            Establishments Showcase — {{ selectedCategory !== 'All' ? selectedCategory : 'Where to Stay & Eat' }}
+            Establishments Showcase
           </h3>
         </div>
 

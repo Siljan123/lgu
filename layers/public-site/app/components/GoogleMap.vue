@@ -81,22 +81,19 @@ const lastCalculatedDestination = ref<google.maps.LatLngLiteral | string | null>
 
 const { loadGoogleMaps, createMap, createMarker, geocodeAddress,  calculateDirections } = useGoogleMaps()
 
-function getUserLocationSymbol(heading?: number | null): google.maps.Symbol | undefined {
+function getUserLocationSymbol(_heading?: number | null): google.maps.Symbol | undefined {
   if (typeof google === 'undefined' || !google.maps) return undefined
 
-  const rotation = heading !== null && heading !== undefined && !isNaN(heading) ? heading : 0
-
-  // Google Maps navigation directional chevron arrow heading in the user's front direction
-  return {
-    path: 'M 0 -16 L 9 10 L 0 4 L -9 10 Z',
-    fillColor: '#2563eb', // Google Maps navigation blue
-    fillOpacity: 1,
-    strokeColor: '#ffffff',
-    strokeWeight: 2.5,
-    scale: 1.3,
-    rotation,
-    anchor: new google.maps.Point(0, 0),
-  }
+    // Google Maps standard blue circle / dot indicator for user or device location
+      return {
+      path: google.maps.SymbolPath.CIRCLE,
+      fillColor: '#2563eb',
+      fillOpacity: 1,
+      strokeColor: '#ffffff',
+      strokeWeight: 2.5,
+      scale: 9,
+      anchor: new google.maps.Point(0, 0),
+    }
 }
 
 
@@ -255,6 +252,7 @@ async function renderRoutePath() {
             map: map.value,
             position: originLoc,
             title: props.routeOriginTitle || leg?.start_address || 'Starting Location',
+            icon: getUserLocationSymbol(),
           })
         }
         if (destLoc) {
@@ -284,6 +282,7 @@ async function renderRoutePath() {
           map: map.value,
           position: originPt,
           title: props.routeOriginTitle || (typeof props.routeOrigin === 'string' ? props.routeOrigin : 'Starting Location'),
+          icon: getUserLocationSymbol(),
         })
 
         routeEndMarker.value = new google.maps.Marker({
